@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from jose import JWTError, jwt
+import jwt  # PyJWT (maintained; replaces unmaintained python-jose)
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -49,5 +49,5 @@ def decode_token(token: str) -> dict[str, Any] | None:
     """Return decoded claims, or ``None`` if invalid/expired."""
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError:
+    except jwt.PyJWTError:
         return None
