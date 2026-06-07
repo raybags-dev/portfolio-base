@@ -118,3 +118,58 @@ export const updateSkill = (token: string, id: number, body: Partial<Skill>) =>
   });
 export const deleteSkill = (token: string, id: number) =>
   request<void>(`/skills/${id}`, { method: "DELETE", token });
+
+// ---- modules (agents / crawlers / scheduler) ----
+// These are flag-gated server-side (404 when the module is disabled). The UI
+// surfaces that as a "module disabled" state.
+
+// agents
+export const listAgentWorkflows = (token: string) =>
+  request<string[]>("/agents/workflows", { token });
+export const runAgent = (
+  token: string,
+  body: { workflow: string; input: Record<string, unknown>; title?: string },
+) => request<Record<string, unknown>>("/agents/run", {
+  method: "POST", token, body: JSON.stringify(body),
+});
+export const listAgentTasks = (token: string) =>
+  request<Record<string, unknown>[]>("/agents/tasks", { token });
+export const getAgentTask = (token: string, id: number) =>
+  request<Record<string, unknown>>(`/agents/tasks/${id}`, { token });
+
+// crawlers
+export const listCrawlerJobs = (token: string) =>
+  request<Record<string, unknown>[]>("/crawlers/jobs", { token });
+export const createCrawlerJob = (token: string, body: Record<string, unknown>) =>
+  request<Record<string, unknown>>("/crawlers/jobs", {
+    method: "POST", token, body: JSON.stringify(body),
+  });
+export const runCrawlerJob = (token: string, id: number) =>
+  request<Record<string, unknown>>(`/crawlers/jobs/${id}/run`, {
+    method: "POST", token,
+  });
+export const crawlerJobLogs = (token: string, id: number) =>
+  request<Record<string, unknown>[]>(`/crawlers/jobs/${id}/logs`, { token });
+export const crawlerJobResults = (token: string, id: number) =>
+  request<Record<string, unknown>[]>(`/crawlers/jobs/${id}/results`, { token });
+
+// scheduler
+export const listSchedulerTasks = (token: string) =>
+  request<string[]>("/scheduler/tasks", { token });
+export const listSchedulerJobs = (token: string) =>
+  request<Record<string, unknown>[]>("/scheduler/jobs", { token });
+export const createSchedulerJob = (token: string, body: Record<string, unknown>) =>
+  request<Record<string, unknown>>("/scheduler/jobs", {
+    method: "POST", token, body: JSON.stringify(body),
+  });
+export const updateSchedulerJob = (
+  token: string, id: number, body: Record<string, unknown>,
+) => request<Record<string, unknown>>(`/scheduler/jobs/${id}`, {
+  method: "PUT", token, body: JSON.stringify(body),
+});
+export const runSchedulerJob = (token: string, id: number) =>
+  request<Record<string, unknown>>(`/scheduler/jobs/${id}/run`, {
+    method: "POST", token,
+  });
+export const schedulerTick = (token: string) =>
+  request<Record<string, unknown>>("/scheduler/tick", { method: "POST", token });

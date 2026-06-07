@@ -42,19 +42,25 @@ sound core it grows from.
   `healing_event`, and continues — no manual fix. Dependency-light (stdlib DOM +
   pluggable fetcher) so it runs/tests fully offline; Playwright/BeautifulSoup
   swap in for production. API at `/crawlers/*`.
+- **Scheduler** (`app/modules/scheduler/`, `ENABLE_SCHEDULER`) — `scheduled_jobs`
+  driven; a task registry runs crawler jobs / agent workflows by interval (cron
+  via optional `croniter`). Dependency-free in-process async ticker runs due
+  jobs only while the flag is on (runtime toggle). API at `/scheduler/*`.
+- **Admin UI for modules** — frontend pages drive Crawlers (jobs, run, logs with
+  highlighted healing events, results), AI Agents (run workflows, view tasks),
+  and the Scheduler (jobs, intervals, run-now, tick). Flag-aware.
 
 ## 🔜 Next (plug-in modules, each behind a flag)
 
 Each is a self-contained module under `backend/app/modules/<name>/` that checks
 its feature flag and registers routes/agents/jobs. No core changes required.
 
-1. **Frontend depth** — flesh out admin CRUD for every entity; media uploads;
-   resume PDF generation; richer charts.
+1. **Frontend depth** — flesh out admin CRUD for the remaining content entities
+   (projects, blog, recommendations, timeline…); media uploads; resume PDF;
+   richer charts.
 2. **Object storage service** (`ENABLE_STORAGE`/`ENABLE_S3`/`ENABLE_GCP`) —
    unify local/Supabase/S3/GCP behind one interface; wire `storage_files`.
-3. **Scheduler** (`ENABLE_SCHEDULER`) — APScheduler/Celery worker driving
-   `scheduled_jobs` (incl. recurring crawls).
-4. **Crawler upgrades** — production fetchers: a Playwright fetcher for
+3. **Crawler upgrades** — production fetchers: a Playwright fetcher for
    JS-rendered pages and a BeautifulSoup/lxml extractor (behind the existing
    `Fetcher`/`Extractor` interfaces), plus login/pagination flows.
 5. **Pipelines + quality** (`ENABLE_PIPELINES`/`ENABLE_DBT`) — Polars/DuckDB/
