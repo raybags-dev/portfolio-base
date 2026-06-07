@@ -32,8 +32,23 @@ async def lifespan(app: FastAPI):
         added = await flags.ensure_defaults(db)
         if added:
             log.info("feature_flags.seeded", added=added)
+    # Start the scheduler ticker (it no-ops unless ENABLE_SCHEDULER is on, so
+    # the admin can toggle scheduling at runtime). Best-effort: never block boot.
+    scheduler_task = None
+    try:
+        from app.modules.scheduler.runner import start_ticker
+
+        scheduler_task = start_ticker()
+        app.state.scheduler_task = scheduler_task
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("scheduler.ticker.start_failed", error=str(exc))
+
     log.info("startup.complete", environment=settings.ENVIRONMENT, version=__version__)
     yield
+
+    from app.modules.scheduler.runner import stop_ticker
+
+    await stop_ticker(scheduler_task)
     await engine.dispose()
     log.info("shutdown.complete")
 
