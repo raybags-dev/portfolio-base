@@ -1,0 +1,40 @@
+# ----------------------------------------------------------------------------
+# Core backend dependencies (fast install, no native build chains).
+# Heavy / optional modules (Kafka, Scrapy, Playwright, LangGraph, DBT,
+# Great Expectations, Polars, DuckDB...) live in requirements-optional.txt
+# and are pulled in per-service so the core API stays lean.
+# ----------------------------------------------------------------------------
+
+# --- web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# --- data / validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+email-validator==2.2.0
+
+# --- database ---
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+asyncpg==0.30.0          # Postgres / Supabase (prod)
+aiosqlite==0.20.0        # SQLite (local dev, zero-setup)
+greenlet==3.1.1
+
+# --- auth / security ---
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1            # pinned: passlib 1.7.4 mis-detects bcrypt>=4.1 version
+
+# --- infra clients (used when feature flags enable them) ---
+redis==5.2.1
+httpx==0.28.1
+
+# --- observability ---
+structlog==24.4.0
+prometheus-client==0.21.1
+
+# --- misc ---
+python-slugify==8.0.4
+tenacity==9.0.0

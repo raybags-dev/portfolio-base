@@ -1,0 +1,44 @@
+# ---- secrets / env ----
+.env
+.env.*
+!.env.example
+*.local
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+backend/venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.db
+*.sqlite3
+
+# ---- node / next ----
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# ---- infra / data ----
+.minio-data/
+pgdata/
+grafana-data/
+prometheus-data/
+*.log
+
+# ---- editor / os ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# directives kept local, not shipped
+directives.txt
