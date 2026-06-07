@@ -1,0 +1,90 @@
+name: Deploy (gated test → prod)
+
+# Safe release pipeline:
+#   1. test      — full lint + test gate (re-uses CI logic)
+#   2. deploy-test — deploy to the TEST environment over SSH, then smoke test
+#   3. deploy-prod — only runs if TEST deployed & smoked green; uses a protected
+#                    GitHub Environment so it can require manual approval.
+#
+# Configure repo secrets: SSH_HOST, SSH_USER, SSH_KEY, (optional) SSH_PORT.
+# Configure GitHub Environments "test" and "production" (add required reviewers
+# to "production" for a manual approval gate).
+#
+# MANUAL trigger only for now: deployment needs a provisioned server + the SSH
+# secrets above. Once the server exists, add `push: branches: [main]` back to
+# auto-deploy on merge to main.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Backend lint + tests
+        working-directory: backend
+        env:
+          ENVIRONMENT: test
+          SECRET_KEY: ci-secret-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check app tests
+          pytest -q
+      - name: Frontend build (if present)
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && (npm ci || npm install) && npm run build
+          else
+            echo "::notice::no frontend yet — skipped"
+          fi
+
+  deploy-test:
+    name: Deploy to TEST
+    needs: test
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ~/portfolio-base
+            git pull --ff-only
+            bash scripts/deploy.sh test
+            bash scripts/smoke.sh "http://localhost:${TEST_HTTP_PORT:-8080}"
+
+  deploy-prod:
+    name: Deploy to PROD
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: production   # add required reviewers here for manual approval
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ~/portfolio-base
+            git pull --ff-only
+            bash scripts/deploy.sh prod
+            bash scripts/smoke.sh "http://localhost:${PROD_HTTP_PORT:-80}"
