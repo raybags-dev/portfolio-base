@@ -40,7 +40,7 @@ tiktoken==0.8.0
 reportlab==4.2.5
 jinja2==3.1.5
 openpyxl==3.1.5
-markdown==3.7
+markdown==3.8.1
 
 # --- storage (ENABLE_S3, ENABLE_STORAGE) ---
 boto3==1.35.90
