@@ -36,4 +36,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.crawlers.router import spec as crawlers_spec
     specs.append(crawlers_spec)
 
+    from app.modules.scheduler.router import spec as scheduler_spec
+    specs.append(scheduler_spec)
+
     return specs
