@@ -103,6 +103,14 @@ class SiteConfigurationUpdate(_MapSanitizerMixin):
     og_image_url: str | None = None
     twitter_handle: str | None = None
     structured_data: dict[str, Any] | None = None
+
+    @field_validator("structured_data", mode="before")
+    @classmethod
+    def _coerce_structured_data(cls, v: object) -> object:
+        # The frontend stores all form values as strings; empty string = no value.
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
     analytics_provider: str | None = None
     analytics_id: str | None = None
     cookie_banner_enabled: bool | None = None
