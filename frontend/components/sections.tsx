@@ -60,10 +60,8 @@ export function Hero({ data }: { data: Bootstrap }) {
   const t = data.theme;
   if (!h.is_visible) return null;
 
-  // An image, if provided, always wins (this was the reported bug: adding an
-  // image URL did nothing because the mode stayed "gradient").
   let background: React.CSSProperties;
-  if (h.background_image_url) {
+  if (h.background_mode === "image" && h.background_image_url) {
     background = {
       backgroundImage: `linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.75)), url("${h.background_image_url}")`,
       backgroundSize: "cover",
@@ -87,9 +85,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         : "";
   const showAvatar = h.avatar_url && h.avatar_shape !== "none";
 
-  // When there is a background image the overlay is always dark (rgba 0.55–0.75),
-  // so text must always be white regardless of the active theme mode.
-  const hasImage = !!h.background_image_url;
+  const hasImage = h.background_mode === "image" && !!h.background_image_url;
   const textShadow = hasImage ? "0 1px 4px rgba(0,0,0,0.7)" : undefined;
 
   return (

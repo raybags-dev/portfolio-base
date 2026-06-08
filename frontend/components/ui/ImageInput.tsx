@@ -88,8 +88,18 @@ export function ImageInput({
       </div>
       {err && <p className="text-xs text-red-400 mt-1">{err}</p>}
       {value && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={value} alt="preview" className="mt-2 h-16 rounded-theme object-cover" />
+        <div className="mt-2 relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="preview" className="h-16 rounded-theme object-cover" />
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            title="Remove image"
+            className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-surface border border-white/20 text-muted hover:text-red-400 hover:border-red-400/60 text-xs transition-colors leading-none"
+          >
+            ×
+          </button>
+        </div>
       )}
 
       <Modal open={libraryOpen} onClose={() => setLibraryOpen(false)}>
