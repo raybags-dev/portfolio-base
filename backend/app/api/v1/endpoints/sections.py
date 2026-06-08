@@ -89,3 +89,30 @@ async def delete_section(key: str, db: DbSession):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "This section cannot be removed")
     await db.delete(section)
     await db.commit()
+
+
+@router.post("/reset", dependencies=[Depends(require_admin())])
+async def reset_sections(db: DbSession) -> dict[str, str]:
+    """Restore all DEFAULT_SECTIONS to their original state and remove custom additions."""
+    rows = (await db.scalars(select(Section))).all()
+    existing = {s.key: s for s in rows}
+    default_keys = {key for key, *_ in DEFAULT_SECTIONS}
+
+    for key, section in existing.items():
+        if key not in default_keys and section.is_removable:
+            await db.delete(section)
+
+    for key, label, order, removable, in_nav in DEFAULT_SECTIONS:
+        sec = existing.get(key)
+        if sec:
+            sec.label = label
+            sec.order = order
+            sec.is_removable = removable
+            sec.in_nav = in_nav
+            sec.enabled = True
+        else:
+            db.add(Section(key=key, label=label, order=order,
+                           is_removable=removable, in_nav=in_nav, enabled=True))
+
+    await db.commit()
+    return {"ok": "sections reset to defaults"}

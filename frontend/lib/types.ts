@@ -279,3 +279,20 @@ export interface TokenResponse {
   refresh_token: string;
   token_type: string;
 }
+
+export interface MediaAsset {
+  id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  url: string;
+  created_at: string;
+}
+
+export interface LogEntry {
+  event: string;
+  level: string;
+  timestamp: string;
+  logger?: string | null;
+  [key: string]: unknown;
+}

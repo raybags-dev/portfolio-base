@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBootstrap, updateHero } from "@/lib/api";
+import { getBootstrap, updateHero, resetHero } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import type { Hero } from "@/lib/types";
 import { ImageInput } from "@/components/ui/ImageInput";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
 
 export default function HeroPage() {
   const token = useAuth((s) => s.token)!;
@@ -40,7 +41,13 @@ export default function HeroPage() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <h1 className="font-heading font-bold text-2xl mb-2">Hero</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="font-heading font-bold text-2xl mb-2">Hero</h1>
+        <ResetConfirm
+          onReset={() => resetHero(token).then((h) => { setForm(h); })}
+          invalidateKeys={[["bootstrap"]]}
+        />
+      </div>
       {text("Name", "name")}
       {text("Title", "title")}
       {text("Subtitle", "subtitle")}
@@ -48,12 +55,12 @@ export default function HeroPage() {
       {text("CTA url", "cta_url")}
 
       <ImageInput
-        label="Background image (an image, if set, always shows)"
+        label="Background image"
         value={(form.background_image_url as string) || ""}
         onChange={(v) => set("background_image_url", v)}
       />
       <label className="block">
-        <span className="text-sm">Background mode (used when no image is set)</span>
+        <span className="text-sm">Background mode (fallback when no image is set)</span>
         <select
           value={form.background_mode || "gradient"}
           onChange={(e) => set("background_mode", e.target.value)}

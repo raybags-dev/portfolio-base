@@ -60,3 +60,12 @@ async def upsert_setting(payload: SettingUpsert, db: DbSession):
     await db.commit()
     await db.refresh(obj)
     return obj
+
+
+# ---- live log viewer ----
+@router.get("/logs", dependencies=[Depends(require_admin())])
+async def get_logs(limit: int = 200, level: str | None = None) -> list[dict]:
+    """Return recent in-memory log entries (admin only). Logs reset on restart."""
+    from app.core.logging import log_buffer
+
+    return log_buffer.recent(limit=min(limit, 500), level=level)
