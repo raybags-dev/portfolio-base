@@ -24,14 +24,46 @@ function ThemeToggle({ theme }: { theme: Theme }) {
   );
 }
 
-function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+function scrollTo(key: string) {
+  const el = document.getElementById(key);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth" });
+    window.history.replaceState(null, "", `/#${key}`);
+  } else {
+    // Not on a page that has this section — navigate to root first.
+    window.location.href = `/#${key}`;
+  }
+}
+
+function NavLink({
+  item,
+  active,
+  onNavigate,
+  className,
+}: {
+  item: NavItem;
+  active: boolean;
+  onNavigate?: () => void;
+  className?: string;
+}) {
+  const base = `transition-colors hover:text-primary whitespace-nowrap ${active ? "text-primary" : ""} ${className ?? ""}`;
+  if (item.isAnchor) {
+    return (
+      <a
+        href={`/#${item.key}`}
+        onClick={(e) => {
+          e.preventDefault();
+          scrollTo(item.key);
+          onNavigate?.();
+        }}
+        className={base}
+      >
+        {item.label}
+      </a>
+    );
+  }
   return (
-    <Link
-      href={item.href}
-      className={`transition-colors hover:text-primary whitespace-nowrap ${
-        active ? "text-primary" : ""
-      }`}
-    >
+    <Link href={item.href} onClick={onNavigate} className={base}>
       {item.label}
     </Link>
   );
@@ -111,7 +143,7 @@ export default function Navbar({
         {/* desktop */}
         <div className="hidden md:flex items-center gap-5 text-sm min-w-0">
           {visible.map((item) => (
-            <NavLink key={item.key} item={item} active={active(item)} />
+            <NavLink key={item.key} item={item} active={active(item)} onNavigate={() => setExplore(false)} />
           ))}
 
           {overflow.length > 0 && (
@@ -133,16 +165,13 @@ export default function Navbar({
                     style={{ backgroundColor: "var(--color-surface)" }}
                   >
                     {overflow.map((item) => (
-                      <Link
+                      <NavLink
                         key={item.key}
-                        href={item.href}
-                        onClick={() => setExplore(false)}
-                        className={`block rounded-theme px-3 py-2 hover:bg-white/5 transition-colors ${
-                          active(item) ? "text-primary" : ""
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
+                        item={item}
+                        active={active(item)}
+                        onNavigate={() => setExplore(false)}
+                        className="block rounded-theme px-3 py-2 hover:bg-white/5"
+                      />
                     ))}
                   </motion.div>
                 )}
@@ -204,16 +233,13 @@ export default function Navbar({
               </div>
               <nav className="flex flex-col gap-1 overflow-hidden">
                 {items.map((item) => (
-                  <Link
+                  <NavLink
                     key={item.key}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={`rounded-theme px-3 py-3 text-base transition-colors hover:bg-white/10 ${
-                      active(item) ? "text-primary bg-white/10" : ""
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
+                    item={item}
+                    active={active(item)}
+                    onNavigate={() => setOpen(false)}
+                    className="rounded-theme px-3 py-3 text-base hover:bg-white/10"
+                  />
                 ))}
               </nav>
             </motion.aside>
