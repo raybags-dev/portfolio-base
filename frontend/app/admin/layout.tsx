@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/store";
+import { ToastProvider } from "@/components/admin/Toast";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -11,7 +12,7 @@ const NAV = [
   { href: "/admin/theme", label: "Theme" },
   { href: "/admin/hero", label: "Hero" },
   { href: "/admin/skills", label: "Skills" },
-  { href: "/admin/recommendations", label: "Recommendations" },
+  { href: "/admin/recommendations", label: "Testimonials" },
   { href: "/admin/experience", label: "Experience" },
   { href: "/admin/education", label: "Education" },
   { href: "/admin/certifications", label: "Certifications" },
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/admin/crawlers", label: "Crawlers" },
   { href: "/admin/agents", label: "AI Agents" },
   { href: "/admin/scheduler", label: "Scheduler" },
+  { href: "/admin/account", label: "Account" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -32,10 +34,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!token && !isLogin) router.replace("/admin/login");
   }, [token, isLogin, router]);
 
-  if (isLogin) return <>{children}</>;
+  if (isLogin) return <ToastProvider>{children}</ToastProvider>;
   if (!token) return null;
 
   return (
+    <ToastProvider>
     <div className="min-h-screen grid grid-cols-[220px_1fr]">
       <aside className="border-r border-white/10 bg-surface p-4 flex flex-col">
         <div className="font-heading font-bold text-primary mb-6">Admin</div>
@@ -64,5 +67,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
       <main className="p-8 overflow-auto">{children}</main>
     </div>
+    </ToastProvider>
   );
 }

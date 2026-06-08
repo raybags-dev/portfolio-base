@@ -59,10 +59,18 @@ export const login = (email: string, password: string) =>
   });
 
 export const getMe = (token: string) =>
-  request<{ id: number; email: string; is_superuser: boolean; permissions: string[] }>(
+  request<{ id: number; email: string; full_name: string | null; is_superuser: boolean; permissions: string[] }>(
     "/auth/me",
     { token },
   );
+
+export const updateProfile = (token: string, body: { full_name?: string; email?: string }) =>
+  request("/auth/me", { method: "PUT", token, body: JSON.stringify(body) });
+
+export const changePassword = (
+  token: string,
+  body: { current_password: string; new_password: string; confirm_password: string },
+) => request("/auth/change-password", { method: "POST", token, body: JSON.stringify(body) });
 
 // ---- feature flags (admin) ----
 export const listFlags = (token: string) =>
