@@ -14,8 +14,10 @@ from app.models.blog import (  # noqa: F401
 from app.models.content import (  # noqa: F401
     AboutMe,
     HeroSection,
+    MediaAsset,
     PortfolioImage,
     Resume,
+    Section,
     Setting,
     SiteConfiguration,
     SocialLink,
@@ -25,6 +27,7 @@ from app.models.platform import (  # noqa: F401
     AgentTask,
     AiAgent,
     Analytics,
+    ContactMessage,
     CrawlerJob,
     CrawlerLog,
     CrawlerResult,
@@ -80,6 +83,8 @@ __all__ = [
     "Resume",
     "SocialLink",
     "PortfolioImage",
+    "MediaAsset",
+    "Section",
     # portfolio
     "Technology",
     "Project",
@@ -110,4 +115,5 @@ __all__ = [
     "ScheduledJob",
     "Notification",
     "StorageFile",
+    "ContactMessage",
 ]

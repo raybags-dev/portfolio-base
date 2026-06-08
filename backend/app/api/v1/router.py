@@ -8,8 +8,11 @@ from app.api.v1.endpoints import (
     auth,
     blog,
     collections,
+    contact,
     feature_flags,
+    media,
     public,
+    sections,
     singletons,
     system,
     users,
@@ -31,6 +34,9 @@ api_router.include_router(public.router)
 # editable content
 api_router.include_router(singletons.router, prefix="/content")
 api_router.include_router(collections.router)
+api_router.include_router(sections.router)
+api_router.include_router(media.router)
+api_router.include_router(contact.router)
 
 # blog
 api_router.include_router(blog.router)

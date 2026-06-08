@@ -1,17 +1,23 @@
 "use client";
 import Link from "next/link";
-import type { SiteConfiguration, Theme } from "@/lib/types";
+import type { Section, SiteConfiguration, Theme } from "@/lib/types";
 import { useUI } from "@/lib/store";
 
 export default function Nav({
   site,
   theme,
+  sections,
 }: {
   site: SiteConfiguration;
   theme: Theme;
+  sections: Section[];
 }) {
   const mode = useUI((s) => s.mode) ?? theme.default_mode;
   const toggle = useUI((s) => s.toggleMode);
+
+  const navItems = sections
+    .filter((s) => s.enabled && s.in_nav && s.key !== "hero")
+    .sort((a, b) => a.order - b.order);
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur border-b border-white/10 bg-bg/70">
@@ -25,10 +31,25 @@ export default function Nav({
           )}
         </Link>
         <div className="flex items-center gap-4 text-sm">
-          <a href="#projects" className="hover:text-primary transition-colors hidden sm:inline">Projects</a>
-          <a href="#skills" className="hover:text-primary transition-colors hidden sm:inline">Skills</a>
-          <a href="#about" className="hover:text-primary transition-colors hidden sm:inline">About</a>
-          <a href="#contact" className="hover:text-primary transition-colors hidden sm:inline">Contact</a>
+          {navItems.map((s) =>
+            s.key === "contact" ? (
+              <Link
+                key={s.key}
+                href="/contact"
+                className="hover:text-primary transition-colors hidden sm:inline"
+              >
+                {s.label}
+              </Link>
+            ) : (
+              <a
+                key={s.key}
+                href={`#${s.key}`}
+                className="hover:text-primary transition-colors hidden sm:inline"
+              >
+                {s.label}
+              </a>
+            ),
+          )}
           <button
             onClick={() => toggle(theme.default_mode)}
             aria-label="Toggle theme"

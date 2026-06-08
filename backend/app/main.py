@@ -32,6 +32,12 @@ async def lifespan(app: FastAPI):
         added = await flags.ensure_defaults(db)
         if added:
             log.info("feature_flags.seeded", added=added)
+        # Ensure the default navigable sections exist (idempotent).
+        from app.api.v1.endpoints.sections import ensure_default_sections
+
+        sec_added = await ensure_default_sections(db)
+        if sec_added:
+            log.info("sections.seeded", added=sec_added)
     # Start the scheduler ticker (it no-ops unless ENABLE_SCHEDULER is on, so
     # the admin can toggle scheduling at runtime). Best-effort: never block boot.
     scheduler_task = None

@@ -191,6 +191,9 @@ async def seed() -> None:
         await _seed_sample_content(db)
         await _seed_microservices(db)
         await flags.ensure_defaults(db)
+        from app.api.v1.endpoints.sections import ensure_default_sections
+
+        await ensure_default_sections(db)
         await db.commit()
     log.info("seed.complete")
 

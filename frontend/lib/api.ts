@@ -85,9 +85,16 @@ export const updateFlag = (
     body: JSON.stringify(body),
   });
 
-// ---- theme / hero (admin singletons) ----
+// ---- theme / hero / site (admin singletons) ----
 export const updateTheme = (token: string, body: Partial<Theme>) =>
   request<Theme>("/content/theme", {
+    method: "PUT",
+    token,
+    body: JSON.stringify(body),
+  });
+
+export const updateSiteConfig = (token: string, body: Record<string, unknown>) =>
+  request("/content/site-configuration", {
     method: "PUT",
     token,
     body: JSON.stringify(body),
@@ -173,3 +180,66 @@ export const runSchedulerJob = (token: string, id: number) =>
   });
 export const schedulerTick = (token: string) =>
   request<Record<string, unknown>>("/scheduler/tick", { method: "POST", token });
+
+// ---- media upload (multipart; browser sets the boundary) ----
+export async function uploadMedia(
+  token: string,
+  file: File,
+): Promise<{ id: number; url: string; content_type: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${V1}/media`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, typeof detail === "string" ? detail : "Upload failed");
+  }
+  return res.json();
+}
+
+// ---- sections ----
+export const listSections = () =>
+  request<import("./types").Section[]>("/sections");
+export const updateSection = (
+  token: string,
+  key: string,
+  body: Record<string, unknown>,
+) => request("/sections/" + key, {
+  method: "PUT", token, body: JSON.stringify(body),
+});
+
+// ---- contact (public) ----
+export const getContactChallenge = () =>
+  request<{ token: string; question: string }>("/contact/challenge");
+export const submitContact = (body: {
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  challenge_token: string;
+  challenge_answer: number;
+  website?: string;
+}) => request<{ ok: boolean; detail: string }>("/contact", {
+  method: "POST", body: JSON.stringify(body),
+});
+export const listContactMessages = (token: string) =>
+  request<Record<string, unknown>[]>("/contact/messages", { token });
+
+// ---- generic collection CRUD (experience / education / certifications) ----
+interface PageT<T> { items: T[]; total: number }
+export const listCollection = <T = Record<string, unknown>>(path: string) =>
+  request<PageT<T>>(path);
+export const createItem = (token: string, path: string, body: Record<string, unknown>) =>
+  request(path, { method: "POST", token, body: JSON.stringify(body) });
+export const updateItem = (token: string, path: string, id: number, body: Record<string, unknown>) =>
+  request(`${path}/${id}`, { method: "PUT", token, body: JSON.stringify(body) });
+export const deleteItem = (token: string, path: string, id: number) =>
+  request<void>(`${path}/${id}`, { method: "DELETE", token });

@@ -16,6 +16,10 @@ export interface SiteConfiguration {
   cookie_banner_text?: string | null;
   maintenance_mode: boolean;
   default_locale: string;
+  contact_email?: string | null;
+  phone?: string | null;
+  location_address?: string | null;
+  map_embed_url?: string | null;
 }
 
 export interface Theme {
@@ -51,6 +55,18 @@ export interface Hero {
   animation?: string | null;
   parallax_speed: number;
   is_visible: boolean;
+  avatar_url?: string | null;
+  avatar_shape?: "circle" | "rounded" | "none";
+}
+
+export interface Section {
+  id: number;
+  key: string;
+  label: string;
+  enabled: boolean;
+  order: number;
+  is_removable: boolean;
+  in_nav: boolean;
 }
 
 export interface About {
@@ -200,6 +216,7 @@ export interface Bootstrap {
   experiences: Experience[];
   education: Education[];
   certifications: Certification[];
+  sections: Section[];
   feature_flags: Record<string, boolean>;
   microservices: Microservice[];
 }
