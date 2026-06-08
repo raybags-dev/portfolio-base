@@ -37,7 +37,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: raybags-backend:latest
+    # CI pushes to Docker Hub; prod-deploy.sh pulls from there.
+    # Falls back to local build (deploy-vps.sh --build) when DOCKERHUB_USERNAME unset.
+    image: ${DOCKERHUB_USERNAME:-local}/raybags-backend:${IMAGE_TAG:-latest}
     restart: always
     environment:
       ENVIRONMENT:            production
@@ -95,7 +97,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}
-    image: raybags-frontend:latest
+    image: ${DOCKERHUB_USERNAME:-local}/raybags-frontend:${IMAGE_TAG:-latest}
     restart: always
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}

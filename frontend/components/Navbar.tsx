@@ -190,7 +190,7 @@ export default function Navbar({
                   ×
                 </button>
               </div>
-              <nav className="flex flex-col gap-1 overflow-y-auto">
+              <nav className="flex flex-col gap-1 overflow-hidden">
                 {items.map((item) => (
                   <Link
                     key={item.key}

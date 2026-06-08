@@ -10,7 +10,11 @@ from pydantic import BaseModel, field_validator
 from app.schemas.common import ORMModel, TimestampedRead
 
 _IFRAME_SRC_RE = re.compile(r'src=["\']([^"\']+)["\']', re.IGNORECASE)
-_MAPS_EMBED_RE = re.compile(r"^https://www\.google\.com/maps/embed", re.IGNORECASE)
+# Accepts both the standard embed URL and the old maps.google.com variant
+_MAPS_EMBED_RE = re.compile(
+    r"^https://(www\.google\.com/maps/embed|maps\.google\.com/maps)",
+    re.IGNORECASE,
+)
 
 
 def sanitize_map_embed(value: str | None) -> str | None:
