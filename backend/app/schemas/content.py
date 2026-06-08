@@ -45,6 +45,10 @@ class SiteConfigurationRead(ORMModel):
     robots_txt: str | None = None
     maintenance_mode: bool = False
     default_locale: str = "en"
+    contact_email: str | None = None
+    phone: str | None = None
+    location_address: str | None = None
+    map_embed_url: str | None = None
 
 
 class SiteConfigurationUpdate(BaseModel):
@@ -65,6 +69,10 @@ class SiteConfigurationUpdate(BaseModel):
     robots_txt: str | None = None
     maintenance_mode: bool | None = None
     default_locale: str | None = None
+    contact_email: str | None = None
+    phone: str | None = None
+    location_address: str | None = None
+    map_embed_url: str | None = None
 
 
 # ---- theme (singleton) ----
@@ -124,6 +132,8 @@ class HeroRead(ORMModel):
     animation: str | None = None
     parallax_speed: float = 0.4
     is_visible: bool = True
+    avatar_url: str | None = None
+    avatar_shape: str = "circle"
 
 
 class HeroUpdate(BaseModel):
@@ -139,6 +149,8 @@ class HeroUpdate(BaseModel):
     animation: str | None = None
     parallax_speed: float | None = None
     is_visible: bool | None = None
+    avatar_url: str | None = None
+    avatar_shape: str | None = None
 
 
 # ---- about (singleton) ----
@@ -204,3 +216,36 @@ class SocialLinkUpdate(BaseModel):
 
 class SocialLinkRead(TimestampedRead, SocialLinkBase):
     pass
+
+
+# ---- sections / nav (collection) ----
+class SectionBase(BaseModel):
+    key: str
+    label: str
+    enabled: bool = True
+    order: int = 0
+    is_removable: bool = True
+    in_nav: bool = True
+
+
+class SectionCreate(SectionBase):
+    pass
+
+
+class SectionUpdate(BaseModel):
+    label: str | None = None
+    enabled: bool | None = None
+    order: int | None = None
+    in_nav: bool | None = None
+
+
+class SectionRead(TimestampedRead, SectionBase):
+    pass
+
+
+# ---- media ----
+class MediaRead(TimestampedRead):
+    filename: str
+    content_type: str
+    size_bytes: int
+    url: str

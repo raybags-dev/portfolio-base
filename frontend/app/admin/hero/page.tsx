@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBootstrap, updateHero } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import type { Hero } from "@/lib/types";
+import { ImageInput } from "@/components/ui/ImageInput";
 
 export default function HeroPage() {
   const token = useAuth((s) => s.token)!;
@@ -45,9 +46,14 @@ export default function HeroPage() {
       {text("Subtitle", "subtitle")}
       {text("CTA text", "cta_text")}
       {text("CTA url", "cta_url")}
-      {text("Background image url", "background_image_url")}
+
+      <ImageInput
+        label="Background image (an image, if set, always shows)"
+        value={(form.background_image_url as string) || ""}
+        onChange={(v) => set("background_image_url", v)}
+      />
       <label className="block">
-        <span className="text-sm">Background mode</span>
+        <span className="text-sm">Background mode (used when no image is set)</span>
         <select
           value={form.background_mode || "gradient"}
           onChange={(e) => set("background_mode", e.target.value)}
@@ -58,6 +64,25 @@ export default function HeroPage() {
           <option value="color">color</option>
         </select>
       </label>
+
+      <ImageInput
+        label="Profile photo (of you)"
+        value={(form.avatar_url as string) || ""}
+        onChange={(v) => set("avatar_url", v)}
+      />
+      <label className="block">
+        <span className="text-sm">Profile photo shape</span>
+        <select
+          value={(form.avatar_shape as string) || "circle"}
+          onChange={(e) => set("avatar_shape", e.target.value)}
+          className="w-full mt-1 rounded-theme bg-bg border border-white/15 px-3 py-2"
+        >
+          <option value="circle">circle</option>
+          <option value="rounded">rounded</option>
+          <option value="none">none (hide)</option>
+        </select>
+      </label>
+
       <label className="flex items-center gap-2">
         <input
           type="checkbox"

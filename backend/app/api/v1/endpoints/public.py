@@ -17,6 +17,7 @@ from app.models.content import (
     AboutMe,
     HeroSection,
     Resume,
+    Section,
     SiteConfiguration,
     SocialLink,
     Theme,
@@ -82,6 +83,10 @@ async def bootstrap(db: DbSession) -> dict[str, Any]:
         await db.scalars(select(Certification).order_by(Certification.order))
     ).all()
 
+    sections = (
+        await db.scalars(select(Section).order_by(Section.order, Section.id))
+    ).all()
+
     flags = {f.key: f.enabled for f in (await db.scalars(select(FeatureFlag))).all()}
 
     services = (
@@ -113,6 +118,7 @@ async def bootstrap(db: DbSession) -> dict[str, Any]:
         "experiences": dump(experiences),
         "education": dump(education),
         "certifications": dump(certifications),
+        "sections": dump(sections),
         "feature_flags": flags,
         "microservices": dump(visible_services),
     }
