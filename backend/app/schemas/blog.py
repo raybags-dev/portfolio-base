@@ -51,6 +51,7 @@ class BlogPostBase(BaseModel):
     meta_description: str | None = None
     seo: dict[str, Any] | None = None
     category_id: int | None = None
+    is_featured: bool = False
 
 
 class BlogPostCreate(BlogPostBase):
@@ -72,8 +73,34 @@ class BlogPostUpdate(BaseModel):
     seo: dict[str, Any] | None = None
     category_id: int | None = None
     tag_slugs: list[str] | None = None
+    is_featured: bool | None = None
 
 
 class BlogPostRead(TimestampedRead, BlogPostBase):
     category: CategoryRead | None = None
     tags: list[TagRead] = []
+    like_count: int = 0
+    comment_count: int = 0
+
+
+class BlogPostDetail(BlogPostRead):
+    related: list[BlogPostRead] = []
+
+
+# ---- comments ----
+class CommentCreate(BaseModel):
+    author_name: str
+    author_email: str | None = None
+    content: str
+    website: str | None = None  # honeypot — must be empty
+
+
+class CommentRead(TimestampedRead):
+    author_name: str
+    content: str
+    post_id: int
+
+
+class LikeResponse(BaseModel):
+    like_count: int
+    liked: bool

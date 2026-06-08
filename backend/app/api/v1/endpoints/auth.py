@@ -115,6 +115,15 @@ async def update_profile(payload: ProfileUpdate, user: CurrentUser, db: DbSessio
 async def change_password(payload: PasswordChange, user: CurrentUser, db: DbSession) -> dict:
     if not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    # When an out-of-band token is configured, it must also be supplied & match.
+    if settings.CUSTOM_AUTH_TOKEN:
+        if not payload.auth_token or not secrets.compare_digest(
+            payload.auth_token, settings.CUSTOM_AUTH_TOKEN
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "A valid auth token (CUSTOM_AUTH_TOKEN) is required to change the password",
+            )
     user.hashed_password = hash_password(payload.new_password)
     await db.commit()
     return {"ok": True, "detail": "Password updated"}

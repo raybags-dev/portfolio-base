@@ -202,6 +202,49 @@ export interface Microservice {
   is_public: boolean;
 }
 
+export interface BlogCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+}
+
+export interface BlogTag {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface BlogPost {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  content_markdown?: string | null;
+  cover_image_url?: string | null;
+  status: string;
+  published_at?: string | null;
+  reading_minutes?: number | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  category_id?: number | null;
+  category?: BlogCategory | null;
+  tags: BlogTag[];
+  is_featured: boolean;
+  like_count: number;
+  comment_count: number;
+  created_at: string;
+  related?: BlogPost[];
+}
+
+export interface BlogComment {
+  id: number;
+  author_name: string;
+  content: string;
+  post_id: number;
+  created_at: string;
+}
+
 export interface Bootstrap {
   site_configuration: SiteConfiguration;
   theme: Theme;

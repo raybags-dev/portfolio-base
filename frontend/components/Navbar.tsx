@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Section, SiteConfiguration, Theme } from "@/lib/types";
-import { buildNavItems } from "@/lib/nav";
+import { buildNavItems, type NavItem } from "@/lib/nav";
 import { useUI } from "@/lib/store";
+
+const MAX_VISIBLE = 4; // links shown inline; the rest go under "Explore"
 
 function ThemeToggle({ theme }: { theme: Theme }) {
   const mode = useUI((s) => s.mode) ?? theme.default_mode;
@@ -13,11 +15,25 @@ function ThemeToggle({ theme }: { theme: Theme }) {
   return (
     <button
       onClick={() => toggle(theme.default_mode)}
-      aria-label="Toggle dark / light mode"
-      className="rounded-theme border border-white/15 px-3 py-1.5 hover:border-primary transition-colors"
+      aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      title={mode === "dark" ? "Light mode" : "Dark mode"}
+      className="grid h-9 w-9 place-items-center rounded-full border border-white/15 hover:border-primary transition-colors text-lg"
     >
-      {mode === "dark" ? "☀ Light" : "☾ Dark"}
+      {mode === "dark" ? "☀" : "☾"}
     </button>
+  );
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      className={`transition-colors hover:text-primary whitespace-nowrap ${
+        active ? "text-primary" : ""
+      }`}
+    >
+      {item.label}
+    </Link>
   );
 }
 
@@ -31,30 +47,47 @@ export default function Navbar({
   sections: Section[];
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); // mobile drawer
+  const [explore, setExplore] = useState(false); // desktop dropdown
+  const exploreRef = useRef<HTMLDivElement>(null);
   const items = buildNavItems(sections);
 
-  // Close drawer on route change + lock scroll while open + ESC to close.
-  useEffect(() => setOpen(false), [pathname]);
+  const visible = items.slice(0, MAX_VISIBLE);
+  const overflow = items.slice(MAX_VISIBLE);
+
+  useEffect(() => {
+    setOpen(false);
+    setExplore(false);
+  }, [pathname]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        setExplore(false);
+      }
+    }
+    function onClick(e: MouseEvent) {
+      if (exploreRef.current && !exploreRef.current.contains(e.target as Node)) {
+        setExplore(false);
+      }
     }
     document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
       document.body.style.overflow = "";
     };
   }, [open]);
 
-  const isActive = (item: { href: string; isAnchor: boolean }) =>
-    !item.isAnchor && pathname === item.href;
+  const active = (item: NavItem) => !item.isAnchor && pathname === item.href;
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur border-b border-white/10 bg-bg/70">
-      <nav className="container-x flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2 font-heading font-bold text-lg">
+    <header className="sticky top-0 z-40 backdrop-blur border-b border-white/10 bg-bg/80">
+      <nav className="container-x flex items-center justify-between h-16 gap-4">
+        <Link href="/" className="flex items-center gap-2 font-heading font-bold text-lg shrink-0">
           {site.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={site.logo_url} alt={site.site_name} className="h-8 w-auto" />
@@ -64,18 +97,47 @@ export default function Navbar({
         </Link>
 
         {/* desktop */}
-        <div className="hidden md:flex items-center gap-5 text-sm">
-          {items.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`transition-colors hover:text-primary ${
-                isActive(item) ? "text-primary" : ""
-              }`}
-            >
-              {item.label}
-            </Link>
+        <div className="hidden md:flex items-center gap-5 text-sm min-w-0">
+          {visible.map((item) => (
+            <NavLink key={item.key} item={item} active={active(item)} />
           ))}
+
+          {overflow.length > 0 && (
+            <div className="relative" ref={exploreRef}>
+              <button
+                onClick={() => setExplore((v) => !v)}
+                aria-expanded={explore}
+                className="flex items-center gap-1 hover:text-primary transition-colors"
+              >
+                Explore <span className="text-xs">▾</span>
+              </button>
+              <AnimatePresence>
+                {explore && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="absolute right-0 mt-2 w-52 rounded-theme border border-white/10 bg-surface shadow-card p-1.5"
+                    style={{ backgroundColor: "var(--color-surface)" }}
+                  >
+                    {overflow.map((item) => (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        onClick={() => setExplore(false)}
+                        className={`block rounded-theme px-3 py-2 hover:bg-white/5 transition-colors ${
+                          active(item) ? "text-primary" : ""
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
           <ThemeToggle theme={theme} />
         </div>
 
@@ -95,21 +157,22 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* mobile drawer */}
+      {/* mobile drawer — opaque, blurred, full height, above everything */}
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 md:hidden"
+            className="fixed inset-0 z-[80] md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               onClick={() => setOpen(false)}
             />
             <motion.aside
-              className="absolute right-0 top-0 h-full w-72 max-w-[80%] bg-surface border-l border-white/10 p-6 flex flex-col"
+              className="absolute right-0 top-0 h-screen w-72 max-w-[82%] border-l border-white/10 p-6 flex flex-col backdrop-blur-2xl shadow-2xl"
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-surface) 96%, transparent)" }}
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -119,18 +182,22 @@ export default function Navbar({
             >
               <div className="flex items-center justify-between mb-6">
                 <span className="font-heading font-bold text-primary">{site.site_name}</span>
-                <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-2xl leading-none text-muted hover:text-fg">
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label="Close menu"
+                  className="text-2xl leading-none text-muted hover:text-fg"
+                >
                   ×
                 </button>
               </div>
-              <nav className="flex flex-col gap-1">
+              <nav className="flex flex-col gap-1 overflow-y-auto">
                 {items.map((item) => (
                   <Link
                     key={item.key}
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className={`rounded-theme px-3 py-3 text-base transition-colors hover:bg-white/5 ${
-                      isActive(item) ? "text-primary bg-white/5" : ""
+                    className={`rounded-theme px-3 py-3 text-base transition-colors hover:bg-white/10 ${
+                      active(item) ? "text-primary bg-white/10" : ""
                     }`}
                   >
                     {item.label}

@@ -39,9 +39,7 @@ export function Section({
   return (
     <section id={id} className="container-x py-16 border-t border-white/5 scroll-mt-20">
       {title && (
-        <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">
-          <span className="text-primary">#</span> {title}
-        </h2>
+        <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">{title}</h2>
       )}
       {children}
     </section>
