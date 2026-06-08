@@ -209,11 +209,40 @@ export default function BlogAdmin() {
             <input placeholder="Tags (comma separated)" value={editor.tags} onChange={(e) => setEditor({ ...editor, tags: e.target.value })} className={cls} />
           </div>
 
+          {/* Prominent publish-state banner — the most common reason a post "doesn't appear" */}
+          <div className={`flex flex-wrap items-center gap-3 rounded-theme px-4 py-3 border ${
+            editor.status === "published"
+              ? "bg-green-500/10 border-green-500/30"
+              : "bg-amber-500/10 border-amber-500/30"
+          }`}>
+            <span className="text-sm font-medium flex-1">
+              {editor.status === "published"
+                ? "✓ Published — visible on the site"
+                : "⚠ Draft — not visible on the site until published"}
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setEditor({ ...editor, status: "draft" })}
+                className={`rounded-theme px-3 py-1.5 text-sm border transition-colors ${
+                  editor.status === "draft"
+                    ? "bg-amber-500/20 border-amber-400/60 text-amber-300"
+                    : "border-white/15 text-muted hover:border-white/30"
+                }`}
+              >Draft</button>
+              <button
+                type="button"
+                onClick={() => setEditor({ ...editor, status: "published" })}
+                className={`rounded-theme px-3 py-1.5 text-sm border transition-colors ${
+                  editor.status === "published"
+                    ? "bg-green-500/20 border-green-400/60 text-green-300"
+                    : "border-white/15 text-muted hover:border-green-400/40"
+                }`}
+              >Publish</button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-4">
-            <select value={editor.status} onChange={(e) => setEditor({ ...editor, status: e.target.value })} className="rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm">
-              <option value="draft">draft</option>
-              <option value="published">published</option>
-            </select>
             <label className="flex items-center gap-2 text-sm">Featured <Toggle checked={editor.is_featured} onChange={(v) => setEditor({ ...editor, is_featured: v })} /></label>
             <button onClick={() => setPreview((v) => !v)} className="rounded-theme border border-white/15 px-3 py-1.5 text-sm">{preview ? "Edit" : "Preview"}</button>
             <button onClick={() => fileRef.current?.click()} className="rounded-theme border border-white/15 px-3 py-1.5 text-sm">Insert image</button>

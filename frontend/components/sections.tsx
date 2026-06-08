@@ -180,8 +180,11 @@ export function Skills({ data }: { data: Bootstrap }) {
   }, {});
   return (
     <Section id="skills" title="Skills">
-      <div className="grid md:grid-cols-2 gap-x-10 gap-y-6">
-        {Object.entries(groups).map(([cat, skills]) => (
+      {(() => {
+        const entries = Object.entries(groups);
+        const left = entries.filter((_, i) => i % 2 === 0);
+        const right = entries.filter((_, i) => i % 2 === 1);
+        const renderGroup = ([cat, skills]: [string, typeof data.skills]) => (
           <div key={cat}>
             <h3 className="font-heading font-semibold mb-3 text-secondary">{cat}</h3>
             <div className="space-y-3">
@@ -201,8 +204,16 @@ export function Skills({ data }: { data: Bootstrap }) {
               ))}
             </div>
           </div>
-        ))}
-      </div>
+        );
+        return (
+          <div className="flex gap-x-10">
+            <div className="flex-1 flex flex-col gap-y-6">{left.map(renderGroup)}</div>
+            {right.length > 0 && (
+              <div className="flex-1 flex flex-col gap-y-6">{right.map(renderGroup)}</div>
+            )}
+          </div>
+        );
+      })()}
     </Section>
   );
 }
