@@ -3,6 +3,7 @@
 NEW = "NewPass!456"
 ADMIN = "admin@example.com"
 ORIG = "TestPass!123"
+TOK = "test-emergency-token-123"  # matches conftest CUSTOM_AUTH_TOKEN
 
 
 async def _login(client, email, password):
@@ -23,10 +24,16 @@ async def test_change_password_flow(client, auth_headers):
                                  "confirm_password": "different"})
     assert mm.status_code == 422
 
-    # success
+    # missing token rejected when CUSTOM_AUTH_TOKEN is configured
+    notok = await client.post("/api/v1/auth/change-password", headers=auth_headers,
+                              json={"current_password": ORIG, "new_password": NEW,
+                                    "confirm_password": NEW})
+    assert notok.status_code == 403
+
+    # success (with token)
     ok = await client.post("/api/v1/auth/change-password", headers=auth_headers,
                            json={"current_password": ORIG, "new_password": NEW,
-                                 "confirm_password": NEW})
+                                 "confirm_password": NEW, "auth_token": TOK})
     assert ok.status_code == 200
     assert (await _login(client, ADMIN, NEW)).status_code == 200
     assert (await _login(client, ADMIN, ORIG)).status_code == 401
@@ -36,7 +43,7 @@ async def test_change_password_flow(client, auth_headers):
     await client.post("/api/v1/auth/change-password",
                       headers={"Authorization": f"Bearer {tok}"},
                       json={"current_password": NEW, "new_password": ORIG,
-                            "confirm_password": ORIG})
+                            "confirm_password": ORIG, "auth_token": TOK})
     assert (await _login(client, ADMIN, ORIG)).status_code == 200
 
 
@@ -57,7 +64,7 @@ async def test_emergency_reset(client):
     await client.post("/api/v1/auth/change-password",
                       headers={"Authorization": f"Bearer {tok}"},
                       json={"current_password": NEW, "new_password": ORIG,
-                            "confirm_password": ORIG})
+                            "confirm_password": ORIG, "auth_token": TOK})
 
 
 async def test_update_profile_name(client, auth_headers):

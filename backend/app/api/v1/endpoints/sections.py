@@ -22,7 +22,8 @@ DEFAULT_SECTIONS: list[tuple[str, str, int, bool, bool]] = [
     ("experience", "Experience", 6, True, True),
     ("education", "Education", 7, True, True),
     ("certifications", "Certifications", 8, True, True),
-    ("contact", "Contact", 9, False, True),
+    ("blog", "Blog", 9, True, True),
+    ("contact", "Contact", 10, False, True),
 ]
 
 
