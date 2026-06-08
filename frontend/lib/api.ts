@@ -6,6 +6,8 @@ import type {
   Theme,
   Hero,
   TokenResponse,
+  MediaAsset,
+  LogEntry,
 } from "./types";
 
 export const API_BASE =
@@ -302,6 +304,33 @@ export const createBlogTag = (token: string, body: { name: string; slug: string 
 
 export const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+// ---- singleton resets (admin) ----
+export const resetTheme = (token: string) =>
+  request<Theme>("/content/theme/reset", { method: "POST", token });
+export const resetHero = (token: string) =>
+  request<Hero>("/content/hero/reset", { method: "POST", token });
+export const resetSiteConfig = (token: string) =>
+  request("/content/site-configuration/reset", { method: "POST", token });
+export const resetAbout = (token: string) =>
+  request("/content/about/reset", { method: "POST", token });
+export const resetResume = (token: string) =>
+  request("/content/resume/reset", { method: "POST", token });
+export const resetSections = (token: string) =>
+  request("/sections/reset", { method: "POST", token });
+export const resetFlags = (token: string) =>
+  request("/feature-flags/reset", { method: "POST", token });
+
+// ---- media library (admin) ----
+export const listMedia = (token: string) =>
+  request<MediaAsset[]>("/media", { token });
+
+// ---- live logs (admin) ----
+export const getLogs = (token: string, limit = 200, level?: string) => {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (level) qs.set("level", level);
+  return request<LogEntry[]>(`/logs?${qs}`, { token });
+};
 
 // ---- generic collection CRUD (experience / education / certifications) ----
 interface PageT<T> { items: T[]; total: number }

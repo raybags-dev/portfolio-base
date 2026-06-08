@@ -73,3 +73,21 @@ async def toggle_flag(key: str, db: DbSession):
     await db.commit()
     await db.refresh(flag)
     return flag
+
+
+@router.post("/reset", dependencies=[Depends(require_admin())])
+async def reset_flags(db: DbSession) -> dict[str, str]:
+    """Restore all DEFAULT_FLAGS to their canonical enabled/disabled state."""
+    from app.services.feature_flags import DEFAULT_FLAGS
+
+    rows = (await db.scalars(select(FeatureFlag))).all()
+    existing = {f.key: f for f in rows}
+    for key, (label, group, enabled, desc) in DEFAULT_FLAGS.items():
+        flag = existing.get(key)
+        if flag:
+            flag.enabled = enabled
+            flag.label = label
+            flag.group = group
+            flag.description = desc
+    await db.commit()
+    return {"ok": "flags reset to defaults"}

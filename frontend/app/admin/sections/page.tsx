@@ -1,9 +1,10 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listSections, updateSection } from "@/lib/api";
+import { listSections, updateSection, resetSections } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import type { Section } from "@/lib/types";
 import { Toggle } from "@/components/ui/Toggle";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
 
 export default function SectionsAdmin() {
   const token = useAuth((s) => s.token)!;
@@ -24,22 +25,34 @@ export default function SectionsAdmin() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="font-heading font-bold text-2xl mb-2">Sections &amp; Tabs</h1>
-      <p className="text-muted text-sm mb-6">
-        Show/hide any section of the site and control whether it appears in the nav.
-        Disable a section to remove its tab entirely — no redeploy.
-      </p>
-      <div className="space-y-2">
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <h1 className="font-heading font-bold text-2xl">Sections &amp; Tabs</h1>
+          <p className="text-muted text-sm mt-1">
+            Show/hide any section and control whether it appears in the nav. No redeploy needed.
+          </p>
+        </div>
+        <ResetConfirm
+          onReset={() => resetSections(token)}
+          invalidateKeys={[["sections"], ["bootstrap"]]}
+        />
+      </div>
+      <div className="space-y-2 mt-6">
         {sorted.map((s: Section) => (
           <div
             key={s.key}
-            className="flex items-center justify-between rounded-theme bg-surface border border-white/10 px-4 py-3"
+            className={`flex items-center justify-between rounded-theme bg-surface border px-4 py-3 transition-opacity ${
+              s.enabled ? "border-white/10" : "border-white/5 opacity-50 grayscale"
+            }`}
           >
             <div>
               <span className="font-medium">{s.label}</span>{" "}
               <span className="text-xs text-muted">#{s.key}</span>
               {!s.is_removable && (
                 <span className="ml-2 text-xs text-muted">(core)</span>
+              )}
+              {!s.enabled && (
+                <span className="ml-2 text-xs text-orange-400/70">(hidden)</span>
               )}
             </div>
             <div className="flex items-center gap-6">
