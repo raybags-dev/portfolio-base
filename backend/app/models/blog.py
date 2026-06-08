@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -58,6 +59,8 @@ class BlogPost(PKMixin, TimestampMixin, Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reading_minutes: Mapped[int | None] = mapped_column(Integer)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    like_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # SEO
     meta_title: Mapped[str | None] = mapped_column(String(255))
@@ -71,3 +74,32 @@ class BlogPost(PKMixin, TimestampMixin, Base):
     tags: Mapped[list[Tag]] = relationship(
         secondary=post_tags, back_populates="posts", lazy="selectin"
     )
+    comments: Mapped[list[BlogComment]] = relationship(
+        back_populates="post", cascade="all, delete-orphan"
+    )
+
+
+class BlogComment(PKMixin, TimestampMixin, Base):
+    __tablename__ = "blog_comments"
+
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("blog_posts.id", ondelete="CASCADE"), index=True
+    )
+    author_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    author_email: Mapped[str | None] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+
+    post: Mapped[BlogPost] = relationship(back_populates="comments")
+
+
+class BlogLike(PKMixin, TimestampMixin, Base):
+    """One like per (post, fingerprint/ip) — keeps the count honest."""
+
+    __tablename__ = "blog_likes"
+
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("blog_posts.id", ondelete="CASCADE"), index=True
+    )
+    fingerprint: Mapped[str] = mapped_column(String(128), index=True)

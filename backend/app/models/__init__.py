@@ -6,6 +6,8 @@ import this package first.
 
 from app.models.base import PKMixin, TimestampMixin  # noqa: F401
 from app.models.blog import (  # noqa: F401
+    BlogComment,
+    BlogLike,
     BlogPost,
     Category,
     Tag,
@@ -99,6 +101,8 @@ __all__ = [
     "Category",
     "Tag",
     "BlogPost",
+    "BlogComment",
+    "BlogLike",
     "post_tags",
     # platform
     "FeatureFlag",

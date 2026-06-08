@@ -14,7 +14,12 @@ export default function AccountPage() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => getMe(token) });
 
   const [profile, setProfile] = useState({ full_name: "", email: "" });
-  const [pw, setPw] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [pw, setPw] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+    auth_token: "",
+  });
 
   useEffect(() => {
     if (me) setProfile({ full_name: me.full_name || "", email: me.email });
@@ -33,7 +38,7 @@ export default function AccountPage() {
   const savePw = useMutation({
     mutationFn: () => changePassword(token, pw),
     onSuccess: () => {
-      setPw({ current_password: "", new_password: "", confirm_password: "" });
+      setPw({ current_password: "", new_password: "", confirm_password: "", auth_token: "" });
       toast.success("Password changed");
     },
     onError: (e) => toast.error("Could not change password", e),
@@ -97,6 +102,17 @@ export default function AccountPage() {
           onChange={(e) => setPw({ ...pw, confirm_password: e.target.value })}
           className={cls}
         />
+        <input
+          type="password"
+          placeholder="Auth token (CUSTOM_AUTH_TOKEN)"
+          value={pw.auth_token}
+          onChange={(e) => setPw({ ...pw, auth_token: e.target.value })}
+          className={cls}
+        />
+        <p className="text-xs text-muted">
+          Required: the password only changes when this matches the server&apos;s
+          <code className="text-accent"> CUSTOM_AUTH_TOKEN</code>.
+        </p>
         <button
           onClick={() => savePw.mutate()}
           disabled={savePw.isPending}

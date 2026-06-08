@@ -24,6 +24,8 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8)
     confirm_password: str
+    # Required when CUSTOM_AUTH_TOKEN is configured on the server.
+    auth_token: str | None = None
 
     @model_validator(mode="after")
     def _match(self) -> PasswordChange:

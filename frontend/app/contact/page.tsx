@@ -102,7 +102,11 @@ export default function ContactPage() {
               <iframe
                 title="Location map"
                 src={site.map_embed_url}
+                width="100%"
+                height="288"
+                style={{ border: 0 }}
                 className="w-full h-72 rounded-theme border border-white/10"
+                allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />

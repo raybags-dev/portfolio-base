@@ -69,7 +69,12 @@ export const updateProfile = (token: string, body: { full_name?: string; email?:
 
 export const changePassword = (
   token: string,
-  body: { current_password: string; new_password: string; confirm_password: string },
+  body: {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+    auth_token?: string;
+  },
 ) => request("/auth/change-password", { method: "POST", token, body: JSON.stringify(body) });
 
 // ---- feature flags (admin) ----
@@ -114,6 +119,9 @@ export const updateHero = (token: string, body: Partial<Hero>) =>
     token,
     body: JSON.stringify(body),
   });
+
+export const updateAbout = (token: string, body: Record<string, unknown>) =>
+  request("/content/about", { method: "PUT", token, body: JSON.stringify(body) });
 
 // ---- skills CRUD (admin) ----
 interface Page<T> {
@@ -240,6 +248,60 @@ export const submitContact = (body: {
 });
 export const listContactMessages = (token: string) =>
   request<Record<string, unknown>[]>("/contact/messages", { token });
+
+// ---- blog (public) ----
+import type { BlogComment, BlogPost } from "./types";
+
+interface Paged<T> { items: T[]; total: number; limit: number; offset: number }
+
+export const listBlogPosts = (params: {
+  limit?: number; offset?: number; q?: string; category?: string; tag?: string; featured?: boolean;
+} = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== "" && v !== null) qs.set(k, String(v));
+  });
+  const s = qs.toString();
+  return request<Paged<BlogPost>>(`/blog/posts${s ? `?${s}` : ""}`);
+};
+export const getBlogPost = (slug: string) => request<BlogPost>(`/blog/posts/${slug}`);
+export const likeBlogPost = (slug: string) =>
+  request<{ like_count: number; liked: boolean }>(`/blog/posts/${slug}/like`, { method: "POST" });
+export const listBlogComments = (slug: string) =>
+  request<BlogComment[]>(`/blog/posts/${slug}/comments`);
+export const addBlogComment = (slug: string, body: {
+  author_name: string; author_email?: string; content: string; website?: string;
+}) => request<BlogComment>(`/blog/posts/${slug}/comments`, { method: "POST", body: JSON.stringify(body) });
+
+// ---- blog (admin) ----
+export const manageBlogPosts = (token: string) =>
+  request<BlogPost[]>("/blog/manage/posts", { token });
+export const createBlogPost = (token: string, body: Record<string, unknown>) =>
+  request<BlogPost>("/blog/posts", { method: "POST", token, body: JSON.stringify(body) });
+export const updateBlogPost = (token: string, id: number, body: Record<string, unknown>) =>
+  request<BlogPost>(`/blog/posts/${id}`, { method: "PUT", token, body: JSON.stringify(body) });
+export const deleteBlogPost = (token: string, id: number) =>
+  request<void>(`/blog/posts/${id}`, { method: "DELETE", token });
+export const manageBlogComments = (token: string) =>
+  request<(BlogComment & { post_id: number })[]>("/blog/manage/comments", { token });
+export const deleteBlogComment = (token: string, id: number) =>
+  request<void>(`/blog/manage/comments/${id}`, { method: "DELETE", token });
+
+export const listBlogCategories = () =>
+  request<Paged<import("./types").BlogCategory>>("/blog/categories");
+export const createBlogCategory = (token: string, body: { name: string; slug: string }) =>
+  request<import("./types").BlogCategory>("/blog/categories", {
+    method: "POST", token, body: JSON.stringify(body),
+  });
+export const listBlogTags = () =>
+  request<Paged<import("./types").BlogTag>>("/blog/tags");
+export const createBlogTag = (token: string, body: { name: string; slug: string }) =>
+  request<import("./types").BlogTag>("/blog/tags", {
+    method: "POST", token, body: JSON.stringify(body),
+  });
+
+export const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 // ---- generic collection CRUD (experience / education / certifications) ----
 interface PageT<T> { items: T[]; total: number }

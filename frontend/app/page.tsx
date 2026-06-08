@@ -4,6 +4,7 @@ import { getBootstrap } from "@/lib/api";
 import type { Bootstrap } from "@/lib/types";
 import ThemeProvider from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
+import BackToTop from "@/components/BackToTop";
 import RecommendationsCarousel from "@/components/RecommendationsCarousel";
 import {
   About,
@@ -94,6 +95,7 @@ export default function HomePage() {
         })}
       </main>
       <Footer data={data} />
+      <BackToTop />
     </>
   );
 }
