@@ -425,31 +425,94 @@ export function Certifications({ data }: { data: Bootstrap }) {
   );
 }
 
-// --- Footer (social links + contact CTA) ---
+// --- Footer (brand + nav + contact + socials) ---
 export function Footer({ data }: { data: Bootstrap }) {
+  const site = data.site_configuration;
   const socials = data.social_links.filter((s) => s.is_visible);
+  const enabled = new Set(data.sections.filter((s) => s.enabled).map((s) => s.key));
+  const year = new Date().getFullYear();
+
+  // Build footer nav from what actually exists, so there are no dead links.
+  const navLinks: { label: string; href: string }[] = [];
+  if (enabled.has("about")) navLinks.push({ label: "About", href: "/#about" });
+  if (data.resume?.is_public && data.resume.pdf_url)
+    navLinks.push({ label: "Resume", href: data.resume.pdf_url });
+  if (enabled.has("projects")) navLinks.push({ label: "Portfolio", href: "/#projects" });
+  if (enabled.has("blog")) navLinks.push({ label: "Blog", href: "/blog" });
+  if (enabled.has("contact")) navLinks.push({ label: "Contact", href: "/contact" });
+
   return (
-    <footer className="container-x py-12 border-t border-white/5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-3">
-          {socials.map((s) => (
-            <a
-              key={s.id}
-              href={s.url}
-              className="rounded-theme border border-white/15 px-4 py-2 hover:border-primary transition-colors text-sm"
-            >
-              {s.label || s.platform}
-            </a>
-          ))}
+    <footer className="border-t border-white/10 bg-surface/40">
+      <div className="container-x py-14 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
+        {/* brand */}
+        <div>
+          <div className="font-heading font-bold text-lg">
+            {site.site_name}
+            <span className="text-primary">™</span>
+          </div>
+          {site.tagline && <p className="text-muted text-sm mt-3 max-w-sm">{site.tagline}</p>}
+          {site.location_address && (
+            <p className="text-muted text-sm mt-3">{site.location_address}</p>
+          )}
         </div>
-        <Link
-          href="/contact"
-          className="rounded-theme bg-primary text-white px-5 py-2.5 hover:opacity-90"
-        >
-          Get in touch →
-        </Link>
+
+        {/* navigation */}
+        {navLinks.length > 0 && (
+          <div>
+            <h4 className="font-heading font-semibold mb-3 text-sm uppercase tracking-wide text-muted">
+              Navigation
+            </h4>
+            <ul className="space-y-2 text-sm">
+              {navLinks.map((l) => (
+                <li key={l.label}>
+                  <Link href={l.href} className="hover:text-primary transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* contact + socials */}
+        <div>
+          <h4 className="font-heading font-semibold mb-3 text-sm uppercase tracking-wide text-muted">
+            Contact
+          </h4>
+          <ul className="space-y-2 text-sm">
+            {site.contact_email && (
+              <li>
+                <a href={`mailto:${site.contact_email}`} className="hover:text-primary">
+                  {site.contact_email}
+                </a>
+              </li>
+            )}
+            {site.phone && (
+              <li>
+                <a href={`tel:${site.phone}`} className="hover:text-primary">{site.phone}</a>
+              </li>
+            )}
+          </ul>
+          {socials.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {socials.map((s) => (
+                <a
+                  key={s.id}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-theme border border-white/15 px-3 py-1.5 text-xs hover:border-primary transition-colors"
+                >
+                  {s.label || s.platform}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <p className="text-muted text-sm mt-8">© {data.site_configuration.site_name}</p>
+      <div className="container-x py-5 border-t border-white/5 text-muted text-xs">
+        © 2020–{year} {site.site_name}. All rights reserved.
+      </div>
     </footer>
   );
 }

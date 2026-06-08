@@ -15,7 +15,7 @@ const FIELDS: FieldDef[] = [
 export default function RecommendationsAdmin() {
   return (
     <CollectionEditor
-      title="Recommendations"
+      title="Testimonials"
       path="/recommendations"
       fields={FIELDS}
       itemLabel={(i) => `${i.author_name}${i.company ? " · " + i.company : ""}`}

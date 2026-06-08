@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -9,15 +10,24 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    hash_password,
     verify_password,
 )
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, Token
+from app.schemas.auth import (
+    EmergencyReset,
+    LoginRequest,
+    PasswordChange,
+    ProfileUpdate,
+    RefreshRequest,
+    Token,
+)
 from app.schemas.user import CurrentUser as CurrentUserSchema
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -81,3 +91,52 @@ async def me(user: CurrentUser) -> CurrentUserSchema:
         is_superuser=user.is_superuser,
         permissions=sorted(user.permission_codes),
     )
+
+
+@router.put("/me", response_model=CurrentUserSchema)
+async def update_profile(payload: ProfileUpdate, user: CurrentUser, db: DbSession):
+    data = payload.model_dump(exclude_unset=True)
+    if "email" in data and data["email"] and data["email"] != user.email:
+        existing = await db.scalar(select(User).where(User.email == data["email"]))
+        if existing and existing.id != user.id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Email already in use")
+        user.email = data["email"]
+    if "full_name" in data:
+        user.full_name = data["full_name"]
+    await db.commit()
+    await db.refresh(user)
+    return CurrentUserSchema(
+        id=user.id, email=user.email, full_name=user.full_name,
+        is_superuser=user.is_superuser, permissions=sorted(user.permission_codes),
+    )
+
+
+@router.post("/change-password")
+async def change_password(payload: PasswordChange, user: CurrentUser, db: DbSession) -> dict:
+    if not verify_password(payload.current_password, user.hashed_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    user.hashed_password = hash_password(payload.new_password)
+    await db.commit()
+    return {"ok": True, "detail": "Password updated"}
+
+
+@router.post("/emergency-reset")
+async def emergency_reset(payload: EmergencyReset, db: DbSession) -> dict:
+    """Out-of-band credential reset validated against CUSTOM_AUTH_TOKEN.
+
+    Lets an admin recover access without a session if the password is lost.
+    """
+    expected = settings.CUSTOM_AUTH_TOKEN
+    if not expected:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Emergency reset is not configured (set CUSTOM_AUTH_TOKEN)",
+        )
+    if not secrets.compare_digest(payload.token, expected):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid emergency token")
+    target = await db.scalar(select(User).where(User.email == payload.email))
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No user with that email")
+    target.hashed_password = hash_password(payload.new_password)
+    await db.commit()
+    return {"ok": True, "detail": "Password reset for " + target.email}

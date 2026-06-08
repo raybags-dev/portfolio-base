@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createItem, deleteItem, listCollection, updateItem } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { ImageInput } from "@/components/ui/ImageInput";
+import { useToast } from "@/components/admin/Toast";
 
 export type FieldType = "text" | "textarea" | "number" | "checkbox" | "image" | "list";
 
@@ -101,6 +102,7 @@ export default function CollectionEditor({
 }) {
   const token = useAuth((s) => s.token)!;
   const qc = useQueryClient();
+  const toast = useToast();
   const { data } = useQuery({ queryKey: [path], queryFn: () => listCollection(path) });
   const items = (data?.items as Row[]) ?? [];
 
@@ -117,16 +119,26 @@ export default function CollectionEditor({
     onSuccess: () => {
       setDraft({});
       refresh();
+      toast.success("Added");
     },
+    onError: (e) => toast.error("Could not add item", e),
   });
   const save = useMutation({
     mutationFn: ({ id, form }: { id: number; form: Row }) =>
       updateItem(token, path, id, toPayload(fields, form)),
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      toast.success("Saved");
+    },
+    onError: (e) => toast.error("Could not save", e),
   });
   const remove = useMutation({
     mutationFn: (id: number) => deleteItem(token, path, id),
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      toast.success("Deleted");
+    },
+    onError: (e) => toast.error("Could not delete", e),
   });
 
   return (

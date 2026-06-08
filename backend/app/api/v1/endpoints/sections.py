@@ -18,7 +18,7 @@ DEFAULT_SECTIONS: list[tuple[str, str, int, bool, bool]] = [
     ("skills", "Skills", 2, True, True),
     ("projects", "Projects", 3, True, True),
     ("platform", "Data Platform", 4, True, True),
-    ("recommendations", "Recommendations", 5, True, True),
+    ("recommendations", "Testimonials", 5, True, True),
     ("experience", "Experience", 6, True, True),
     ("education", "Education", 7, True, True),
     ("certifications", "Certifications", 8, True, True),
@@ -26,8 +26,13 @@ DEFAULT_SECTIONS: list[tuple[str, str, int, bool, bool]] = [
 ]
 
 
+# One-time label normalisations for sections that were renamed after release.
+_RENAMES = {"recommendations": ("Recommendations", "Testimonials")}
+
+
 async def ensure_default_sections(db) -> int:
-    existing = set((await db.scalars(select(Section.key))).all())
+    rows = (await db.scalars(select(Section))).all()
+    existing = {s.key: s for s in rows}
     added = 0
     for key, label, order, removable, in_nav in DEFAULT_SECTIONS:
         if key in existing:
@@ -35,8 +40,12 @@ async def ensure_default_sections(db) -> int:
         db.add(Section(key=key, label=label, order=order,
                        is_removable=removable, in_nav=in_nav, enabled=True))
         added += 1
-    if added:
-        await db.commit()
+    # Apply default-label renames only when the admin hasn't customised them.
+    for key, (old, new) in _RENAMES.items():
+        sec = existing.get(key)
+        if sec and sec.label == old:
+            sec.label = new
+    await db.commit()
     return added
 
 

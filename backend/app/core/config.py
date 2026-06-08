@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # ---- security ----
     # MUST be overridden in every non-local environment.
     SECRET_KEY: str = "dev-insecure-change-me-please-0000000000000000"
+    # Emergency out-of-band token for admin credential reset (see auth router).
+    CUSTOM_AUTH_TOKEN: str | None = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12        # 12h
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14  # 14d
