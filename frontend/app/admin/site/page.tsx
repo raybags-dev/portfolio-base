@@ -24,8 +24,25 @@ export default function SiteAdmin() {
     }
   }, [data?.site_configuration]);
 
+  // Strip read-only/extra fields the frontend echoes back from bootstrap,
+  // and coerce empty strings to null for JSON dict fields.
+  function buildPayload(f: Record<string, unknown>) {
+    const skip = new Set(["id", "created_at", "updated_at"]);
+    const jsonFields = new Set(["structured_data"]);
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(f)) {
+      if (skip.has(k)) continue;
+      if (jsonFields.has(k)) {
+        out[k] = typeof v === "string" && v.trim() === "" ? null : v;
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
   const save = useMutation({
-    mutationFn: () => updateSiteConfig(token, form),
+    mutationFn: () => updateSiteConfig(token, buildPayload(form)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bootstrap"] });
       toast.success("Site settings saved");
