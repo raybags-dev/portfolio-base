@@ -1,0 +1,140 @@
+# =============================================================================
+# Raybags VPS Production Compose
+#
+# Standalone — does NOT extend docker-compose.yml.
+# Uses Supabase Postgres (DATABASE_URL from env) — no local postgres container.
+# Persistent data stored under /mnt/portfolio-data (Hetzner volume).
+#
+# First-time deploy:
+#   1. scripts/server-setup.sh   (once — installs Docker, issues TLS cert)
+#   2. scripts/deploy-vps.sh     (every release)
+#
+# Manual usage (on the server):
+#   docker compose -f docker-compose.vps.yml --env-file .env.prod up -d --build
+# =============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # Redis — lightweight in-process cache / rate-limit store
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - /mnt/portfolio-data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [platform]
+
+  # --------------------------------------------------------------------------
+  # Backend — FastAPI + Alembic migrations + seed
+  # --------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: raybags-backend:latest
+    restart: always
+    environment:
+      ENVIRONMENT:            production
+      DEBUG:                  "false"
+      PROJECT_NAME:           ${PROJECT_NAME:-Raybags Data Platform}
+      SECRET_KEY:             ${SECRET_KEY}
+      DATABASE_URL:           ${DATABASE_URL}
+      DB_POOL_SIZE:           ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW:        ${DB_MAX_OVERFLOW:-10}
+      BACKEND_CORS_ORIGINS:   ${BACKEND_CORS_ORIGINS}
+      REDIS_URL:              redis://redis:6379/0
+      FIRST_ADMIN_EMAIL:      ${FIRST_ADMIN_EMAIL}
+      FIRST_ADMIN_PASSWORD:   ${FIRST_ADMIN_PASSWORD}
+      FIRST_ADMIN_NAME:       ${FIRST_ADMIN_NAME:-Admin}
+      CUSTOM_AUTH_TOKEN:      ${CUSTOM_AUTH_TOKEN}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-720}
+      OPENAI_API_KEY:         ${OPENAI_API_KEY:-}
+      SMTP_HOST:              ${SMTP_HOST:-}
+      SMTP_PORT:              ${SMTP_PORT:-587}
+      SMTP_USER:              ${SMTP_USER:-}
+      SMTP_PASSWORD:          ${SMTP_PASSWORD:-}
+      SMTP_FROM:              ${SMTP_FROM:-}
+      SMTP_TLS:               ${SMTP_TLS:-true}
+      CONTACT_RECIPIENT:      ${CONTACT_RECIPIENT:-}
+      SUPABASE_URL:           ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY:   ${SUPABASE_SERVICE_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Migrate → seed → serve (2 workers for low-traffic VPS)
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m app.seed &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1536m
+    networks: [platform]
+
+  # --------------------------------------------------------------------------
+  # Frontend — Next.js standalone build
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}
+    image: raybags-frontend:latest
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}
+      NODE_ENV:                  production
+    depends_on:
+      - backend
+    expose: ["3000"]
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+    networks: [platform]
+
+  # --------------------------------------------------------------------------
+  # Nginx — reverse proxy + TLS termination
+  # --------------------------------------------------------------------------
+  # Nginx — reverse proxy + TLS termination
+  # NGINX_CONF defaults to nginx.prod.conf (SSL).
+  # For initial bootstrap before cert:  NGINX_CONF=nginx.bootstrap.conf
+  # --------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Active nginx config: override via NGINX_CONF env var
+      - ./infra/nginx/${NGINX_CONF:-nginx.prod.conf}:/etc/nginx/conf.d/default.conf:ro
+      # Let's Encrypt certs (issued by scripts/issue-cert.sh, renewed by cron)
+      - /mnt/portfolio-data/letsencrypt:/etc/letsencrypt:ro
+      # Certbot webroot for HTTP-01 renewal challenge files
+      - /mnt/portfolio-data/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks: [platform]
+
+networks:
+  platform:
+    driver: bridge
