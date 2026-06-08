@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBootstrap, updateSiteConfig } from "@/lib/api";
+import { getBootstrap, updateSiteConfig, resetSiteConfig } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { ImageInput } from "@/components/ui/ImageInput";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
 
 export default function SiteAdmin() {
   const token = useAuth((s) => s.token)!;
@@ -41,7 +42,18 @@ export default function SiteAdmin() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <h1 className="font-heading font-bold text-2xl mb-2">Site &amp; Contact</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="font-heading font-bold text-2xl mb-2">Site &amp; Contact</h1>
+        <ResetConfirm
+          onReset={() => resetSiteConfig(token).then((s) => {
+            const raw = s as Record<string, unknown>;
+            const f: Record<string, string> = {};
+            for (const k of Object.keys(raw)) f[k] = (raw[k] as string) ?? "";
+            setForm(f);
+          })}
+          invalidateKeys={[["bootstrap"]]}
+        />
+      </div>
 
       {text("Site name", "site_name")}
       {text("Tagline", "tagline")}

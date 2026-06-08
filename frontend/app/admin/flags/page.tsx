@@ -1,9 +1,10 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listFlags, toggleFlag } from "@/lib/api";
+import { listFlags, toggleFlag, resetFlags } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import type { FeatureFlag } from "@/lib/types";
 import { Toggle } from "@/components/ui/Toggle";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
 
 export default function FlagsPage() {
   const token = useAuth((s) => s.token)!;
@@ -29,7 +30,13 @@ export default function FlagsPage() {
 
   return (
     <div>
-      <h1 className="font-heading font-bold text-2xl mb-6">Feature Flags</h1>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <h1 className="font-heading font-bold text-2xl">Feature Flags</h1>
+        <ResetConfirm
+          onReset={() => resetFlags(token)}
+          invalidateKeys={[["flags"], ["bootstrap"]]}
+        />
+      </div>
       {Object.entries(groups).map(([group, items]) => (
         <section key={group} className="mb-8">
           <h2 className="text-secondary font-semibold mb-3 capitalize">{group}</h2>

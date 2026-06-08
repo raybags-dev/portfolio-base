@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBootstrap, updateTheme } from "@/lib/api";
+import { getBootstrap, updateTheme, resetTheme } from "@/lib/api";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
 import { useAuth } from "@/lib/store";
 import type { Theme } from "@/lib/types";
 import { Toggle } from "@/components/ui/Toggle";
@@ -37,11 +38,17 @@ export default function ThemePage() {
 
   return (
     <div className="max-w-xl space-y-6">
-      <div>
-        <h1 className="font-heading font-bold text-2xl mb-1">Theme</h1>
-        <p className="text-muted text-sm">
-          Dark and light modes only — the palette is part of the site&apos;s identity.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading font-bold text-2xl mb-1">Theme</h1>
+          <p className="text-muted text-sm">
+            Dark and light modes only — the palette is part of the site&apos;s identity.
+          </p>
+        </div>
+        <ResetConfirm
+          onReset={() => resetTheme(token).then((t) => { setForm(t); })}
+          invalidateKeys={[["bootstrap"]]}
+        />
       </div>
 
       <div>
