@@ -74,11 +74,23 @@ export default function Navbar({
     }
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onClick);
-    document.body.style.overflow = open ? "hidden" : "";
+    // iOS-safe scroll lock: position:fixed preserves visual position while
+    // preventing body scroll (overflow:hidden alone doesn't work on iOS Safari).
+    if (open) {
+      const y = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.top = `-${y}px`;
+    } else {
+      const top = document.body.style.top;
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      if (top) window.scrollTo(0, -parseInt(top, 10));
+    }
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onClick);
-      document.body.style.overflow = "";
     };
   }, [open]);
 
@@ -171,7 +183,7 @@ export default function Navbar({
               onClick={() => setOpen(false)}
             />
             <motion.aside
-              className="absolute right-0 top-0 h-screen w-72 max-w-[82%] border-l border-white/10 p-6 flex flex-col backdrop-blur-2xl shadow-2xl"
+              className="fixed right-0 top-0 h-[100dvh] w-72 max-w-[82%] border-l border-white/10 p-6 flex flex-col backdrop-blur-2xl shadow-2xl"
               style={{ backgroundColor: "color-mix(in srgb, var(--color-surface) 96%, transparent)" }}
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
