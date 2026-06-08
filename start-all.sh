@@ -13,6 +13,26 @@ PIDS=()
 cleanup() { warn "shutting down…"; for pid in "${PIDS[@]}"; do kill "$pid" 2>/dev/null || true; done; }
 trap cleanup EXIT INT TERM
 
+# ---- pre-flight: clean orphaned dev servers & free ports ----
+preflight() {
+  phase "Cleaning previous dev state"
+  pkill -f "uvicorn app.main:app" 2>/dev/null && log "killed stray uvicorn" || true
+  pkill -f "next dev" 2>/dev/null && log "killed stray next dev" || true
+  pkill -f "next-server" 2>/dev/null || true
+  for port in 8000 3000; do
+    if command -v fuser >/dev/null 2>&1; then
+      fuser -k "${port}/tcp" >/dev/null 2>&1 && log "freed port ${port}" || true
+    elif command -v lsof >/dev/null 2>&1; then
+      lsof -ti "tcp:${port}" 2>/dev/null | xargs -r kill 2>/dev/null || true
+    fi
+  done
+  # remove stale Next dev locks so it never refuses to start
+  [[ -d "$ROOT/frontend/.next" ]] && find "$ROOT/frontend/.next" -name "*.lock" -delete 2>/dev/null || true
+  sleep 1
+  ok "clean slate"
+}
+preflight
+
 # ---- backend ----
 phase "Backend (FastAPI @ :8000)"
 cd "$ROOT/backend"

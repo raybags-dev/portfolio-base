@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getBootstrap } from "@/lib/api";
 import type { Bootstrap } from "@/lib/types";
 import ThemeProvider from "@/components/ThemeProvider";
-import Nav from "@/components/Nav";
+import Navbar from "@/components/Navbar";
 import RecommendationsCarousel from "@/components/RecommendationsCarousel";
 import {
   About,
@@ -28,7 +28,7 @@ const RENDERERS: Record<string, (d: Bootstrap) => React.ReactNode> = {
   platform: (d) => <Services data={d} />,
   recommendations: (d) =>
     d.recommendations.length > 0 ? (
-      <Section id="recommendations" title="Recommendations">
+      <Section id="recommendations" title="Testimonials">
         <RecommendationsCarousel
           items={d.recommendations}
           animated={d.theme.animations_enabled}
@@ -86,7 +86,7 @@ export default function HomePage() {
   return (
     <>
       <ThemeProvider theme={data.theme} />
-      <Nav site={data.site_configuration} theme={data.theme} sections={data.sections} />
+      <Navbar site={data.site_configuration} theme={data.theme} sections={data.sections} />
       <main>
         {ordered.map((s) => {
           const render = RENDERERS[s.key];

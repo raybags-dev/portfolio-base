@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getBootstrap, getContactChallenge, submitContact } from "@/lib/api";
 import ThemeProvider from "@/components/ThemeProvider";
-import Nav from "@/components/Nav";
+import Navbar from "@/components/Navbar";
 
 export default function ContactPage() {
   const { data } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
@@ -70,7 +70,7 @@ export default function ContactPage() {
   return (
     <>
       <ThemeProvider theme={data.theme} />
-      <Nav site={site} theme={data.theme} sections={data.sections} />
+      <Navbar site={site} theme={data.theme} sections={data.sections} />
       <main className="container-x py-14">
         <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3">Contact</h1>
         <p className="text-muted mb-10 max-w-2xl">

@@ -2,11 +2,39 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.schemas.common import ORMModel, TimestampedRead
+
+_IFRAME_SRC_RE = re.compile(r'src=["\']([^"\']+)["\']', re.IGNORECASE)
+_MAPS_EMBED_RE = re.compile(r"^https://www\.google\.com/maps/embed", re.IGNORECASE)
+
+
+def sanitize_map_embed(value: str | None) -> str | None:
+    """Accept a full <iframe> snippet or a bare URL; return a validated embed src.
+
+    Raises ValueError for non-empty values that aren't a Google Maps embed URL,
+    so the admin gets a clear validation message instead of a broken map.
+    """
+    if value is None:
+        return None
+    v = value.strip()
+    if v == "":
+        return None
+    if "<iframe" in v.lower():
+        m = _IFRAME_SRC_RE.search(v)
+        if not m:
+            raise ValueError("Could not find a src URL in the iframe snippet")
+        v = m.group(1).strip()
+    if not _MAPS_EMBED_RE.match(v):
+        raise ValueError(
+            "Must be a Google Maps embed URL (https://www.google.com/maps/embed…) "
+            "or the <iframe> snippet from Google Maps → Share → Embed a map"
+        )
+    return v
 
 
 # ---- settings (generic kv) ----
@@ -51,7 +79,16 @@ class SiteConfigurationRead(ORMModel):
     map_embed_url: str | None = None
 
 
-class SiteConfigurationUpdate(BaseModel):
+class _MapSanitizerMixin(BaseModel):
+    @field_validator("map_embed_url", mode="before", check_fields=False)
+    @classmethod
+    def _clean_map(cls, v: object) -> object:
+        if isinstance(v, str):
+            return sanitize_map_embed(v)
+        return v
+
+
+class SiteConfigurationUpdate(_MapSanitizerMixin):
     site_name: str | None = None
     tagline: str | None = None
     logo_url: str | None = None
