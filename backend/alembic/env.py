@@ -19,7 +19,8 @@ from app.core.database import Base
 import app.models  # noqa: F401  (register all models on Base.metadata)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser uses % for interpolation; escape any percent-encoded chars in the URL.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

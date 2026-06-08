@@ -57,13 +57,16 @@ die()  { echo -e "\033[31mx\033[0m $*" >&2; exit 1; }
 
 # ---- Install certbot-dns-cloudflare plugin ----
 log "Installing certbot-dns-cloudflare …"
-if ! certbot plugins 2>/dev/null | grep -q dns-cloudflare; then
-  snap install certbot-dns-cloudflare 2>&1 || true
-  # Connect the snap plugin
-  snap set certbot trust-plugin-with-root=ok 2>/dev/null || true
-  snap connect certbot:plugin certbot-dns-cloudflare 2>/dev/null || true
+if ! certbot plugins 2>&1 | grep -q dns-cloudflare; then
+  # Install plugin snap
+  snap install certbot-dns-cloudflare
+  # Set trust flag FIRST — certbot's prepare-plug-plugin hook requires this
+  snap set certbot trust-plugin-with-root=ok
+  # Now connect — the hook reads the flag above
+  snap connect certbot:plugin certbot-dns-cloudflare
 fi
-certbot plugins 2>/dev/null | grep -q dns-cloudflare || die "certbot-dns-cloudflare plugin not available"
+# Final verification (certbot needs to see the plugin)
+certbot plugins 2>&1 | grep -q dns-cloudflare || die "certbot-dns-cloudflare plugin not available — check 'snap connect certbot:plugin certbot-dns-cloudflare'"
 ok "Plugin ready"
 
 # ---- Write Cloudflare credentials ----
