@@ -87,6 +87,11 @@ export function Hero({ data }: { data: Bootstrap }) {
         : "";
   const showAvatar = h.avatar_url && h.avatar_shape !== "none";
 
+  // When there is a background image the overlay is always dark (rgba 0.55–0.75),
+  // so text must always be white regardless of the active theme mode.
+  const hasImage = !!h.background_image_url;
+  const textShadow = hasImage ? "0 1px 4px rgba(0,0,0,0.7)" : undefined;
+
   return (
     <section className="min-h-[80vh] flex items-center" style={background}>
       <div className="container-x">
@@ -100,15 +105,24 @@ export function Hero({ data }: { data: Bootstrap }) {
                 className={`h-32 w-32 sm:h-40 sm:w-40 object-cover ring-4 ring-primary/40 shadow-card ${shapeClass}`}
               />
             )}
-            <div>
-              {h.name && <p className="text-primary font-medium mb-3">{h.name}</p>}
+            <div style={{ textShadow }}>
+              {h.name && (
+                <p className={`font-medium mb-3 ${hasImage ? "text-primary" : "text-primary"}`}>
+                  {h.name}
+                </p>
+              )}
               {h.title && (
-                <h1 className="text-4xl sm:text-6xl font-heading font-extrabold max-w-3xl leading-tight">
+                <h1
+                  className="text-4xl sm:text-6xl font-heading font-extrabold max-w-3xl leading-tight"
+                  style={hasImage ? { color: "white" } : undefined}
+                >
                   {h.title}
                 </h1>
               )}
               {h.subtitle && (
-                <p className="mt-5 text-lg text-muted max-w-2xl">{h.subtitle}</p>
+                <p className={`mt-5 text-lg max-w-2xl ${hasImage ? "text-white/80" : "text-muted"}`}>
+                  {h.subtitle}
+                </p>
               )}
               {h.cta_text && h.cta_url && (
                 <a
