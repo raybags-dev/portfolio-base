@@ -7,7 +7,16 @@ public API and renders accordingly.
 
 from __future__ import annotations
 
-from sqlalchemy import JSON, Boolean, Float, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Float,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -52,6 +61,12 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     robots_txt: Mapped[str | None] = mapped_column(Text)
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     default_locale: Mapped[str] = mapped_column(String(8), default="en")
+
+    # contact / location (used by the Contact page)
+    contact_email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(64))
+    location_address: Mapped[str | None] = mapped_column(String(512))
+    map_embed_url: Mapped[str | None] = mapped_column(Text)  # Google Maps embed src
 
 
 class Theme(PKMixin, TimestampMixin, Base):
@@ -108,6 +123,11 @@ class HeroSection(PKMixin, TimestampMixin, Base):
     parallax_speed: Mapped[float] = mapped_column(Float, default=0.4)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # profile photo of me (rendered in the hero). If avatar_shape == "none"
+    # or no url, nothing shows.
+    avatar_url: Mapped[str | None] = mapped_column(String(1024))
+    avatar_shape: Mapped[str] = mapped_column(String(16), default="circle")  # circle|rounded|none
+
 
 class AboutMe(PKMixin, TimestampMixin, Base):
     """About section. Singleton id=1."""
@@ -156,3 +176,38 @@ class PortfolioImage(PKMixin, TimestampMixin, Base):
     caption: Mapped[str | None] = mapped_column(String(512))
     category: Mapped[str | None] = mapped_column(String(64), index=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class MediaAsset(PKMixin, TimestampMixin, Base):
+    """Uploaded binary stored directly in the DB and served via the API.
+
+    Storing bytes in Postgres keeps deployments stateless (no shared disk /
+    volume needed) — uploads survive container restarts and work the same in
+    every environment. Served at GET /api/v1/media/{id}.
+    """
+
+    __tablename__ = "media_assets"
+
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class Section(PKMixin, TimestampMixin, Base):
+    """A toggleable, orderable site section/tab.
+
+    The frontend builds its navigation and decides which sections to render
+    from these rows — so any tab (certifications, education, experience…) can
+    be removed or reordered from the admin without code changes.
+    """
+
+    __tablename__ = "sections"
+
+    key: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    order: Mapped[int] = mapped_column(Integer, default=0)
+    # Core sections (hero/contact) shouldn't be deletable; others can be removed.
+    is_removable: Mapped[bool] = mapped_column(Boolean, default=True)
+    in_nav: Mapped[bool] = mapped_column(Boolean, default=True)

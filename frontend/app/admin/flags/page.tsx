@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listFlags, toggleFlag } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import type { FeatureFlag } from "@/lib/types";
+import { Toggle } from "@/components/ui/Toggle";
 
 export default function FlagsPage() {
   const token = useAuth((s) => s.token)!;
@@ -44,19 +45,7 @@ export default function FlagsPage() {
                     <div className="text-xs text-muted">{f.description}</div>
                   )}
                 </div>
-                <button
-                  onClick={() => mutate.mutate(f.key)}
-                  aria-pressed={f.enabled}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    f.enabled ? "bg-primary" : "bg-white/20"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                      f.enabled ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
+                <Toggle checked={f.enabled} onChange={() => mutate.mutate(f.key)} />
               </div>
             ))}
           </div>

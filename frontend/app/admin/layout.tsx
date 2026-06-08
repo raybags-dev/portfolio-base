@@ -6,10 +6,17 @@ import { useAuth } from "@/lib/store";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/flags", label: "Feature Flags" },
+  { href: "/admin/site", label: "Site & Contact" },
+  { href: "/admin/sections", label: "Sections / Tabs" },
   { href: "/admin/theme", label: "Theme" },
   { href: "/admin/hero", label: "Hero" },
   { href: "/admin/skills", label: "Skills" },
+  { href: "/admin/recommendations", label: "Recommendations" },
+  { href: "/admin/experience", label: "Experience" },
+  { href: "/admin/education", label: "Education" },
+  { href: "/admin/certifications", label: "Certifications" },
+  { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/flags", label: "Feature Flags" },
   { href: "/admin/crawlers", label: "Crawlers" },
   { href: "/admin/agents", label: "AI Agents" },
   { href: "/admin/scheduler", label: "Scheduler" },

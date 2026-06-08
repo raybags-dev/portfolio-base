@@ -208,6 +208,20 @@ class Notification(PKMixin, TimestampMixin, Base):
     data: Mapped[dict | None] = mapped_column(JSON)
 
 
+class ContactMessage(PKMixin, TimestampMixin, Base):
+    """Inbound message from the public Contact form."""
+
+    __tablename__ = "contact_messages"
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str | None] = mapped_column(String(255))
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    delivered: Mapped[bool] = mapped_column(Boolean, default=False)  # emailed out?
+
+
 class StorageFile(PKMixin, TimestampMixin, Base):
     __tablename__ = "storage_files"
 

@@ -1,4 +1,6 @@
 "use client";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Bootstrap } from "@/lib/types";
 
@@ -25,7 +27,7 @@ function Reveal({
   );
 }
 
-function Section({
+export function Section({
   id,
   title,
   children,
@@ -35,7 +37,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="container-x py-16 border-t border-white/5">
+    <section id={id} className="container-x py-16 border-t border-white/5 scroll-mt-20">
       {title && (
         <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">
           <span className="text-primary">#</span> {title}
@@ -54,16 +56,18 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- Hero ---
+// --- Hero (fixed background logic + profile avatar) ---
 export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
   if (!h.is_visible) return null;
 
-  let background: React.CSSProperties = {};
-  if (h.background_mode === "image" && h.background_image_url) {
+  // An image, if provided, always wins (this was the reported bug: adding an
+  // image URL did nothing because the mode stayed "gradient").
+  let background: React.CSSProperties;
+  if (h.background_image_url) {
     background = {
-      backgroundImage: `linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.75)), url(${h.background_image_url})`,
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.75)), url("${h.background_image_url}")`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       backgroundAttachment: t.parallax_enabled ? "fixed" : "scroll",
@@ -77,32 +81,47 @@ export function Hero({ data }: { data: Bootstrap }) {
     };
   }
 
+  const shapeClass =
+    h.avatar_shape === "rounded"
+      ? "rounded-theme"
+      : h.avatar_shape === "circle"
+        ? "rounded-full"
+        : "";
+  const showAvatar = h.avatar_url && h.avatar_shape !== "none";
+
   return (
-    <section
-      className="min-h-[78vh] flex items-center"
-      style={background}
-    >
+    <section className="min-h-[80vh] flex items-center" style={background}>
       <div className="container-x">
         <Reveal enabled={t.animations_enabled}>
-          {h.name && (
-            <p className="text-primary font-medium mb-3">{h.name}</p>
-          )}
-          {h.title && (
-            <h1 className="text-4xl sm:text-6xl font-heading font-extrabold max-w-3xl leading-tight">
-              {h.title}
-            </h1>
-          )}
-          {h.subtitle && (
-            <p className="mt-5 text-lg text-muted max-w-2xl">{h.subtitle}</p>
-          )}
-          {h.cta_text && h.cta_url && (
-            <a
-              href={h.cta_url}
-              className="inline-block mt-8 rounded-theme bg-primary text-white font-medium px-6 py-3 hover:opacity-90 transition-opacity"
-            >
-              {h.cta_text}
-            </a>
-          )}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+            {showAvatar && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={h.avatar_url as string}
+                alt={h.name || "Profile"}
+                className={`h-32 w-32 sm:h-40 sm:w-40 object-cover ring-4 ring-primary/40 shadow-card ${shapeClass}`}
+              />
+            )}
+            <div>
+              {h.name && <p className="text-primary font-medium mb-3">{h.name}</p>}
+              {h.title && (
+                <h1 className="text-4xl sm:text-6xl font-heading font-extrabold max-w-3xl leading-tight">
+                  {h.title}
+                </h1>
+              )}
+              {h.subtitle && (
+                <p className="mt-5 text-lg text-muted max-w-2xl">{h.subtitle}</p>
+              )}
+              {h.cta_text && h.cta_url && (
+                <a
+                  href={h.cta_url}
+                  className="inline-block mt-8 rounded-theme bg-primary text-white font-medium px-6 py-3 hover:opacity-90 transition-opacity"
+                >
+                  {h.cta_text}
+                </a>
+              )}
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -146,14 +165,11 @@ export function About({ data }: { data: Bootstrap }) {
 // --- Skills ---
 export function Skills({ data }: { data: Bootstrap }) {
   if (data.skills.length === 0) return null;
-  const groups = data.skills.reduce<Record<string, typeof data.skills>>(
-    (acc, s) => {
-      const k = s.category || "General";
-      (acc[k] ||= []).push(s);
-      return acc;
-    },
-    {},
-  );
+  const groups = data.skills.reduce<Record<string, typeof data.skills>>((acc, s) => {
+    const k = s.category || "General";
+    (acc[k] ||= []).push(s);
+    return acc;
+  }, {});
   return (
     <Section id="skills" title="Skills">
       <div className="grid md:grid-cols-2 gap-x-10 gap-y-6">
@@ -183,17 +199,69 @@ export function Skills({ data }: { data: Bootstrap }) {
   );
 }
 
-// --- Projects ---
+// --- Projects (with search + tag filter) ---
 export function Projects({ data }: { data: Bootstrap }) {
+  const [query, setQuery] = useState("");
+  const [tag, setTag] = useState<string | null>(null);
+
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    data.projects.forEach((p) => (p.tech_tags || []).forEach((t) => s.add(t)));
+    return Array.from(s).sort();
+  }, [data.projects]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return [...data.projects]
+      .sort((a, b) => Number(b.is_featured) - Number(a.is_featured) || a.order - b.order)
+      .filter((p) => {
+        const matchesTag = !tag || (p.tech_tags || []).includes(tag);
+        const matchesQuery =
+          !q ||
+          p.title.toLowerCase().includes(q) ||
+          (p.summary || "").toLowerCase().includes(q) ||
+          (p.tech_tags || []).some((t) => t.toLowerCase().includes(q));
+        return matchesTag && matchesQuery;
+      });
+  }, [data.projects, query, tag]);
+
   if (data.projects.length === 0) return null;
-  const projects = [...data.projects].sort(
-    (a, b) => Number(b.is_featured) - Number(a.is_featured) || a.order - b.order,
-  );
+
   return (
     <Section id="projects" title="Projects">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search projects…"
+          className="rounded-theme bg-surface border border-white/15 px-4 py-2 w-full sm:w-72 outline-none focus:border-primary"
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTag(null)}
+            className={`text-xs rounded-full px-3 py-1 border ${
+              tag === null ? "border-primary text-primary" : "border-white/15 text-muted"
+            }`}
+          >
+            All
+          </button>
+          {allTags.map((tg) => (
+            <button
+              key={tg}
+              onClick={() => setTag(tg === tag ? null : tg)}
+              className={`text-xs rounded-full px-3 py-1 border ${
+                tag === tg ? "border-primary text-primary" : "border-white/15 text-muted"
+              }`}
+            >
+              {tg}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((p, i) => (
-          <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.05}>
+        {filtered.map((p, i) => (
+          <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
             <Card>
               {p.cover_image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -214,32 +282,31 @@ export function Projects({ data }: { data: Bootstrap }) {
               {p.summary && <p className="text-sm text-muted mb-3">{p.summary}</p>}
               {p.tech_tags && p.tech_tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {p.tech_tags.map((tag) => (
+                  {p.tech_tags.map((t) => (
                     <span
-                      key={tag}
+                      key={t}
                       className="text-xs rounded-full border border-white/15 px-2 py-0.5 text-secondary"
                     >
-                      {tag}
+                      {t}
                     </span>
                   ))}
                 </div>
               )}
               <div className="flex gap-3 text-sm">
                 {p.github_url && (
-                  <a href={p.github_url} className="text-primary hover:underline">
-                    Code
-                  </a>
+                  <a href={p.github_url} className="text-primary hover:underline">Code</a>
                 )}
                 {p.demo_url && (
-                  <a href={p.demo_url} className="text-primary hover:underline">
-                    Demo
-                  </a>
+                  <a href={p.demo_url} className="text-primary hover:underline">Demo</a>
                 )}
               </div>
             </Card>
           </Reveal>
         ))}
       </div>
+      {filtered.length === 0 && (
+        <p className="text-muted text-sm">No projects match your search.</p>
+      )}
     </Section>
   );
 }
@@ -269,43 +336,14 @@ export function Services({ data }: { data: Bootstrap }) {
   );
 }
 
-// --- Recommendations ---
-export function Recommendations({ data }: { data: Bootstrap }) {
-  if (data.recommendations.length === 0) return null;
-  return (
-    <Section id="recommendations" title="Recommendations">
-      <div className="grid md:grid-cols-2 gap-6">
-        {data.recommendations.map((r) => (
-          <Card key={r.id}>
-            <p className="text-accent mb-2">{"★".repeat(Math.max(0, Math.min(5, r.stars)))}</p>
-            <p className="italic mb-4">“{r.quote}”</p>
-            <div className="flex items-center gap-3">
-              {r.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={r.avatar_url} alt={r.author_name} className="h-10 w-10 rounded-full object-cover" />
-              )}
-              <div className="text-sm">
-                <div className="font-semibold">{r.author_name}</div>
-                <div className="text-muted">
-                  {[r.position, r.company].filter(Boolean).join(" · ")}
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-// --- Experience + Education (timeline-ish) ---
+// --- Experience ---
 export function Experience({ data }: { data: Bootstrap }) {
-  if (data.experiences.length === 0 && data.education.length === 0) return null;
+  if (data.experiences.length === 0) return null;
   return (
     <Section id="experience" title="Experience">
       <div className="space-y-6">
         {data.experiences.map((e) => (
-          <Card key={`exp-${e.id}`}>
+          <Card key={e.id}>
             <div className="flex flex-wrap justify-between gap-2">
               <h3 className="font-heading font-semibold">
                 {e.role} {e.company && <span className="text-muted">· {e.company}</span>}
@@ -324,8 +362,19 @@ export function Experience({ data }: { data: Bootstrap }) {
             )}
           </Card>
         ))}
+      </div>
+    </Section>
+  );
+}
+
+// --- Education ---
+export function Education({ data }: { data: Bootstrap }) {
+  if (data.education.length === 0) return null;
+  return (
+    <Section id="education" title="Education">
+      <div className="space-y-6">
         {data.education.map((ed) => (
-          <Card key={`edu-${ed.id}`}>
+          <Card key={ed.id}>
             <div className="flex flex-wrap justify-between gap-2">
               <h3 className="font-heading font-semibold">
                 {ed.degree} {ed.institution && <span className="text-muted">· {ed.institution}</span>}
@@ -334,6 +383,9 @@ export function Experience({ data }: { data: Bootstrap }) {
                 {[ed.start_date, ed.end_date].filter(Boolean).join(" — ")}
               </span>
             </div>
+            {ed.field_of_study && (
+              <p className="text-sm text-secondary mt-1">{ed.field_of_study}</p>
+            )}
             {ed.description && <p className="text-sm text-muted mt-2">{ed.description}</p>}
           </Card>
         ))}
@@ -342,33 +394,62 @@ export function Experience({ data }: { data: Bootstrap }) {
   );
 }
 
-// --- Contact / footer ---
-export function Contact({ data }: { data: Bootstrap }) {
+// --- Certifications ---
+export function Certifications({ data }: { data: Bootstrap }) {
+  if (data.certifications.length === 0) return null;
+  return (
+    <Section id="certifications" title="Certifications">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {data.certifications.map((c) => (
+          <Card key={c.id}>
+            <div className="flex items-center gap-3">
+              {c.image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.image_url} alt={c.name} className="h-12 w-12 object-contain rounded" />
+              )}
+              <div>
+                <h3 className="font-heading font-semibold">{c.name}</h3>
+                {c.issuer && <p className="text-sm text-muted">{c.issuer}</p>}
+                {c.issue_date && <p className="text-xs text-muted">{c.issue_date}</p>}
+              </div>
+            </div>
+            {c.credential_url && (
+              <a href={c.credential_url} className="mt-3 inline-block text-primary hover:underline text-sm">
+                View credential →
+              </a>
+            )}
+          </Card>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// --- Footer (social links + contact CTA) ---
+export function Footer({ data }: { data: Bootstrap }) {
   const socials = data.social_links.filter((s) => s.is_visible);
   return (
-    <Section id="contact" title="Contact">
-      <div className="flex flex-wrap gap-4">
-        {socials.map((s) => (
-          <a
-            key={s.id}
-            href={s.url}
-            className="rounded-theme border border-white/15 px-4 py-2 hover:border-primary transition-colors"
-          >
-            {s.label || s.platform}
-          </a>
-        ))}
-        {data.resume.is_public && data.resume.pdf_url && (
-          <a
-            href={data.resume.pdf_url}
-            className="rounded-theme bg-primary text-white px-4 py-2 hover:opacity-90"
-          >
-            {data.resume.title || "Resume"}
-          </a>
-        )}
+    <footer className="container-x py-12 border-t border-white/5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-3">
+          {socials.map((s) => (
+            <a
+              key={s.id}
+              href={s.url}
+              className="rounded-theme border border-white/15 px-4 py-2 hover:border-primary transition-colors text-sm"
+            >
+              {s.label || s.platform}
+            </a>
+          ))}
+        </div>
+        <Link
+          href="/contact"
+          className="rounded-theme bg-primary text-white px-5 py-2.5 hover:opacity-90"
+        >
+          Get in touch →
+        </Link>
       </div>
-      <p className="text-muted text-sm mt-10">
-        © {data.site_configuration.site_name}
-      </p>
-    </Section>
+      <p className="text-muted text-sm mt-8">© {data.site_configuration.site_name}</p>
+    </footer>
   );
 }

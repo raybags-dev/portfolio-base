@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     # ---- AI ----
     OPENAI_API_KEY: str | None = None
 
+    # ---- email / contact form (optional; messages are stored regardless) ----
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM: str | None = None
+    SMTP_TLS: bool = True
+    CONTACT_RECIPIENT: str = "baguma.github@gmail.com"
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
