@@ -132,6 +132,10 @@ services:
       - /mnt/portfolio-data/letsencrypt:/etc/letsencrypt:ro
       # Certbot webroot for HTTP-01 renewal challenge files
       - /mnt/portfolio-data/certbot/www:/var/www/certbot:ro
+    # Needed on Linux so host.docker.internal resolves to the VPS host,
+    # allowing nginx to reach the annotation platform stack on port 5174.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - backend
       - frontend
