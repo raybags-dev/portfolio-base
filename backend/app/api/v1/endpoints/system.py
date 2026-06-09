@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, text
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy import desc, select, text
 
 from app import __version__
 from app.core.config import settings as app_settings
 from app.core.deps import DbSession, require_admin
 from app.models.content import Setting
+from app.models.user import ActivityLog, AuditLog
 from app.schemas.content import SettingRead, SettingUpsert
 
 router = APIRouter(tags=["system"])
@@ -69,3 +73,66 @@ async def get_logs(limit: int = 200, level: str | None = None) -> list[dict]:
     from app.core.logging import log_buffer
 
     return log_buffer.recent(limit=min(limit, 500), level=level)
+
+
+# ---- persisted activity logs ----
+class ActivityLogRead(BaseModel):
+    id: int
+    created_at: datetime
+    category: str
+    message: str
+    level: str
+    context: dict | None
+
+    model_config = {"from_attributes": True}
+
+
+class AuditLogRead(BaseModel):
+    id: int
+    created_at: datetime
+    actor_id: int | None
+    action: str
+    entity: str | None
+    entity_id: str | None
+    detail: dict | None
+    ip_address: str | None
+
+    model_config = {"from_attributes": True}
+
+
+@router.get(
+    "/activity-logs",
+    response_model=list[ActivityLogRead],
+    dependencies=[Depends(require_admin())],
+)
+async def get_activity_logs(
+    db: DbSession,
+    limit: int = Query(default=200, le=500),
+    level: str | None = None,
+    category: str | None = None,
+) -> list[ActivityLog]:
+    q = select(ActivityLog).order_by(desc(ActivityLog.created_at)).limit(limit)
+    if level:
+        q = q.where(ActivityLog.level == level)
+    if category:
+        q = q.where(ActivityLog.category == category)
+    return list(await db.scalars(q))
+
+
+@router.get(
+    "/audit-logs",
+    response_model=list[AuditLogRead],
+    dependencies=[Depends(require_admin())],
+)
+async def get_audit_logs(
+    db: DbSession,
+    limit: int = Query(default=200, le=500),
+    action: str | None = None,
+    entity: str | None = None,
+) -> list[AuditLog]:
+    q = select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit)
+    if action:
+        q = q.where(AuditLog.action.ilike(f"%{action}%"))
+    if entity:
+        q = q.where(AuditLog.entity == entity)
+    return list(await db.scalars(q))
