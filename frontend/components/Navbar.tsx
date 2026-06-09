@@ -47,6 +47,7 @@ function NavLink({
   className?: string;
 }) {
   const base = `transition-colors hover:text-primary whitespace-nowrap ${active ? "text-primary" : ""} ${className ?? ""}`;
+  const shadow: React.CSSProperties = { textShadow: "0 0 6px rgba(255,255,255,0.9), 0 0 12px rgba(255,255,255,0.5)" };
   if (item.isAnchor) {
     return (
       <a
@@ -57,13 +58,14 @@ function NavLink({
           onNavigate?.();
         }}
         className={base}
+        style={shadow}
       >
         {item.label}
       </a>
     );
   }
   return (
-    <Link href={item.href} onClick={onNavigate} className={base}>
+    <Link href={item.href} onClick={onNavigate} className={base} style={shadow}>
       {item.label}
     </Link>
   );

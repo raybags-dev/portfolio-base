@@ -234,6 +234,7 @@ export interface BlogPost {
   like_count: number;
   comment_count: number;
   created_at: string;
+  service_key?: string | null;
   related?: BlogPost[];
 }
 

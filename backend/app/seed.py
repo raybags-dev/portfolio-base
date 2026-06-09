@@ -192,12 +192,25 @@ async def _seed_microservices(db) -> None:
         ))
     for key, name, desc, category, flag, url in TOOLS:
         existing = await db.scalar(select(Microservice).where(Microservice.key == key))
-        if existing:
-            continue
-        db.add(Microservice(
-            key=key, name=name, description=desc, category=category,
-            feature_flag_key=flag, status="live", is_public=True, base_url=url,
-        ))
+        if not existing:
+            db.add(Microservice(
+                key=key, name=name, description=desc, category=category,
+                feature_flag_key=flag, status="live", is_public=True, base_url=url,
+            ))
+        # Mirror as a portfolio Project so it shows in the Projects section too.
+        proj_existing = await db.scalar(select(Project).where(Project.slug == key))
+        if not proj_existing:
+            db.add(Project(
+                title=name,
+                slug=key,
+                summary=desc,
+                tech_tags=["FastAPI", "Supabase", "Ollama", "React", "Docker"],
+                is_featured=True,
+                status="published",
+                service_key=key,
+                demo_url=url,
+                order=0,
+            ))
 
 
 async def seed() -> None:
