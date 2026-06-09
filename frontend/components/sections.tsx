@@ -377,6 +377,16 @@ export function Services({ data }: { data: Bootstrap }) {
               </span>
             </div>
             {m.description && <p className="text-sm text-muted">{m.description}</p>}
+            {m.base_url && (
+              <a
+                href={m.base_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                Launch ↗
+              </a>
+            )}
           </Card>
         ))}
       </div>
