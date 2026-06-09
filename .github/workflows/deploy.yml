@@ -127,6 +127,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: production  # add required reviewers for a manual approval gate
     steps:
+      - uses: actions/checkout@v4
+
+      - name: SCP → sync config files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "infra/nginx/,docker-compose.vps.yml,scripts/"
+          target: /mnt/portfolio-data/app/
+          strip_components: 0
+
       - name: SSH → pull images & restart
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -139,3 +152,7 @@ jobs:
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}"
             export IMAGE_TAG="${{ github.sha }}"
             bash /mnt/portfolio-data/app/scripts/prod-deploy.sh
+            # Reload nginx config without dropping connections (picks up volume-mounted changes).
+            docker compose -f /mnt/portfolio-data/app/docker-compose.vps.yml \
+              --env-file /mnt/portfolio-data/app/.env.prod \
+              exec -T nginx nginx -s reload
