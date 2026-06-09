@@ -68,7 +68,12 @@ export default function RecommendationsCarousel({
     const el = scrollRef.current;
     if (!el) return;
     const card = el.children[n] as HTMLElement | undefined;
-    card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    if (!card) return;
+    // Scroll only horizontally within the snap container — never touch page scroll
+    el.scrollTo({
+      left: card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2,
+      behavior: "smooth",
+    });
   };
 
   const goTo = useCallback(
@@ -109,7 +114,7 @@ export default function RecommendationsCarousel({
           <button
             aria-label="Previous"
             onClick={prev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary transition-colors"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 sm:h-14 sm:w-14 text-xl sm:text-2xl rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
           >
             ‹
           </button>
@@ -117,7 +122,7 @@ export default function RecommendationsCarousel({
           {/* Scroll-snap track: 88% wide cards → 6% peeks on each side */}
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth mx-12 pb-1"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth mx-14 sm:mx-16 pb-1"
             style={{ scrollbarWidth: "none" }}
           >
             {items.map((rec, i) => (
@@ -126,7 +131,7 @@ export default function RecommendationsCarousel({
                 type="button"
                 onClick={() => setSelected(rec)}
                 className={`relative flex-none w-[88%] snap-center text-left rounded-2xl bg-surface border shadow-card
-                  p-6 sm:p-8 lg:p-10 hover:border-primary/50 hover:shadow-lg transition-all
+                  p-6 sm:p-10 lg:p-14 min-h-[55vh] flex flex-col hover:border-primary/50 hover:shadow-lg transition-all
                   ${i === index ? "border-white/20 opacity-100" : "border-white/5 opacity-50 scale-[0.98]"}`}
               >
                 <div className="absolute top-5 right-5">
@@ -159,7 +164,7 @@ export default function RecommendationsCarousel({
           <button
             aria-label="Next"
             onClick={next}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary transition-colors"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 sm:h-14 sm:w-14 text-xl sm:text-2xl rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
           >
             ›
           </button>
