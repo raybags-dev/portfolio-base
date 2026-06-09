@@ -72,7 +72,7 @@ TOOLS = [
         "Full-stack ML annotation pipeline — upload CSV/JSON/Excel, validate, clean, and label records with local AI (Ollama/llama3).",
         "tools",
         "ENABLE_ANNOTATION",
-        "http://89.167.74.127:5174",
+        "https://raybags.com/annotation",
     ),
 ]
 
@@ -197,6 +197,8 @@ async def _seed_microservices(db) -> None:
                 key=key, name=name, description=desc, category=category,
                 feature_flag_key=flag, status="live", is_public=True, base_url=url,
             ))
+        elif existing.base_url != url:
+            existing.base_url = url
         # Mirror as a portfolio Project so it shows in the Projects section too.
         proj_existing = await db.scalar(select(Project).where(Project.slug == key))
         if not proj_existing:
@@ -211,6 +213,8 @@ async def _seed_microservices(db) -> None:
                 demo_url=url,
                 order=0,
             ))
+        elif proj_existing.demo_url != url:
+            proj_existing.demo_url = url
 
 
 async def seed() -> None:
