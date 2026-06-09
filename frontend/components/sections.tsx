@@ -37,7 +37,7 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="container-x py-16 border-t border-white/5 scroll-mt-20">
+    <section id={id} className="container-x py-20 lg:py-32 border-t border-white/5 scroll-mt-20 min-h-[60vh] flex flex-col justify-center">
       {title && (
         <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">{title}</h2>
       )}
@@ -48,7 +48,7 @@ export function Section({
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-theme bg-surface shadow-card p-5 border border-white/5">
+    <div className="rounded-theme bg-surface shadow-card p-5 sm:p-7 border border-white/5">
       {children}
     </div>
   );
@@ -463,6 +463,34 @@ export function Certifications({ data }: { data: Bootstrap }) {
   );
 }
 
+function PlatformIcon({ platform }: { platform: string }) {
+  const p = platform.toLowerCase();
+  if (p === "github")
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
+      </svg>
+    );
+  if (p === "linkedin")
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+      </svg>
+    );
+  if (p === "twitter" || p === "x")
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    );
+  // generic external link
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </svg>
+  );
+}
+
 // --- Footer (brand + nav + contact + socials) ---
 export function Footer({ data }: { data: Bootstrap }) {
   const site = data.site_configuration;
@@ -503,9 +531,27 @@ export function Footer({ data }: { data: Bootstrap }) {
             <ul className="space-y-2 text-sm">
               {navLinks.map((l) => (
                 <li key={l.label}>
-                  <Link href={l.href} className="hover:text-primary transition-colors">
-                    {l.label}
-                  </Link>
+                  {l.href.startsWith("/#") ? (
+                    <a
+                      href={l.href}
+                      onClick={(e) => {
+                        const id = l.href.slice(2);
+                        const el = document.getElementById(id);
+                        if (el) {
+                          e.preventDefault();
+                          el.scrollIntoView({ behavior: "smooth" });
+                          window.history.replaceState(null, "", l.href);
+                        }
+                      }}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {l.label}
+                    </a>
+                  ) : (
+                    <Link href={l.href} className="hover:text-primary transition-colors">
+                      {l.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -517,17 +563,27 @@ export function Footer({ data }: { data: Bootstrap }) {
           <h4 className="font-heading font-semibold mb-3 text-sm uppercase tracking-wide text-muted">
             Contact
           </h4>
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-3 text-sm">
             {site.contact_email && (
               <li>
-                <a href={`mailto:${site.contact_email}`} className="hover:text-primary">
-                  {site.contact_email}
+                <a href={`mailto:${site.contact_email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                  <svg className="w-4 h-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+                  <span className="truncate">{site.contact_email}</span>
                 </a>
               </li>
             )}
             {site.phone && (
               <li>
-                <a href={`tel:${site.phone}`} className="hover:text-primary">{site.phone}</a>
+                <a href={`tel:${site.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                  <svg className="w-4 h-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.73h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.34a16 16 0 0 0 5.76 5.76l1.7-1.71a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  <span>{site.phone}</span>
+                </a>
+              </li>
+            )}
+            {site.location_address && (
+              <li className="flex items-start gap-2 text-muted">
+                <svg className="w-4 h-4 shrink-0 text-primary mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>{site.location_address}</span>
               </li>
             )}
           </ul>
@@ -539,9 +595,10 @@ export function Footer({ data }: { data: Bootstrap }) {
                   href={s.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-theme border border-white/15 px-3 py-1.5 text-xs hover:border-primary transition-colors"
+                  className="flex items-center gap-1.5 rounded-theme border border-white/15 px-3 py-1.5 text-xs hover:border-primary hover:text-primary transition-colors"
                 >
-                  {s.label || s.platform}
+                  <PlatformIcon platform={s.platform} />
+                  <span>{s.label || s.platform}</span>
                 </a>
               ))}
             </div>
