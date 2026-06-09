@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBootstrap, updateAbout } from "@/lib/api";
+import { getBootstrap, updateAbout, resetAbout } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { ImageInput } from "@/components/ui/ImageInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { useToast } from "@/components/admin/Toast";
+import { ResetConfirm } from "@/components/admin/ResetConfirm";
+import type { About } from "@/lib/types";
 
 export default function AboutAdmin() {
   const token = useAuth((s) => s.token)!;
@@ -55,9 +57,26 @@ export default function AboutAdmin() {
 
   const cls = "w-full mt-1 rounded-theme bg-bg border border-white/15 px-3 py-2";
 
+  function fromApi(a: About | undefined | null) {
+    return {
+      heading: a?.heading || "",
+      biography: a?.biography || "",
+      description: a?.description || "",
+      image_url: a?.image_url || "",
+      highlights: (a?.highlights || []).join("\n"),
+      is_visible: a?.is_visible ?? true,
+    };
+  }
+
   return (
     <div className="max-w-2xl space-y-4">
-      <h1 className="font-heading font-bold text-2xl mb-2">About</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="font-heading font-bold text-2xl mb-2">About</h1>
+        <ResetConfirm
+          onReset={() => resetAbout(token).then((a) => setForm(fromApi(a)))}
+          invalidateKeys={[["bootstrap"]]}
+        />
+      </div>
 
       <label className="block">
         <span className="text-sm">Heading</span>
