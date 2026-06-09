@@ -35,12 +35,13 @@ interface EditorState {
   tags: string; // comma-separated names
   meta_title: string;
   meta_description: string;
+  service_key: string;
 }
 
 const EMPTY: EditorState = {
   title: "", slug: "", excerpt: "", content_markdown: "", cover_image_url: "",
   status: "draft", is_featured: false, category_id: null, tags: "",
-  meta_title: "", meta_description: "",
+  meta_title: "", meta_description: "", service_key: "",
 };
 
 export default function BlogAdmin() {
@@ -92,6 +93,7 @@ export default function BlogAdmin() {
         category_id: editor.category_id,
         meta_title: editor.meta_title || null,
         meta_description: editor.meta_description || null,
+        service_key: editor.service_key || null,
         tag_slugs,
         published_at: editor.status === "published" ? new Date().toISOString() : null,
       };
@@ -129,6 +131,7 @@ export default function BlogAdmin() {
         status: p.status, is_featured: p.is_featured, category_id: p.category_id ?? null,
         tags: p.tags.map((t) => t.name).join(", "),
         meta_title: p.meta_title || "", meta_description: p.meta_description || "",
+        service_key: p.service_key || "",
       });
     } else setEditor({ ...EMPTY });
     setPreview(false);
@@ -271,6 +274,17 @@ export default function BlogAdmin() {
               <textarea placeholder="Meta description" value={editor.meta_description} onChange={(e) => setEditor({ ...editor, meta_description: e.target.value })} rows={2} className={cls} />
             </div>
           </details>
+
+          <div className="text-sm">
+            <label className="block text-muted mb-1">Related project / microservice (optional)</label>
+            <input
+              placeholder="Service key, e.g. annotation, retail…"
+              value={editor.service_key}
+              onChange={(e) => setEditor({ ...editor, service_key: e.target.value })}
+              className={cls}
+            />
+            <p className="text-xs text-muted mt-1">Adds a &quot;Launch project ↗&quot; button to this blog card when the service is enabled.</p>
+          </div>
 
           <div className="flex gap-2">
             <button onClick={() => save.mutate()} disabled={save.isPending} className="rounded-theme bg-primary text-white px-5 py-2.5 disabled:opacity-50">

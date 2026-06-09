@@ -52,6 +52,7 @@ class BlogPostBase(BaseModel):
     seo: dict[str, Any] | None = None
     category_id: int | None = None
     is_featured: bool = False
+    service_key: str | None = None
 
 
 class BlogPostCreate(BlogPostBase):
@@ -74,6 +75,7 @@ class BlogPostUpdate(BaseModel):
     category_id: int | None = None
     tag_slugs: list[str] | None = None
     is_featured: bool | None = None
+    service_key: str | None = None
 
 
 class BlogPostRead(TimestampedRead, BlogPostBase):

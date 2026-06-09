@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Bootstrap } from "@/lib/types";
@@ -58,6 +58,14 @@ function Card({ children }: { children: React.ReactNode }) {
 export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   if (!h.is_visible) return null;
 
   const hasImage = h.background_mode === "image" && !!h.background_image_url;
@@ -156,6 +164,27 @@ export function Hero({ data }: { data: Bootstrap }) {
           </div>
         </Reveal>
       </div>
+
+      {/* Scroll indicator — fades out after scrolling 60px */}
+      <div
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none transition-opacity duration-500"
+        style={{ opacity: scrolled ? 0 : 1 }}
+      >
+        <span className="text-[10px] uppercase tracking-[0.2em] text-primary/70 font-medium">
+          Scroll
+        </span>
+        <svg
+          className="w-5 h-5 text-primary animate-bounce"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
     </section>
   );
 }
@@ -252,6 +281,12 @@ export function Projects({ data }: { data: Bootstrap }) {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
 
+  const serviceUrlMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    data.microservices.forEach((s) => { if (s.key && s.base_url) m[s.key] = s.base_url; });
+    return m;
+  }, [data.microservices]);
+
   const allTags = useMemo(() => {
     const s = new Set<string>();
     data.projects.forEach((p) => (p.tech_tags || []).forEach((t) => s.add(t)));
@@ -340,12 +375,22 @@ export function Projects({ data }: { data: Bootstrap }) {
                   ))}
                 </div>
               )}
-              <div className="flex gap-3 text-sm">
+              <div className="flex flex-wrap gap-3 text-sm mt-auto pt-1">
                 {p.github_url && (
-                  <a href={p.github_url} className="text-primary hover:underline">Code</a>
+                  <a href={p.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Code</a>
                 )}
-                {p.demo_url && (
-                  <a href={p.demo_url} className="text-primary hover:underline">Demo</a>
+                {p.demo_url && !p.service_key && (
+                  <a href={p.demo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Demo</a>
+                )}
+                {p.service_key && serviceUrlMap[p.service_key] && (
+                  <a
+                    href={serviceUrlMap[p.service_key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-theme bg-primary text-white text-xs font-medium px-3 py-1.5 hover:opacity-90 transition-opacity"
+                  >
+                    Launch ↗
+                  </a>
                 )}
               </div>
             </Card>
