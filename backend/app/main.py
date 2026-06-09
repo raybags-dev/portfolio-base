@@ -38,6 +38,11 @@ async def lifespan(app: FastAPI):
         sec_added = await ensure_default_sections(db)
         if sec_added:
             log.info("sections.seeded", added=sec_added)
+        # Seed microservice catalogue (idempotent — skips existing keys).
+        from app.seed import _seed_microservices
+
+        await _seed_microservices(db)
+        await db.commit()
     # Start the scheduler ticker (it no-ops unless ENABLE_SCHEDULER is on, so
     # the admin can toggle scheduling at runtime). Best-effort: never block boot.
     scheduler_task = None
