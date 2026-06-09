@@ -96,6 +96,9 @@ services:
       - "${HTTP_PORT:-80}:80"
     volumes:
       - ./nginx-lb.config:/etc/nginx/conf.d/default.conf:ro
+    # Allows nginx to reach the annotation platform stack on host port 5174.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - backend
       - frontend
