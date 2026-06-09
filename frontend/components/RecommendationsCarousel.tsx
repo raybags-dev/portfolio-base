@@ -1,11 +1,10 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Recommendation } from "@/lib/types";
 import { Modal } from "@/components/ui/Modal";
 
-const AUTO_MS = 4000;
-const BRIEF = 160;
+const AUTO_MS = 4500;
+const BRIEF = 180;
 
 function Stars({ n }: { n: number }) {
   return <span className="text-accent">{"★".repeat(Math.max(0, Math.min(5, n)))}</span>;
@@ -31,20 +30,22 @@ function LinkedInIcon({ url }: { url?: string | null }) {
 
 function Avatar({ rec, size }: { rec: Recommendation; size: number }) {
   if (rec.avatar_url) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={rec.avatar_url}
         alt={rec.author_name}
+        width={size}
+        height={size}
         style={{ width: size, height: size }}
-        className="rounded-full object-cover ring-2 ring-primary/40"
+        className="rounded-full object-cover ring-2 ring-primary/40 flex-shrink-0"
       />
     );
   }
   return (
     <div
       style={{ width: size, height: size }}
-      className="rounded-full grid place-items-center bg-primary/20 text-primary font-bold"
+      className="rounded-full grid place-items-center bg-primary/20 text-primary font-bold flex-shrink-0"
     >
       {rec.author_name.charAt(0)}
     </div>
@@ -61,12 +62,26 @@ export default function RecommendationsCarousel({
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [selected, setSelected] = useState<Recommendation | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const next = useCallback(
-    () => setIndex((i) => (i + 1) % items.length),
+  const scrollToCard = (n: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const card = el.children[n] as HTMLElement | undefined;
+    card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
+
+  const goTo = useCallback(
+    (target: number) => {
+      const n = ((target % items.length) + items.length) % items.length;
+      setIndex(n);
+      scrollToCard(n);
+    },
     [items.length],
   );
-  const prev = () => setIndex((i) => (i - 1 + items.length) % items.length);
+
+  const next = useCallback(() => goTo(index + 1), [goTo, index]);
+  const prev = () => goTo(index - 1);
 
   useEffect(() => {
     if (paused || selected || items.length <= 1) return;
@@ -75,75 +90,94 @@ export default function RecommendationsCarousel({
   }, [paused, selected, items.length, next]);
 
   if (items.length === 0) return null;
-  const rec = items[index];
 
   return (
-    <div
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <div className="relative min-h-[230px] flex items-center justify-center">
-        <button
-          aria-label="Previous"
-          onClick={prev}
-          className="absolute left-0 z-10 h-9 w-9 rounded-full border border-white/15 hover:border-primary"
-        >
-          ‹
-        </button>
-
-        <div className="w-full max-w-2xl mx-10">
-          <AnimatePresence mode="wait">
-            <motion.button
-              key={rec.id}
-              onClick={() => setSelected(rec)}
-              initial={animated ? { opacity: 0, x: 40 } : false}
-              animate={{ opacity: 1, x: 0 }}
-              exit={animated ? { opacity: 0, x: -40 } : undefined}
-              transition={{ duration: 0.4 }}
-              className="relative w-full text-left rounded-2xl bg-surface border border-white/10 shadow-card p-6 sm:p-8 hover:border-primary/50 hover:shadow-lg transition-all"
-            >
-              <div className="absolute top-5 right-5">
-                <LinkedInIcon url={rec.linkedin_url} />
-              </div>
-              <div className="flex items-start gap-4 mb-4 pr-8">
-                <Avatar rec={rec} size={56} />
-                <div className="min-w-0">
-                  <div className="font-heading font-semibold truncate">{rec.author_name}</div>
-                  <div className="text-sm text-muted truncate">
-                    {[rec.position, rec.company].filter(Boolean).join(" · ")}
-                  </div>
-                  <Stars n={rec.stars} />
-                </div>
-              </div>
-              <p className="text-muted italic leading-relaxed">
-                “{rec.quote.length > BRIEF ? rec.quote.slice(0, BRIEF).trimEnd() + "…" : rec.quote}”
-              </p>
-              <span className="mt-4 inline-block text-xs text-primary">Click to read full →</span>
-            </motion.button>
-          </AnimatePresence>
-        </div>
-
-        <button
-          aria-label="Next"
-          onClick={next}
-          className="absolute right-0 z-10 h-9 w-9 rounded-full border border-white/15 hover:border-primary"
-        >
-          ›
-        </button>
+    <>
+      {/* Preload all avatar images immediately so the rounded box is never empty */}
+      <div className="hidden" aria-hidden="true">
+        {items.map(
+          (r) =>
+            r.avatar_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={r.id} src={r.avatar_url} alt="" fetchPriority="high" />
+            ),
+        )}
       </div>
 
-      {/* dots */}
-      <div className="flex justify-center gap-2 mt-5">
-        {items.map((_, i) => (
+      <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+        <div className="relative">
           <button
-            key={i}
-            aria-label={`Go to ${i + 1}`}
-            onClick={() => setIndex(i)}
-            className={`h-2 rounded-full transition-all ${
-              i === index ? "w-6 bg-primary" : "w-2 bg-white/25"
-            }`}
-          />
-        ))}
+            aria-label="Previous"
+            onClick={prev}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary transition-colors"
+          >
+            ‹
+          </button>
+
+          {/* Scroll-snap track: 88% wide cards → 6% peeks on each side */}
+          <div
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth mx-12 pb-1"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {items.map((rec, i) => (
+              <button
+                key={rec.id}
+                type="button"
+                onClick={() => setSelected(rec)}
+                className={`relative flex-none w-[88%] snap-center text-left rounded-2xl bg-surface border shadow-card
+                  p-6 sm:p-8 lg:p-10 hover:border-primary/50 hover:shadow-lg transition-all
+                  ${i === index ? "border-white/20 opacity-100" : "border-white/5 opacity-50 scale-[0.98]"}`}
+              >
+                <div className="absolute top-5 right-5">
+                  <LinkedInIcon url={rec.linkedin_url} />
+                </div>
+                <div className="flex items-start gap-4 mb-4 pr-8">
+                  <Avatar rec={rec} size={64} />
+                  <div className="min-w-0">
+                    <div className="font-heading font-semibold truncate">{rec.author_name}</div>
+                    <div className="text-sm text-muted truncate">
+                      {[rec.position, rec.company].filter(Boolean).join(" · ")}
+                    </div>
+                    <Stars n={rec.stars} />
+                  </div>
+                </div>
+                <p className="text-muted italic leading-relaxed text-sm sm:text-base">
+                  &ldquo;
+                  {rec.quote.length > BRIEF
+                    ? rec.quote.slice(0, BRIEF).trimEnd() + "…"
+                    : rec.quote}
+                  &rdquo;
+                </p>
+                <span className="mt-4 inline-block text-xs text-primary">
+                  Click to read full →
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            aria-label="Next"
+            onClick={next}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary transition-colors"
+          >
+            ›
+          </button>
+        </div>
+
+        {/* dots */}
+        <div className="flex justify-center gap-2 mt-5">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`Go to ${i + 1}`}
+              onClick={() => goTo(i)}
+              className={`h-2 rounded-full transition-all ${
+                i === index ? "w-6 bg-primary" : "w-2 bg-white/25"
+              }`}
+            />
+          ))}
+        </div>
       </div>
 
       <Modal open={!!selected} onClose={() => setSelected(null)}>
@@ -159,7 +193,7 @@ export default function RecommendationsCarousel({
                 <Stars n={selected.stars} />
               </div>
             </div>
-            <p className="leading-relaxed whitespace-pre-line">“{selected.quote}”</p>
+            <p className="leading-relaxed whitespace-pre-line">&ldquo;{selected.quote}&rdquo;</p>
             {selected.linkedin_url && (
               <a
                 href={selected.linkedin_url}
@@ -173,6 +207,6 @@ export default function RecommendationsCarousel({
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }
