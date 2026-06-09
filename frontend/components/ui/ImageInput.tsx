@@ -108,24 +108,38 @@ export function ImageInput({
           <p className="text-muted text-sm">No images uploaded yet. Use the Upload button to add one.</p>
         ) : (
           <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-1">
-            {media.map((asset) => (
-              <button
-                key={asset.id}
-                type="button"
-                onClick={() => pickFromLibrary(asset)}
-                className="group relative rounded-theme overflow-hidden border border-white/10 hover:border-primary/60 transition-colors"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={asset.url}
-                  alt={asset.filename}
-                  className="w-full h-24 object-cover group-hover:opacity-80 transition-opacity"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-xs text-muted truncate">
-                  {asset.filename}
-                </div>
-              </button>
-            ))}
+            {media.map((asset) => {
+              const isActive = asset.url === value;
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => pickFromLibrary(asset)}
+                  className={`group relative rounded-theme overflow-hidden border transition-all ${
+                    isActive
+                      ? "border-primary ring-1 ring-primary/50"
+                      : "border-white/10 hover:border-primary/60"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={asset.url}
+                    alt={asset.filename}
+                    className={`w-full h-24 object-cover transition-all ${
+                      isActive ? "opacity-100" : "grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-90"
+                    }`}
+                  />
+                  {isActive && (
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold leading-none">
+                      ✓
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-xs text-muted truncate">
+                    {asset.filename}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </Modal>

@@ -296,3 +296,23 @@ export interface LogEntry {
   logger?: string | null;
   [key: string]: unknown;
 }
+
+export interface ActivityLogEntry {
+  id: number;
+  created_at: string;
+  category: string;
+  message: string;
+  level: string;
+  context: Record<string, unknown> | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  created_at: string;
+  actor_id: number | null;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  detail: Record<string, unknown> | null;
+  ip_address: string | null;
+}

@@ -1,5 +1,6 @@
 // Typed API client for the FastAPI backend.
 import type {
+  About,
   Bootstrap,
   FeatureFlag,
   Skill,
@@ -8,6 +9,8 @@ import type {
   TokenResponse,
   MediaAsset,
   LogEntry,
+  ActivityLogEntry,
+  AuditLogEntry,
 } from "./types";
 
 export const API_BASE =
@@ -313,7 +316,7 @@ export const resetHero = (token: string) =>
 export const resetSiteConfig = (token: string) =>
   request("/content/site-configuration/reset", { method: "POST", token });
 export const resetAbout = (token: string) =>
-  request("/content/about/reset", { method: "POST", token });
+  request<About>("/content/about/reset", { method: "POST", token });
 export const resetResume = (token: string) =>
   request("/content/resume/reset", { method: "POST", token });
 export const resetSections = (token: string) =>
@@ -330,6 +333,20 @@ export const getLogs = (token: string, limit = 200, level?: string) => {
   const qs = new URLSearchParams({ limit: String(limit) });
   if (level) qs.set("level", level);
   return request<LogEntry[]>(`/logs?${qs}`, { token });
+};
+
+export const getActivityLogs = (token: string, limit = 200, level?: string, category?: string) => {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (level) qs.set("level", level);
+  if (category) qs.set("category", category);
+  return request<ActivityLogEntry[]>(`/activity-logs?${qs}`, { token });
+};
+
+export const getAuditLogs = (token: string, limit = 200, action?: string, entity?: string) => {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (action) qs.set("action", action);
+  if (entity) qs.set("entity", entity);
+  return request<AuditLogEntry[]>(`/audit-logs?${qs}`, { token });
 };
 
 // ---- generic collection CRUD (experience / education / certifications) ----
