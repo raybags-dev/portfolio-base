@@ -84,28 +84,33 @@ export function Hero({ data }: { data: Bootstrap }) {
   const textShadow = hasImage ? "0 2px 6px rgba(0,0,0,0.8)" : undefined;
 
   return (
-    <section className="min-h-[80vh] flex items-center relative overflow-hidden" style={background}>
-      {hasImage && (
-        <>
-          {/* Blurred bg — scale(1.08) prevents white edges from blur spread */}
-          <div
-            className="absolute inset-0"
-            style={{
+    <section
+      className="min-h-[80vh] flex items-center relative overflow-hidden"
+      style={
+        hasImage
+          ? {
               backgroundImage: `url("${h.background_image_url}")`,
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: t.parallax_enabled ? "fixed" : "scroll",
-              filter: "blur(4px)",
-              transform: "scale(1.08)",
-            }}
-          />
-          {/* Lighter overlay + subtle inset border to frame the image */}
+            }
+          : background
+      }
+    >
+      {hasImage && (
+        <>
+          {/* Grayscale + blur via backdrop-filter — doesn't break background-attachment:fixed */}
           <div
             className="absolute inset-0"
             style={{
-              background: "linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.55))",
-              boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.12)",
+              backdropFilter: "grayscale(1) blur(3px)",
+              WebkitBackdropFilter: "grayscale(1) blur(3px)",
             }}
+          />
+          {/* Gradient overlay for text legibility */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.55))" }}
           />
         </>
       )}
@@ -163,12 +168,17 @@ export function About({ data }: { data: Bootstrap }) {
     <Section id="about" title={a.heading || "About"}>
       <div className="grid md:grid-cols-3 gap-8 items-start">
         {a.image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={a.image_url}
-            alt={a.heading || "About"}
-            className="rounded-theme w-full object-cover shadow-card"
-          />
+          <div
+            className="rounded-theme p-[3px]"
+            style={{ boxShadow: "0 0 0 1px rgba(128,128,128,0.25), 0 0 0 5px rgba(128,128,128,0.07)" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={a.image_url}
+              alt={a.heading || "About"}
+              className="rounded-theme w-full object-cover shadow-card"
+            />
+          </div>
         )}
         <div className={a.image_url ? "md:col-span-2" : "md:col-span-3"}>
           {a.biography && <p className="text-lg mb-4">{a.biography}</p>}
