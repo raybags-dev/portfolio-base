@@ -64,6 +64,18 @@ MICROSERVICES = [
     ("social", "Social Media Trends", "Twitter/Reddit/YouTube/TikTok trend detection.", "data", "ENABLE_SOCIAL"),
 ]
 
+# standalone tools/platforms with a live URL (key, name, desc, category, flag, base_url)
+TOOLS = [
+    (
+        "annotation",
+        "Data Annotation Platform",
+        "Full-stack ML annotation pipeline — upload CSV/JSON/Excel, validate, clean, and label records with local AI (Ollama/llama3).",
+        "tools",
+        "ENABLE_ANNOTATION",
+        "http://89.167.74.127:5174",
+    ),
+]
+
 
 async def _seed_rbac(db) -> dict[str, Role]:
     perms: dict[str, Permission] = {}
@@ -177,6 +189,14 @@ async def _seed_microservices(db) -> None:
         db.add(Microservice(
             key=key, name=name, description=desc, category=category,
             feature_flag_key=flag, status="registered", is_public=True,
+        ))
+    for key, name, desc, category, flag, url in TOOLS:
+        existing = await db.scalar(select(Microservice).where(Microservice.key == key))
+        if existing:
+            continue
+        db.add(Microservice(
+            key=key, name=name, description=desc, category=category,
+            feature_flag_key=flag, status="live", is_public=True, base_url=url,
         ))
 
 
