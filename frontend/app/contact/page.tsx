@@ -77,9 +77,9 @@ export default function ContactPage() {
           Have a project or opportunity? Send a message — I&apos;ll get back to you.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-10">
-          {/* info + map */}
-          <div className="space-y-5">
+        <div className="grid md:grid-cols-2 gap-10 md:items-stretch">
+          {/* info + map — flex column so map grows to fill remaining height */}
+          <div className="flex flex-col gap-5">
             <div className="space-y-2">
               <p>
                 <span className="text-primary font-medium">Email:</span>{" "}
@@ -103,15 +103,14 @@ export default function ContactPage() {
                 title="Location map"
                 src={site.map_embed_url}
                 width="100%"
-                height="288"
                 style={{ border: 0 }}
-                className="w-full h-72 rounded-theme border border-white/10"
+                className="w-full flex-1 min-h-64 rounded-theme border border-white/10"
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <div className="w-full h-72 rounded-theme border border-white/10 grid place-items-center text-muted text-sm">
+              <div className="w-full flex-1 min-h-64 rounded-theme border border-white/10 grid place-items-center text-muted text-sm">
                 Map not configured
               </div>
             )}
