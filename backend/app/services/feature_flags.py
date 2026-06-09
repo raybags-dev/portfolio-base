@@ -50,6 +50,8 @@ DEFAULT_FLAGS: dict[str, tuple[str, str, bool, str]] = {
     "ENABLE_JOBS": ("Job Market Analytics", "projects", False, "Job market trends"),
     "ENABLE_ENERGY": ("Energy Market Pipeline", "projects", False, "Energy market data"),
     "ENABLE_SOCIAL": ("Social Media Trends", "projects", False, "Social trend detection"),
+    # tools / standalone platforms
+    "ENABLE_ANNOTATION": ("Data Annotation Platform", "projects", False, "Intelligent data annotation & AI labeling pipeline"),
 }
 
 
