@@ -82,8 +82,8 @@ class Theme(PKMixin, TimestampMixin, Base):
     default_mode: Mapped[str] = mapped_column(String(8), default="dark")  # dark|light
 
     # colours
-    primary_color: Mapped[str] = mapped_column(String(32), default="#6366f1")
-    secondary_color: Mapped[str] = mapped_column(String(32), default="#22d3ee")
+    primary_color: Mapped[str] = mapped_column(String(32), default="#CC0202")
+    secondary_color: Mapped[str] = mapped_column(String(32), default="#FF6B6B")
     accent_color: Mapped[str] = mapped_column(String(32), default="#f59e0b")
     background_dark: Mapped[str] = mapped_column(String(32), default="#0a0a0f")
     background_light: Mapped[str] = mapped_column(String(32), default="#fafafa")

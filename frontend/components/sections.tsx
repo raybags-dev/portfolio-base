@@ -60,21 +60,18 @@ export function Hero({ data }: { data: Bootstrap }) {
   const t = data.theme;
   if (!h.is_visible) return null;
 
-  let background: React.CSSProperties;
-  if (h.background_mode === "image" && h.background_image_url) {
-    background = {
-      backgroundImage: `linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.75)), url("${h.background_image_url}")`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundAttachment: t.parallax_enabled ? "fixed" : "scroll",
-    };
-  } else if (h.background_mode === "color" && h.background_color) {
-    background = { backgroundColor: h.background_color };
-  } else {
-    background = {
-      backgroundImage:
-        "radial-gradient(1200px 500px at 20% -10%, var(--color-primary), transparent), radial-gradient(900px 500px at 90% 10%, var(--color-secondary), transparent)",
-    };
+  const hasImage = h.background_mode === "image" && !!h.background_image_url;
+
+  let background: React.CSSProperties | undefined;
+  if (!hasImage) {
+    if (h.background_mode === "color" && h.background_color) {
+      background = { backgroundColor: h.background_color };
+    } else {
+      background = {
+        backgroundImage:
+          "radial-gradient(1200px 500px at 20% -10%, var(--color-primary), transparent), radial-gradient(900px 500px at 90% 10%, var(--color-secondary), transparent)",
+      };
+    }
   }
 
   const shapeClass =
@@ -84,13 +81,35 @@ export function Hero({ data }: { data: Bootstrap }) {
         ? "rounded-full"
         : "";
   const showAvatar = h.avatar_url && h.avatar_shape !== "none";
-
-  const hasImage = h.background_mode === "image" && !!h.background_image_url;
-  const textShadow = hasImage ? "0 1px 4px rgba(0,0,0,0.7)" : undefined;
+  const textShadow = hasImage ? "0 2px 6px rgba(0,0,0,0.8)" : undefined;
 
   return (
-    <section className="min-h-[80vh] flex items-center" style={background}>
-      <div className="container-x">
+    <section className="min-h-[80vh] flex items-center relative overflow-hidden" style={background}>
+      {hasImage && (
+        <>
+          {/* Blurred bg — scale(1.08) prevents white edges from blur spread */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("${h.background_image_url}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: t.parallax_enabled ? "fixed" : "scroll",
+              filter: "blur(4px)",
+              transform: "scale(1.08)",
+            }}
+          />
+          {/* Lighter overlay + subtle inset border to frame the image */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.55))",
+              boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.12)",
+            }}
+          />
+        </>
+      )}
+      <div className="container-x relative z-10">
         <Reveal enabled={t.animations_enabled}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
             {showAvatar && (
@@ -98,7 +117,7 @@ export function Hero({ data }: { data: Bootstrap }) {
               <img
                 src={h.avatar_url as string}
                 alt={h.name || "Profile"}
-                className={`h-32 w-32 sm:h-40 sm:w-40 object-cover ring-4 ring-primary/40 shadow-card ${shapeClass}`}
+                className={`h-32 w-32 sm:h-40 sm:w-40 object-cover ring-2 ring-white/30 shadow-[0_0_0_5px_rgba(255,255,255,0.08)] ${shapeClass}`}
               />
             )}
             <div style={{ textShadow }}>
