@@ -38,6 +38,50 @@ function PostCard({ p }: { p: BlogPost }) {
   );
 }
 
+function FeaturedCard({ p }: { p: BlogPost }) {
+  return (
+    <Link
+      href={`/blog/${p.slug}`}
+      className="group w-full grid md:grid-cols-5 rounded-2xl bg-surface border border-primary/25 shadow-card overflow-hidden hover:border-primary/60 transition-all hover:shadow-[0_8px_40px_rgba(var(--color-primary-rgb,204,2,2),0.15)]"
+    >
+      {p.cover_image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={p.cover_image_url}
+          alt={p.title}
+          className="md:col-span-2 h-56 md:h-full w-full object-cover"
+        />
+      ) : (
+        <div className="md:col-span-2 h-56 md:h-full bg-primary/10 flex items-center justify-center text-primary/30 text-6xl select-none">
+          ✦
+        </div>
+      )}
+      <div className="md:col-span-3 p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-primary mb-4">
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Featured
+        </span>
+        {p.category && (
+          <span className="text-xs text-secondary mb-2">{p.category.name}</span>
+        )}
+        <h2 className="text-2xl sm:text-3xl font-heading font-bold group-hover:text-primary transition-colors leading-snug mb-3">
+          {p.title}
+        </h2>
+        {p.excerpt && (
+          <p className="text-muted line-clamp-3 mb-5 text-sm sm:text-base">{p.excerpt}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted mt-auto pt-4 border-t border-white/5">
+          {p.published_at && <span>{new Date(p.published_at).toLocaleDateString()}</span>}
+          {p.reading_minutes && <span>{p.reading_minutes} min read</span>}
+          <span>♥ {p.like_count}</span>
+          <span>💬 {p.comment_count}</span>
+          <span className="ml-auto text-primary text-sm group-hover:translate-x-1 transition-transform">Read →</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function BlogListPage() {
   const { data: boot } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
   const [q, setQ] = useState("");
@@ -85,13 +129,15 @@ export default function BlogListPage() {
         </form>
 
         {featuredItems.length > 0 && (
-          <section className="mb-12">
-            <h2 className="font-heading font-semibold text-lg mb-4 text-secondary">Featured</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredItems.map((p) => (
-                <PostCard key={p.id} p={p} />
-              ))}
-            </div>
+          <section className="mb-14">
+            <FeaturedCard p={featuredItems[0]} />
+            {featuredItems.length > 1 && (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                {featuredItems.slice(1).map((p) => (
+                  <PostCard key={p.id} p={p} />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
