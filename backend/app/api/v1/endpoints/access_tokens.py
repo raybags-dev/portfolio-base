@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.core.access import _DEV_MODE_KEY, _client_ip
 from app.core.deps import DbSession, require_admin
