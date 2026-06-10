@@ -45,6 +45,18 @@ docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 log "Starting updated stack …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
+# ---- 2b. Run database migrations (idempotent) ----
+log "Running Alembic migrations …"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+  exec -T backend alembic upgrade head
+ok "Migrations complete"
+
+# ---- 2c. Run seed (idempotent — skips existing rows) ----
+log "Running seed …"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+  exec -T backend python -m app.seed
+ok "Seed complete"
+
 # ---- 3. Wait for backend health ----
 log "Waiting for backend health …"
 elapsed=0
