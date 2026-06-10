@@ -418,6 +418,22 @@ export const runCrawlSession = (id: number, appToken?: string) =>
     }
   );
 
+export const updateCrawlSession = (id: number, patch: Partial<{ analytics_spec: Record<string, unknown> }>) =>
+  request<CrawlSession>(`/hotel-reviews/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+
+export const deleteCrawlSession = (id: number) =>
+  request<void>(`/hotel-reviews/sessions/${id}`, { method: "DELETE" });
+
+export const previewCrawlRecords = (id: number) =>
+  request<Record<string, unknown>[]>(`/hotel-reviews/sessions/${id}/records/preview`);
+
+export const exportCrawlRecordsUrl = (id: number) =>
+  `${V1}/hotel-reviews/sessions/${id}/records/export`;
+
 export const getCrawlRecords = (id: number) =>
   request<Record<string, unknown>[]>(`/hotel-reviews/sessions/${id}/records`);
 
