@@ -409,10 +409,13 @@ export const createCrawlSession = (body: {
 export const getCrawlSession = (id: number) =>
   request<CrawlSession>(`/hotel-reviews/sessions/${id}`);
 
-export const runCrawlSession = (id: number) =>
+export const runCrawlSession = (id: number, appToken?: string) =>
   request<{ message: string; session_id: number }>(
     `/hotel-reviews/sessions/${id}/run`,
-    { method: "POST" }
+    {
+      method: "POST",
+      headers: appToken ? { "X-App-Token": appToken } : undefined,
+    }
   );
 
 export const getCrawlRecords = (id: number) =>
@@ -426,3 +429,49 @@ export const generateSessionBlog = (id: number) =>
     `/hotel-reviews/sessions/${id}/generate-blog`,
     { method: "POST" }
   );
+
+// ---- access tokens (admin) ----
+export interface AppToken {
+  id: number;
+  token: string;
+  created_at: string;
+  expires_at: string;
+  is_used: boolean;
+  used_by_ip: string | null;
+  used_at: string | null;
+  is_expired: boolean;
+}
+
+export interface IpUsageEntry {
+  id: number;
+  ip: string;
+  app_name: string;
+  first_used_at: string;
+}
+
+export const generateAppToken = (token: string) =>
+  request<AppToken>("/access-tokens/generate", { method: "POST", token });
+
+export const listAppTokens = (token: string) =>
+  request<AppToken[]>("/access-tokens", { token });
+
+export const revokeAppToken = (token: string, id: number) =>
+  request<void>(`/access-tokens/${id}`, { method: "DELETE", token });
+
+export const getDevMode = (token: string) =>
+  request<{ current_ip: string; dev_mode: boolean; whitelisted_ips: string[] }>(
+    "/access-tokens/dev-mode",
+    { token }
+  );
+
+export const toggleDevMode = (token: string) =>
+  request<{ current_ip: string; dev_mode: boolean; whitelisted_ips: string[] }>(
+    "/access-tokens/dev-mode/toggle",
+    { method: "POST", token }
+  );
+
+export const listIpUsage = (token: string) =>
+  request<IpUsageEntry[]>("/access-tokens/ip-usage", { token });
+
+export const deleteIpUsage = (token: string, id: number) =>
+  request<void>(`/access-tokens/ip-usage/${id}`, { method: "DELETE", token });

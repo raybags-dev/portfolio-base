@@ -11,7 +11,7 @@ from app.modules.agents.llm import LLMProvider
 
 log = get_logger("hotel_reviews.engine")
 
-_MAX_HTML_CHARS = 8000  # truncate page HTML sent to LLM
+_MAX_HTML_CHARS = 20000  # truncate page HTML sent to LLM
 
 # Common cookie/consent banner selectors tried before falling back to LLM
 _COOKIE_SELECTORS = [
@@ -114,8 +114,13 @@ class CrawlEngine:
             try:
                 if on_progress:
                     await on_progress(f"Loading {start_url}")
-                await page.goto(start_url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(2)
+                await page.goto(start_url, wait_until="load", timeout=45000)
+                # Give JS frameworks time to render and lazy-load content
+                await asyncio.sleep(3)
+                # Scroll to bottom to trigger lazy-loaded items, then back up
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await asyncio.sleep(1)
+                await page.evaluate("window.scrollTo(0, 0)")
 
                 # --- Cookie banner dismissal ---
                 dismissed, cookie_status = await self._dismiss_cookie_banner(
@@ -143,13 +148,26 @@ class CrawlEngine:
                         await on_progress(f"Extracting page {page_num + 1}: {url}")
 
                     html = await page.content()
-                    page_records = await self._extract_records(html, url, collection_prompt, plan)
+
+                    # Try DOM-direct extraction first (fast, accurate for JS-rendered sites)
+                    page_records = await self._extract_with_playwright(page, plan, url)
+                    if on_progress:
+                        await on_progress(
+                            f"DOM extraction: {len(page_records)} records"
+                            + (" — falling back to LLM" if not page_records else "")
+                        )
+
+                    # Fall back to LLM-based extraction if DOM gave nothing
+                    if not page_records:
+                        page_records = await self._extract_records(html, url, collection_prompt, plan)
 
                     if not page_records and page_num == 0:
                         if on_progress:
                             await on_progress("No records found — requesting healing strategy")
                         plan = await self._heal(html, url, collection_prompt, plan)
-                        page_records = await self._extract_records(html, url, collection_prompt, plan)
+                        page_records = await self._extract_with_playwright(page, plan, url)
+                        if not page_records:
+                            page_records = await self._extract_records(html, url, collection_prompt, plan)
 
                     for rec in page_records:
                         records.append(rec)
@@ -289,6 +307,51 @@ Return a JSON extraction plan with these keys:
             "next_page_selector": "[aria-label='Next page'], .next-page, button[data-testid='pagination-next']",
             "data_type": "item",
         })
+
+    async def _extract_with_playwright(
+        self, page: Any, plan: dict[str, Any], url: str
+    ) -> list[dict[str, Any]]:
+        """Use the browser DOM directly to extract records via CSS selectors.
+
+        Much more reliable than sending cleaned HTML to the LLM for JS-rendered
+        sites (Booking.com, Amazon, etc.) where content is injected at runtime.
+        Falls back gracefully to [] on any error so the LLM path remains intact.
+        """
+        item_sel = plan.get("item_selector", "")
+        fields: dict[str, str] = plan.get("fields") or {}
+        if not item_sel or not fields:
+            return []
+
+        js = """
+        ({item_selector, fields, source_url}) => {
+            const items = Array.from(document.querySelectorAll(item_selector)).slice(0, 25);
+            return items.map(item => {
+                const rec = {source_url};
+                for (const [field, sel] of Object.entries(fields)) {
+                    const el = item.querySelector(sel);
+                    if (el) {
+                        const text = (el.textContent || el.getAttribute('aria-label') ||
+                                      el.getAttribute('title') || el.getAttribute('content') || '').trim();
+                        rec[field] = text || null;
+                    } else {
+                        rec[field] = null;
+                    }
+                }
+                return rec;
+            }).filter(r => Object.values(r).some(v => v && v !== source_url));
+        }
+        """
+        try:
+            results = await page.evaluate(js, {
+                "item_selector": item_sel,
+                "fields": fields,
+                "source_url": url,
+            })
+            if isinstance(results, list):
+                return [r for r in results if isinstance(r, dict)]
+        except Exception as exc:
+            log.debug("playwright_extract.failed", error=str(exc))
+        return []
 
     async def _extract_records(
         self, html: str, url: str, collection_prompt: str, plan: dict[str, Any]
