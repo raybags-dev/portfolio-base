@@ -1,15 +1,21 @@
 name: CI + Deploy
 
 # Runs automatically on every push to main.
-# Pipeline: test → build & push Docker Hub images → SSH deploy to prod
+# Pipeline: test → build & push ghcr.io images → SSH deploy to prod
 #
 # Required GitHub secrets (repo Settings → Secrets → Actions):
-#   DOCKERHUB_USERNAME   — Docker Hub account name
-#   DOCKERHUB_TOKEN      — Docker Hub access token (read/write access)
-#   SSH_HOST             — VPS IP (89.167.74.127)
-#   SSH_USER             — SSH login user (root)
-#   SSH_KEY              — private SSH key for the VPS
-#   SSH_PORT             — (optional) defaults to 22
+#   SSH_HOST   — VPS IP
+#   SSH_USER   — SSH login user (root)
+#   SSH_KEY    — private SSH key for the VPS
+#   SSH_PORT   — (optional) defaults to 22
+#
+# Images are pushed to ghcr.io using the automatic GITHUB_TOKEN — no extra
+# registry secret needed. The VPS pulls using the same token during the
+# workflow run, so no separate GHCR_TOKEN secret is required.
+#
+# After the first push, make the packages public in:
+#   github.com → Packages → raybags-backend/frontend → Package settings → Make public
+# (optional, but lets the VPS pull without auth on manual redeploys)
 #
 # To add a manual approval gate before production:
 #   Go to repo Settings → Environments → production → add Required reviewers.
@@ -17,6 +23,10 @@ name: CI + Deploy
 on:
   push:
     branches: [main]
+
+permissions:
+  contents: read
+  packages: write   # needed to push to ghcr.io
 
 concurrency:
   group: deploy-main
@@ -76,7 +86,7 @@ jobs:
         run: npm run build
 
   # ──────────────────────────────────────────────────────────────────────────
-  # 2. Build Docker images and push to Docker Hub
+  # 2. Build Docker images and push to GitHub Container Registry (ghcr.io)
   # ──────────────────────────────────────────────────────────────────────────
   docker-publish:
     name: Build & push images
@@ -85,11 +95,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}
-          password: ${{ secrets.DOCKERHUB_TOKEN_PERSONAL }}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,8 +111,8 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}/raybags-backend:latest
-            ${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}/raybags-backend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/raybags-backend:latest
+            ghcr.io/${{ github.repository_owner }}/raybags-backend:${{ github.sha }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
 
@@ -113,8 +124,8 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://raybags.com
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}/raybags-frontend:latest
-            ${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}/raybags-frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/raybags-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/raybags-frontend:${{ github.sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
@@ -149,7 +160,8 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             set -e
-            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME_PERSONAL }}"
+            export GHCR_OWNER="${{ github.repository_owner }}"
+            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
             export IMAGE_TAG="${{ github.sha }}"
             bash /mnt/portfolio-data/app/scripts/prod-deploy.sh
             # Reload nginx config without dropping connections (picks up volume-mounted changes).
