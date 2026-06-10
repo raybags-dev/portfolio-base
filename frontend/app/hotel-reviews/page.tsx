@@ -51,6 +51,8 @@ export default function HotelReviewsPage() {
   const [analyticsTypes, setAnalyticsTypes] = useState<string[]>([]);
   const [ratingThreshold, setRatingThreshold] = useState(7);
   const [cookieHints, setCookieHints] = useState("");
+  const [paginationType, setPaginationType] = useState<"auto" | "scroll" | "click">("auto");
+  const [selectorHintsMap, setSelectorHintsMap] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -90,6 +92,9 @@ export default function HotelReviewsPage() {
     setFormError("");
     setSubmitting(true);
     try {
+      const cleanHints = Object.fromEntries(
+        Object.entries(selectorHintsMap).filter(([, v]) => v.trim())
+      );
       const session = await createCrawlSession({
         name: name.trim() || `Crawl – ${new Date().toLocaleString()}`,
         target_url: url.trim(),
@@ -98,6 +103,8 @@ export default function HotelReviewsPage() {
           types: analyticsTypes.length ? analyticsTypes : undefined,
           rating_threshold: ratingThreshold,
           cookie_hints: cookieHints.trim() || undefined,
+          pagination_type: paginationType,
+          selector_hints: Object.keys(cleanHints).length ? cleanHints : undefined,
         },
         max_pages: maxPages,
       });
@@ -223,7 +230,7 @@ export default function HotelReviewsPage() {
           </div>
         )}
 
-        {step === "configure" && <ConfigureStep {...{ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, formError, submitting, handleSubmit }} />}
+        {step === "configure" && <ConfigureStep {...{ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, paginationType, setPaginationType, selectorHintsMap, setSelectorHintsMap, formError, submitting, handleSubmit }} />}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
         {step === "results" && activeSession && (
           <ResultsStep
@@ -231,8 +238,13 @@ export default function HotelReviewsPage() {
             onRefresh={() => getCrawlSession(activeSession.id).then(setActiveSession)}
             onDelete={reset}
             onRetryWithHints={async (hints) => {
+              const { _pagination_type, ...selectorHints } = hints as Record<string, string>;
               const updated = await updateCrawlSession(activeSession.id, {
-                analytics_spec: { ...(activeSession.analytics_spec || {}), selector_hints: hints },
+                analytics_spec: {
+                  ...(activeSession.analytics_spec || {}),
+                  selector_hints: Object.keys(selectorHints).length ? selectorHints : undefined,
+                  pagination_type: (_pagination_type as string) || "auto",
+                },
               });
               setActiveSession(updated);
               try {
@@ -309,15 +321,32 @@ interface ConfigureProps {
   analyticsTypes: string[]; setAnalyticsTypes: React.Dispatch<React.SetStateAction<string[]>>;
   ratingThreshold: number; setRatingThreshold: (v: number) => void;
   cookieHints: string; setCookieHints: (v: string) => void;
+  paginationType: "auto" | "scroll" | "click"; setPaginationType: (v: "auto" | "scroll" | "click") => void;
+  selectorHintsMap: Record<string, string>; setSelectorHintsMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   formError: string;
   submitting: boolean;
   handleSubmit: (e: React.FormEvent) => void;
 }
 
-function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, formError, submitting, handleSubmit }: ConfigureProps) {
+function ConfigureStep({
+  url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages,
+  analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold,
+  cookieHints, setCookieHints, paginationType, setPaginationType,
+  selectorHintsMap, setSelectorHintsMap,
+  formError, submitting, handleSubmit,
+}: ConfigureProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   function toggleType(id: string) {
     setAnalyticsTypes((prev: string[]) => prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id]);
   }
+
+  // Parse prompt fields for the selector hints form
+  const promptFields = prompt
+    .split(/[,;\n]/)
+    .map(s => s.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
+    .filter(Boolean)
+    .slice(0, 8);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -360,20 +389,6 @@ function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages
               placeholder="e.g. Booking.com – California Hotels"
               className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Cookie banner hint <span className="text-muted">(optional)</span>
-            </label>
-            <input
-              value={cookieHints}
-              onChange={e => setCookieHints(e.target.value)}
-              placeholder={`e.g. "Akkoord", "Alle cookies accepteren", or a CSS selector`}
-              className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
-            />
-            <p className="mt-1 text-xs text-muted">
-              If the site has a non-English or unusual cookie popup the AI could not dismiss, paste the accept button text here for the next run.
-            </p>
           </div>
         </fieldset>
 
@@ -455,6 +470,97 @@ function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages
             </div>
           )}
         </fieldset>
+
+        {/* Advanced Settings */}
+        <div className="rounded-theme border border-white/10 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+          >
+            <span className="text-muted">Advanced Settings</span>
+            <span className="text-muted text-xs">{showAdvanced ? "▲ hide" : "▼ show"}</span>
+          </button>
+
+          {showAdvanced && (
+            <div className="px-5 pb-5 space-y-5 border-t border-white/10 pt-4">
+
+              {/* Pagination mode */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Pagination mode</label>
+                <div className="flex gap-2 flex-wrap">
+                  {(["auto", "scroll", "click"] as const).map(opt => (
+                    <label key={opt} className={`flex items-center gap-2 px-3 py-2 rounded-theme border cursor-pointer text-sm transition-colors ${
+                      paginationType === opt
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-white/10 hover:bg-white/5"
+                    }`}>
+                      <input
+                        type="radio"
+                        name="pagination"
+                        value={opt}
+                        checked={paginationType === opt}
+                        onChange={() => setPaginationType(opt)}
+                        className="hidden"
+                      />
+                      {opt === "auto" && "Auto (try both)"}
+                      {opt === "scroll" && "Infinite scroll"}
+                      {opt === "click" && "Next button / link"}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-muted">
+                  Use <strong>Infinite scroll</strong> for sites like Booking.com that load more
+                  results as you scroll down. Use <strong>Next button</strong> for sites with
+                  explicit page navigation.
+                </p>
+              </div>
+
+              {/* Cookie hint */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Cookie banner hint <span className="text-muted">(optional)</span>
+                </label>
+                <input
+                  value={cookieHints}
+                  onChange={e => setCookieHints(e.target.value)}
+                  placeholder={`e.g. "Akkoord", "Alle cookies accepteren", or a CSS selector`}
+                  className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
+                />
+                <p className="mt-1 text-xs text-muted">
+                  If the site shows a non-English cookie popup the AI cannot dismiss automatically.
+                </p>
+              </div>
+
+              {/* Per-field selector hints */}
+              {promptFields.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    CSS selector hints per field <span className="text-muted">(optional)</span>
+                  </label>
+                  <p className="text-xs text-muted mb-3">
+                    If the AI struggles to find a specific field, paste the CSS selector here
+                    (e.g. <code className="font-mono bg-white/10 px-1 rounded">[data-testid=&apos;price&apos;]</code>).
+                    Right-click any element in browser DevTools → Copy → Copy selector.
+                  </p>
+                  <div className="space-y-2">
+                    {promptFields.map(field => (
+                      <div key={field} className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-primary w-36 flex-shrink-0">{field}</span>
+                        <input
+                          value={selectorHintsMap[field] || ""}
+                          onChange={e => setSelectorHintsMap(m => ({ ...m, [field]: e.target.value }))}
+                          placeholder={`CSS selector for "${field.replace(/_/g, " ")}"`}
+                          className="flex-1 rounded bg-bg border border-white/15 px-2 py-1.5 text-xs placeholder:text-muted/40 focus:outline-none focus:border-primary/60"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <button
           type="submit"
@@ -559,8 +665,10 @@ function ResultsStep({
   const [showPreview, setShowPreview] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // Selector hints form (shown when 0 records)
+  // Extraction hints modal (shown when 0 records)
   const [hints, setHints] = useState<Record<string, string>>({});
+  const [hintPagination, setHintPagination] = useState<"auto" | "scroll" | "click">("auto");
+  const [showHintsModal, setShowHintsModal] = useState(false);
 
   const analytics = session.analytics_result;
   const progress = session.progress || {};
@@ -701,35 +809,92 @@ function ResultsStep({
         </div>
       )}
 
-      {/* Zero records → selector hints form */}
+      {/* Zero records banner */}
       {zeroRecords && (
-        <div className="rounded-theme bg-yellow-500/10 border border-yellow-500/30 p-5 mb-6">
-          <h3 className="font-semibold text-yellow-300 mb-1">No records collected</h3>
-          <p className="text-sm text-muted mb-4">
-            The AI couldn&apos;t locate data automatically. You can help it by describing where each
-            field lives on the page — paste a CSS selector or a plain description like
-            &quot;the h2 inside each property card&quot;.
-          </p>
-          <div className="space-y-2 mb-4">
-            {promptFields.map(field => (
-              <div key={field} className="flex items-center gap-2">
-                <span className="text-xs font-mono text-primary w-36 flex-shrink-0">{field}</span>
-                <input
-                  value={hints[field] || ""}
-                  onChange={e => setHints(h => ({ ...h, [field]: e.target.value }))}
-                  placeholder={`CSS selector or description for "${field}"`}
-                  className="flex-1 rounded bg-bg border border-white/15 px-2 py-1 text-xs placeholder:text-muted/40 focus:outline-none focus:border-primary/60"
-                />
-              </div>
-            ))}
+        <div className="rounded-theme bg-yellow-500/10 border border-yellow-500/30 p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1">
+            <h3 className="font-semibold text-yellow-300 mb-1">No records collected</h3>
+            <p className="text-sm text-muted">
+              The AI couldn&apos;t locate data automatically. You can help by specifying
+              CSS selectors or pagination type so it knows exactly where to look.
+            </p>
           </div>
           <button
-            onClick={() => onRetryWithHints(hints)}
-            disabled={Object.values(hints).every(v => !v.trim())}
-            className="rounded-theme bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+            onClick={() => setShowHintsModal(true)}
+            className="flex-shrink-0 rounded-theme bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 px-4 py-2 text-sm font-medium hover:bg-yellow-500/30 transition-colors"
           >
-            Retry with these hints →
+            Help the crawler →
           </button>
+        </div>
+      )}
+
+      {/* Extraction hints modal */}
+      {showHintsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-theme bg-surface border border-white/15 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="font-heading font-bold text-lg mb-1">Help the Crawler Find Your Data</h2>
+            <p className="text-sm text-muted mb-5">
+              The AI will re-run with your hints. You can paste CSS selectors (right-click an
+              element in DevTools → Copy → Copy selector) or describe the location in plain text.
+            </p>
+
+            {/* Pagination type */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Pagination mode</label>
+              <div className="flex gap-2 flex-wrap">
+                {(["auto", "scroll", "click"] as const).map(opt => (
+                  <label key={opt} className={`flex items-center gap-2 px-3 py-1.5 rounded-theme border cursor-pointer text-sm transition-colors ${
+                    hintPagination === opt
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-white/10 hover:bg-white/5"
+                  }`}>
+                    <input type="radio" name="hint-pagination" value={opt} checked={hintPagination === opt}
+                      onChange={() => setHintPagination(opt)} className="hidden" />
+                    {opt === "auto" && "Auto"}
+                    {opt === "scroll" && "Infinite scroll"}
+                    {opt === "click" && "Next button"}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Per-field selectors */}
+            <div className="mb-5 space-y-2">
+              <label className="block text-sm font-medium mb-1">Selector hints per field</label>
+              {promptFields.map(field => (
+                <div key={field} className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-primary w-32 flex-shrink-0">{field}</span>
+                  <input
+                    value={hints[field] || ""}
+                    onChange={e => setHints(h => ({ ...h, [field]: e.target.value }))}
+                    placeholder={`selector or description for "${field.replace(/_/g, " ")}"`}
+                    className="flex-1 rounded bg-bg border border-white/15 px-2 py-1.5 text-xs placeholder:text-muted/40 focus:outline-none focus:border-primary/60"
+                  />
+                </div>
+              ))}
+              {promptFields.length === 0 && (
+                <p className="text-xs text-muted">Add your collection prompt first to see field hints.</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowHintsModal(false);
+                  onRetryWithHints({ ...hints, _pagination_type: hintPagination });
+                }}
+                className="flex-1 rounded-theme bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Re-run with hints →
+              </button>
+              <button
+                onClick={() => setShowHintsModal(false)}
+                className="px-4 rounded-theme border border-white/15 text-sm hover:bg-white/5"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
