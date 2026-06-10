@@ -66,6 +66,7 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         spec = session.analytics_spec or {}
         cookie_hints = spec.get("cookie_hints")
         selector_hints = spec.get("selector_hints") or None
+        pagination_type = spec.get("pagination_type") or "auto"
         records = await engine.run(
             session.target_url,
             session.collection_prompt,
@@ -73,6 +74,7 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
             on_progress=on_progress,
             cookie_hints=cookie_hints,
             selector_hints=selector_hints,
+            pagination_type=pagination_type,
         )
 
         await on_progress(f"Crawl complete. {len(records)} records collected. Running analytics...")

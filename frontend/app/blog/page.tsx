@@ -10,6 +10,11 @@ import BackToTop from "@/components/BackToTop";
 import { Footer } from "@/components/sections";
 import { useToast } from "@/components/ui/Toast";
 
+// Static fallback routes for known service keys (when microservice.base_url isn't set in DB yet)
+const SERVICE_KEY_ROUTES: Record<string, string> = {
+  "hotel-reviews": "/hotel-reviews",
+};
+
 // ---- Project button shown on every blog card --------------------------------
 
 function ProjectButton({
@@ -51,7 +56,9 @@ function ProjectButton({
 // ---- Cards ------------------------------------------------------------------
 
 function PostCard({ p, serviceUrlMap }: { p: BlogPost; serviceUrlMap: Record<string, string> }) {
-  const launchUrl = p.service_key ? (serviceUrlMap[p.service_key] ?? null) : null;
+  const launchUrl = p.service_key
+    ? (serviceUrlMap[p.service_key] ?? SERVICE_KEY_ROUTES[p.service_key] ?? null)
+    : null;
   return (
     <div className="group rounded-2xl bg-surface border border-white/10 shadow-card overflow-hidden hover:border-primary/50 transition-colors flex flex-col">
       <Link href={`/blog/${p.slug}`} className="flex flex-col flex-1">
@@ -83,7 +90,9 @@ function PostCard({ p, serviceUrlMap }: { p: BlogPost; serviceUrlMap: Record<str
 }
 
 function FeaturedCard({ p, serviceUrlMap }: { p: BlogPost; serviceUrlMap: Record<string, string> }) {
-  const launchUrl = p.service_key ? (serviceUrlMap[p.service_key] ?? null) : null;
+  const launchUrl = p.service_key
+    ? (serviceUrlMap[p.service_key] ?? SERVICE_KEY_ROUTES[p.service_key] ?? null)
+    : null;
   return (
     <div className="group w-full rounded-2xl bg-surface border border-primary/25 shadow-card overflow-hidden hover:border-primary/60 transition-all hover:shadow-[0_8px_40px_rgba(var(--color-primary-rgb,204,2,2),0.15)]">
       <Link href={`/blog/${p.slug}`} className="grid md:grid-cols-5">
