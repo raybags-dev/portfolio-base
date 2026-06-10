@@ -247,7 +247,7 @@ class HotelCrawlSession(PKMixin, TimestampMixin, Base):
     analytics_result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(Text)
 
-    records: Mapped[list["HotelCrawlRecord"]] = relationship(
+    records: Mapped[list[HotelCrawlRecord]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
     )
 
@@ -263,4 +263,4 @@ class HotelCrawlRecord(PKMixin, TimestampMixin, Base):
     is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
     validation_errors: Mapped[list | None] = mapped_column(JSON)
 
-    session: Mapped["HotelCrawlSession"] = relationship(back_populates="records")
+    session: Mapped[HotelCrawlSession] = relationship(back_populates="records")
