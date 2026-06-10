@@ -14,6 +14,7 @@ import {
   listCrawlSessions,
   type CrawlSession,
   type ChartData,
+  ApiError,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 
@@ -48,6 +49,11 @@ export default function HotelReviewsPage() {
   const [cookieHints, setCookieHints] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [tokenModal, setTokenModal] = useState<{ sessionId: number } | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
+  const [tokenError, setTokenError] = useState("");
+  const [tokenSubmitting, setTokenSubmitting] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -92,8 +98,17 @@ export default function HotelReviewsPage() {
         max_pages: maxPages,
       });
       setActiveSession(session);
+      try {
+        await runCrawlSession(session.id);
+      } catch (runErr) {
+        if (runErr instanceof ApiError && runErr.status === 403 && runErr.message === "rate_limited") {
+          setTokenModal({ sessionId: session.id });
+          setSubmitting(false);
+          return;
+        }
+        throw runErr;
+      }
       setStep("running");
-      await runCrawlSession(session.id);
       startPolling(session.id);
       toast.success("Crawl started", "The AI crawler is now running in the background.");
     } catch (err: unknown) {
@@ -101,6 +116,29 @@ export default function HotelReviewsPage() {
       setFormError(msg);
       toast.error("Failed to start crawl", msg);
       setSubmitting(false);
+    }
+  }
+
+  async function handleTokenSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tokenModal || !tokenInput.trim()) return;
+    setTokenSubmitting(true);
+    setTokenError("");
+    try {
+      await runCrawlSession(tokenModal.sessionId, tokenInput.trim());
+      setTokenModal(null);
+      setTokenInput("");
+      setStep("running");
+      startPolling(tokenModal.sessionId);
+      toast.success("Crawl started", "The AI crawler is now running in the background.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setTokenError(err.message === "invalid_token" ? "Invalid or expired token. Request a new one from the site owner." : err.message);
+      } else {
+        setTokenError(err instanceof Error ? err.message : "Failed to start crawl");
+      }
+    } finally {
+      setTokenSubmitting(false);
     }
   }
 
@@ -185,6 +223,50 @@ export default function HotelReviewsPage() {
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
         {step === "results" && activeSession && <ResultsStep session={activeSession} onRefresh={() => getCrawlSession(activeSession.id).then(setActiveSession)} />}
       </main>
+
+      {/* Token required modal */}
+      {tokenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-theme bg-surface border border-white/15 p-6 shadow-2xl">
+            <h2 className="font-heading font-bold text-lg mb-2">Access Token Required</h2>
+            <p className="text-sm text-muted mb-4">
+              This app has already been run from your IP address. To run it again, please enter a
+              valid access token. Tokens are provided by the site owner — reach out to request one.
+            </p>
+            <form onSubmit={handleTokenSubmit} className="space-y-3">
+              {tokenError && (
+                <div className="rounded bg-red-500/10 border border-red-500/30 text-red-400 px-3 py-2 text-sm">
+                  {tokenError}
+                </div>
+              )}
+              <input
+                type="text"
+                value={tokenInput}
+                onChange={e => setTokenInput(e.target.value)}
+                placeholder="Paste your access token here"
+                className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60 font-mono"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={tokenSubmitting || !tokenInput.trim()}
+                  className="flex-1 rounded-theme bg-primary text-white py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {tokenSubmitting ? "Verifying…" : "Submit Token"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTokenModal(null); setTokenInput(""); setTokenError(""); setStep("configure"); setActiveSession(null); setSubmitting(false); }}
+                  className="px-4 rounded-theme border border-white/15 text-sm hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
