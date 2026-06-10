@@ -55,10 +55,13 @@ class OpenAIProvider:
 
     name = "openai"
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini", base_url: str | None = None) -> None:
         from openai import AsyncOpenAI  # lazy: optional dependency
 
-        self._client = AsyncOpenAI(api_key=api_key)
+        kwargs: dict = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self._client = AsyncOpenAI(**kwargs)
         self._model = model
 
     async def complete(self, system: str, prompt: str) -> str:
@@ -91,11 +94,32 @@ class OpenAIProvider:
             return dict(fallback or {})
 
 
+class GroqProvider(OpenAIProvider):
+    """Groq inference via OpenAI-compatible API (fast, free tier available)."""
+
+    name = "groq"
+
+    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile") -> None:
+        super().__init__(
+            api_key=api_key,
+            model=model,
+            base_url="https://api.groq.com/openai/v1",
+        )
+
+
 def get_provider(model: str | None = None) -> LLMProvider:
-    """Pick the best available provider for the current environment."""
+    """Pick the best available provider for the current environment.
+
+    Preference: Groq (if key set) → OpenAI (if key set) → Stub.
+    """
+    if settings.GROQ_API_KEY:
+        try:
+            return GroqProvider(settings.GROQ_API_KEY, model or settings.GROQ_MODEL)
+        except Exception as exc:
+            log.warning("groq.init.failed", error=str(exc))
     if settings.OPENAI_API_KEY:
         try:
-            return OpenAIProvider(settings.OPENAI_API_KEY, model or "gpt-4o-mini")
+            return OpenAIProvider(settings.OPENAI_API_KEY, model or settings.OPENAI_MODEL)
         except Exception as exc:  # openai not installed, etc.
             log.warning("openai.init.failed", error=str(exc))
     return StubProvider()

@@ -77,6 +77,9 @@ class Settings(BaseSettings):
 
     # ---- AI ----
     OPENAI_API_KEY: str | None = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # ---- email / contact form (optional; messages are stored regardless) ----
     SMTP_HOST: str | None = None
