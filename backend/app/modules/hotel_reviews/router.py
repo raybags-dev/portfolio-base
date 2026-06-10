@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.core.access import require_app_access
 from app.core.deps import DbSession, require_flag
 from app.models.platform import HotelCrawlRecord, HotelCrawlSession
 from app.modules import ModuleSpec
@@ -74,7 +75,7 @@ async def get_session(session_id: int, db: DbSession):
     return _session_dict(session)
 
 
-@router.post("/sessions/{session_id}/run")
+@router.post("/sessions/{session_id}/run", dependencies=[require_app_access("hotel-reviews")])
 async def run_session(session_id: int, db: DbSession, background_tasks: BackgroundTasks):
 
     session = await db.get(HotelCrawlSession, session_id)
