@@ -359,3 +359,70 @@ export const updateItem = (token: string, path: string, id: number, body: Record
   request(`${path}/${id}`, { method: "PUT", token, body: JSON.stringify(body) });
 export const deleteItem = (token: string, path: string, id: number) =>
   request<void>(`${path}/${id}`, { method: "DELETE", token });
+
+// ---- hotel review analytics (crawl sessions) ----
+export interface CrawlSession {
+  id: number;
+  name: string;
+  target_url: string;
+  collection_prompt: string;
+  analytics_spec: Record<string, unknown>;
+  max_pages: number;
+  status: "pending" | "running" | "done" | "failed";
+  progress: { log?: string[]; last_message?: string; records_collected?: number; pages_crawled?: number; current_url?: string; charts_computed?: number } | null;
+  analytics_result: AnalyticsResult | null;
+  error: string | null;
+  created_at: string;
+}
+
+export interface ChartData {
+  id: string;
+  title: string;
+  type: "bar" | "pie" | "line";
+  data: Record<string, unknown>[];
+}
+
+export interface AnalyticsResult {
+  total_records?: number;
+  fields_found?: string[];
+  summary_stats?: Record<string, { min: number; max: number; avg: number; count: number }>;
+  high_rated_count?: number;
+  charts?: ChartData[];
+  error?: string;
+}
+
+export const listCrawlSessions = () =>
+  request<CrawlSession[]>("/hotel-reviews/sessions");
+
+export const createCrawlSession = (body: {
+  name: string;
+  target_url: string;
+  collection_prompt: string;
+  analytics_spec?: Record<string, unknown>;
+  max_pages?: number;
+}) =>
+  request<CrawlSession>("/hotel-reviews/sessions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const getCrawlSession = (id: number) =>
+  request<CrawlSession>(`/hotel-reviews/sessions/${id}`);
+
+export const runCrawlSession = (id: number) =>
+  request<{ message: string; session_id: number }>(
+    `/hotel-reviews/sessions/${id}/run`,
+    { method: "POST" }
+  );
+
+export const getCrawlRecords = (id: number) =>
+  request<Record<string, unknown>[]>(`/hotel-reviews/sessions/${id}/records`);
+
+export const getCrawlAnalytics = (id: number) =>
+  request<AnalyticsResult>(`/hotel-reviews/sessions/${id}/analytics`);
+
+export const generateSessionBlog = (id: number) =>
+  request<{ blog_post_id: number; title: string; slug: string; draft: boolean }>(
+    `/hotel-reviews/sessions/${id}/generate-blog`,
+    { method: "POST" }
+  );

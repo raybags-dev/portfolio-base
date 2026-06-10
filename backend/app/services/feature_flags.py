@@ -40,7 +40,7 @@ DEFAULT_FLAGS: dict[str, tuple[str, str, bool, str]] = {
     "ENABLE_PUBLIC_API": ("Public API", "infra", True, "Public read API surface"),
     # data projects (each maps to a microservice card)
     "ENABLE_RETAIL": ("Retail Price Intelligence", "projects", False, "Retail price crawler/analytics"),
-    "ENABLE_HOTEL_REVIEWS": ("Hotel Review Analytics", "projects", False, "Review sentiment analytics"),
+    "ENABLE_HOTEL_REVIEWS": ("Hotel Review Analytics", "projects", True, "Review sentiment analytics"),
     "ENABLE_SPORTS": ("Sports Analytics", "projects", False, "Sports data & predictions"),
     "ENABLE_WEATHER": ("Weather Pipeline", "projects", False, "Weather ETL & forecasting"),
     "ENABLE_NEWS": ("News Pipeline", "projects", False, "News ingestion & summarization"),
