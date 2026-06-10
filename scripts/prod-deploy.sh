@@ -41,23 +41,20 @@ export DOCKERHUB_USERNAME IMAGE_TAG
 log "Pulling ${DOCKERHUB_USERNAME}/raybags-{backend,frontend}:${IMAGE_TAG} …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 
-# ---- 2. Recreate containers with new images ----
+# ---- 2. Run migrations BEFORE starting the app ----
+# Use `run --rm` (throwaway container, no uvicorn) to avoid OOM from running
+# two Python processes inside the same container simultaneously.
+log "Running Alembic migrations …"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
+  run --rm --no-deps backend alembic upgrade head
+ok "Migrations complete"
+
+# ---- 3. Start (or recreate) full stack with updated images ----
+# The backend lifespan seeds microservices + blog posts on startup (idempotent).
 log "Starting updated stack …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
-# ---- 2b. Run database migrations (idempotent) ----
-log "Running Alembic migrations …"
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
-  exec -T backend alembic upgrade head
-ok "Migrations complete"
-
-# ---- 2c. Run seed (idempotent — skips existing rows) ----
-log "Running seed …"
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
-  exec -T backend python -m app.seed
-ok "Seed complete"
-
-# ---- 3. Wait for backend health ----
+# ---- 4. Wait for backend health ----
 log "Waiting for backend health …"
 elapsed=0
 until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
@@ -71,7 +68,7 @@ until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
 done
 ok "Backend healthy"
 
-# ---- 4. Quick public smoke test ----
+# ---- 5. Quick public smoke test ----
 if curl -fsS --max-time 10 https://raybags.com/api/v1/health >/dev/null 2>&1; then
   ok "raybags.com responded"
 else
