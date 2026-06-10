@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -30,6 +31,10 @@ class SessionCreate(BaseModel):
     collection_prompt: str
     analytics_spec: dict[str, Any] = {}
     max_pages: int = 5
+
+
+class SessionPatch(BaseModel):
+    analytics_spec: dict[str, Any] | None = None
 
 
 def _session_dict(s: HotelCrawlSession) -> dict[str, Any]:
@@ -75,16 +80,37 @@ async def get_session(session_id: int, db: DbSession):
     return _session_dict(session)
 
 
+@router.patch("/sessions/{session_id}")
+async def patch_session(session_id: int, payload: SessionPatch, db: DbSession):
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if payload.analytics_spec is not None:
+        session.analytics_spec = payload.analytics_spec
+    await db.commit()
+    await db.refresh(session)
+    return _session_dict(session)
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: int, db: DbSession) -> Response:
+    """Delete a session and all its collected records."""
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    await db.delete(session)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/sessions/{session_id}/run", dependencies=[require_app_access("hotel-reviews")])
 async def run_session(session_id: int, db: DbSession, background_tasks: BackgroundTasks):
-
     session = await db.get(HotelCrawlSession, session_id)
     if session is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
     if session.status == "running":
         raise HTTPException(status.HTTP_409_CONFLICT, "Session already running")
 
-    # Run in background so the endpoint returns immediately
     background_tasks.add_task(_run_in_background, session_id)
     return {"message": "Crawl started", "session_id": session_id}
 
@@ -97,7 +123,7 @@ async def _run_in_background(session_id: int) -> None:
         try:
             await _run(db, session_id)
         except Exception:
-            pass  # errors already persisted to session.error
+            pass
 
 
 @router.get("/sessions/{session_id}/records")
@@ -118,11 +144,57 @@ async def session_records(
             "source_url": r.source_url,
             "data": r.data,
             "is_valid": r.is_valid,
-            "validation_errors": r.validation_errors,
             "created_at": r.created_at,
         }
         for r in rows
     ]
+
+
+@router.get("/sessions/{session_id}/records/preview")
+async def session_records_preview(session_id: int, db: DbSession):
+    """Return first 20 records as raw JSON objects for in-page preview."""
+    rows = (
+        await db.scalars(
+            select(HotelCrawlRecord)
+            .where(HotelCrawlRecord.session_id == session_id)
+            .order_by(HotelCrawlRecord.id)
+            .limit(20)
+        )
+    ).all()
+    return [r.data for r in rows]
+
+
+@router.get("/sessions/{session_id}/records/export")
+async def export_records(session_id: int, db: DbSession):
+    """Download all collected records as a JSON file."""
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+
+    rows = (
+        await db.scalars(
+            select(HotelCrawlRecord)
+            .where(HotelCrawlRecord.session_id == session_id)
+            .order_by(HotelCrawlRecord.id)
+        )
+    ).all()
+
+    payload = {
+        "session": {
+            "id": session.id,
+            "name": session.name,
+            "target_url": session.target_url,
+            "collection_prompt": session.collection_prompt,
+            "total_records": len(rows),
+        },
+        "records": [r.data for r in rows],
+    }
+    filename = f"crawl-session-{session_id}.json"
+    return Response(
+        content=json.dumps(payload, indent=2, default=str),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/sessions/{session_id}/analytics")
@@ -136,6 +208,8 @@ async def session_analytics(session_id: int, db: DbSession):
 @router.post("/sessions/{session_id}/generate-blog")
 async def generate_blog(session_id: int, db: DbSession):
     """Generate a draft blog post from this session and save it."""
+    from app.models.blog import BlogPost
+
     session = await db.get(HotelCrawlSession, session_id)
     if session is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
@@ -150,21 +224,33 @@ async def generate_blog(session_id: int, db: DbSession):
         "total_records": (session.progress or {}).get("records_collected", 0),
     }
 
-    draft = await blog_gen.generate_blog_post(session_data, analytics, provider)
+    try:
+        draft = await blog_gen.generate_blog_post(session_data, analytics, provider)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Blog generation failed: {exc}") from exc
 
-    # Save as a draft blog post (status="draft" is the default)
-    from app.models.blog import BlogPost
+    # Ensure slug is unique by always appending session_id
+    base_slug = draft.get("slug") or f"crawl-session-{session_id}"
+    # Strip invalid chars and append session id for guaranteed uniqueness
+    import re
+    safe_slug = re.sub(r"[^a-z0-9-]", "-", base_slug.lower())[:60].strip("-")
+    unique_slug = f"{safe_slug}-{session_id}"
 
     post = BlogPost(
-        title=draft.get("title", "Untitled"),
-        slug=draft.get("slug", f"crawl-session-{session_id}"),
+        title=draft.get("title", "Untitled Crawl Report"),
+        slug=unique_slug,
         content_markdown=draft.get("content", ""),
         excerpt=draft.get("excerpt", ""),
         is_featured=False,
         status="draft",
+        service_key="hotel-reviews",
     )
     db.add(post)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as db_exc:
+        await db.rollback()
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to save blog post — slug conflict or DB error") from db_exc
     await db.refresh(post)
 
     return {"blog_post_id": post.id, "title": post.title, "slug": post.slug, "draft": True}
