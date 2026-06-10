@@ -11,7 +11,8 @@ from app.modules.agents.llm import LLMProvider
 
 log = get_logger("hotel_reviews.engine")
 
-_MAX_HTML_CHARS = 20000  # truncate page HTML sent to LLM
+_MAX_HTML_CHARS = 50_000  # HTML-with-tags for selector planning
+_MAX_TEXT_CHARS = 20_000  # stripped text for LLM content extraction
 
 # Common cookie/consent banner selectors tried before falling back to LLM
 _COOKIE_SELECTORS = [
@@ -36,6 +37,12 @@ _COOKIE_SELECTORS = [
     "button:has-text('Got it')",
     "button:has-text('OK')",
     "button:has-text('Confirm')",
+    # Dutch / German
+    "button:has-text('Akkoord')",
+    "button:has-text('Alle akkoord')",
+    "button:has-text('Alle cookies accepteren')",
+    "button:has-text('Zustimmen')",
+    "button:has-text('Alle akzeptieren')",
     # Common class patterns
     ".cc-btn.cc-allow",
     ".cc-accept",
@@ -47,13 +54,56 @@ _COOKIE_SELECTORS = [
     "[aria-label*='Accept all']",
 ]
 
+# Stable attributes useful for CSS selector generation
+_KEEP_ATTRS_RE = re.compile(
+    r'(?:id|class|role|href|name|type|data-[a-z][a-z0-9-]*|aria-[a-z][a-z0-9-]*)="[^"]*"',
+    re.IGNORECASE,
+)
 
-def _clean_html(html: str) -> str:
-    """Strip scripts/styles, collapse whitespace, truncate."""
+
+def _clean_html_for_plan(html: str) -> str:
+    """Preserve HTML structure (tags + stable attrs) for LLM selector planning.
+
+    Strips script/style/svg entirely; keeps id, class, data-*, aria-* and role
+    so the LLM can propose accurate CSS selectors against the live DOM.
+    """
+    # Remove entire block elements that add noise
+    html = re.sub(
+        r"<(script|style|noscript|svg|meta|link)[^>]*>.*?</\1>",
+        "",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    html = re.sub(r"<!--.*?-->", "", html, flags=re.DOTALL)
+
+    def _strip_attrs(m: re.Match) -> str:
+        full = m.group(0)
+        tag_name = re.match(r"<[A-Za-z][A-Za-z0-9]*", full)
+        if not tag_name:
+            return full
+        kept = _KEEP_ATTRS_RE.findall(full)
+        closing = " />" if full.rstrip().endswith("/>") else ">"
+        return f"{tag_name.group(0)}{(' ' + ' '.join(kept)) if kept else ''}{closing}"
+
+    html = re.sub(r"<[A-Za-z][^>]*?>", _strip_attrs, html)
+    html = re.sub(r"\s+", " ", html).strip()
+    return html[:_MAX_HTML_CHARS]
+
+
+def _clean_html_for_text(html: str) -> str:
+    """Strip all HTML tags, keep just text content for LLM extraction fallback."""
     html = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r"<[^>]+>", " ", html)
     html = re.sub(r"\s+", " ", html).strip()
-    return html[:_MAX_HTML_CHARS]
+    return html[:_MAX_TEXT_CHARS]
+
+
+def _record_key(rec: dict) -> str:
+    """Stable dedup key so scroll-loaded duplicates are dropped."""
+    title = str(rec.get("title") or rec.get("name") or rec.get("property_name") or "")
+    price = str(rec.get("price") or rec.get("price_per_night") or "")
+    url = str(rec.get("source_url") or "")
+    return f"{title}|{price}|{url}"
 
 
 class CrawlEngine:
@@ -62,11 +112,11 @@ class CrawlEngine:
     Strategy:
       1. Load the start URL.
       2. Dismiss any cookie/consent banner (known patterns → LLM fallback).
-      3. Ask the LLM for an extraction plan (CSS selectors).
-      4. Extract data from the current page.
-      5. Ask the LLM for the "next page" selector if more pages needed.
-      6. Repeat up to max_pages.
-      7. If an extraction step yields 0 results, ask LLM for a healing strategy.
+      3. Ask the LLM for an extraction plan with HTML-structure context.
+      4. DOM-direct extraction first (fast, accurate for JS-rendered sites).
+      5. LLM text-extraction fallback if DOM yields nothing.
+      6. Navigate to next page via button click OR infinite scroll.
+      7. Deduplicate records (for scroll-loaded sites).
     """
 
     def __init__(self, provider: LLMProvider, *, max_pages: int = 5) -> None:
@@ -82,25 +132,25 @@ class CrawlEngine:
         on_progress: Any = None,
         cookie_hints: str | None = None,
         selector_hints: dict[str, str] | None = None,
+        pagination_type: str = "auto",
     ) -> list[dict[str, Any]]:
         """Run the crawl. Returns list of extracted records.
 
-        selector_hints: user-provided mapping of field_name → CSS selector or
-        description (e.g. {"price": ".price-text", "name": "h2.title"}).
-        When provided, these override the LLM-planned selectors for those fields.
-
-        cookie_hints: optional extra context from the user about this site's
-        cookie popup (e.g. 'The site has a button labeled "Akkoord"').
+        pagination_type: "auto" (try button then scroll), "scroll" (infinite scroll only),
+                         "click" (button/link only).
+        selector_hints: user-provided {field: css_selector_or_description} overrides.
+        cookie_hints: optional text/selector for this site's cookie accept button.
         """
         try:
             from playwright.async_api import async_playwright
         except ImportError:
-            log.error("playwright.not_installed", remedy="Add playwright to requirements.txt and run playwright install chromium in the Docker image")
+            log.error("playwright.not_installed")
             if on_progress:
-                await on_progress("ERROR: Playwright is not installed in this environment. Please contact the administrator.")
+                await on_progress("ERROR: Playwright is not installed.")
             return []
 
         records: list[dict[str, Any]] = []
+        seen_keys: set[str] = set()
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -120,12 +170,12 @@ class CrawlEngine:
                 if on_progress:
                     await on_progress(f"Loading {start_url}")
                 await page.goto(start_url, wait_until="load", timeout=45000)
-                # Give JS frameworks time to render and lazy-load content
                 await asyncio.sleep(3)
-                # Scroll to bottom to trigger lazy-loaded items, then back up
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                # Scroll to trigger lazy content, then back to top
+                await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
                 await asyncio.sleep(1)
-                await page.evaluate("window.scrollTo(0, 0)")
+                await page.evaluate("() => window.scrollTo(0, 0)")
+                await asyncio.sleep(1)
 
                 # --- Cookie banner dismissal ---
                 dismissed, cookie_status = await self._dismiss_cookie_banner(
@@ -133,22 +183,30 @@ class CrawlEngine:
                 )
                 if on_progress:
                     await on_progress(f"Cookie banner: {cookie_status}")
-                if not dismissed:
-                    if on_progress:
-                        await on_progress(
-                            "WARNING: Could not auto-dismiss cookie banner. "
-                            "If you see incomplete data, visit the site manually to identify "
-                            "the 'Accept' button text and pass it as a cookie hint on the next run."
-                        )
+                if not dismissed and on_progress:
+                    await on_progress(
+                        "WARNING: Could not dismiss cookie banner automatically. "
+                        "If data is incomplete, re-run with the accept button text as a cookie hint."
+                    )
 
+                # --- Extraction plan (uses HTML-with-tags for accurate selectors) ---
                 plan = await self._get_extraction_plan(
                     await page.content(), start_url, collection_prompt
                 )
-                # Merge any user-supplied selector hints into the plan
                 if selector_hints:
                     plan["fields"] = {**(plan.get("fields") or {}), **selector_hints}
                 if on_progress:
-                    await on_progress(f"Extraction plan: {plan.get('strategy', 'direct scrape')}")
+                    await on_progress(
+                        f"Plan: {plan.get('strategy', 'direct scrape')} | "
+                        f"pagination: {plan.get('pagination_hint', pagination_type)}"
+                    )
+
+                # Honour LLM's pagination hint if user left it on "auto"
+                effective_pagination = pagination_type
+                if effective_pagination == "auto":
+                    llm_hint = plan.get("pagination_hint", "")
+                    if "scroll" in llm_hint.lower():
+                        effective_pagination = "scroll"
 
                 for page_num in range(self.max_pages):
                     url = page.url
@@ -157,7 +215,7 @@ class CrawlEngine:
 
                     html = await page.content()
 
-                    # Try DOM-direct extraction first (fast, accurate for JS-rendered sites)
+                    # DOM-direct first
                     page_records = await self._extract_with_playwright(page, plan, url)
                     if on_progress:
                         await on_progress(
@@ -165,31 +223,47 @@ class CrawlEngine:
                             + (" — falling back to LLM" if not page_records else "")
                         )
 
-                    # Fall back to LLM-based extraction if DOM gave nothing
+                    # LLM text-extraction fallback
                     if not page_records:
-                        page_records = await self._extract_records(html, url, collection_prompt, plan)
+                        page_records = await self._extract_records(
+                            html, url, collection_prompt, plan
+                        )
 
+                    # Heal plan if first page yields nothing
                     if not page_records and page_num == 0:
                         if on_progress:
-                            await on_progress("No records found — requesting healing strategy")
+                            await on_progress("No records found — requesting healed plan")
                         plan = await self._heal(html, url, collection_prompt, plan)
+                        if selector_hints:
+                            plan["fields"] = {**(plan.get("fields") or {}), **selector_hints}
                         page_records = await self._extract_with_playwright(page, plan, url)
                         if not page_records:
-                            page_records = await self._extract_records(html, url, collection_prompt, plan)
+                            page_records = await self._extract_records(
+                                html, url, collection_prompt, plan
+                            )
 
+                    # Deduplicate (handles scroll overlap)
+                    new_count = 0
                     for rec in page_records:
+                        key = _record_key(rec)
+                        if key in seen_keys:
+                            continue
+                        seen_keys.add(key)
                         records.append(rec)
+                        new_count += 1
                         if on_record:
                             await on_record(rec, url)
 
                     if on_progress:
                         await on_progress(
-                            f"Page {page_num + 1}: extracted {len(page_records)} records "
+                            f"Page {page_num + 1}: {new_count} new records "
                             f"(total: {len(records)})"
                         )
 
                     if page_num < self.max_pages - 1:
-                        navigated = await self._go_next(page, html, plan)
+                        navigated = await self._go_next(
+                            page, html, plan, pagination_type=effective_pagination
+                        )
                         if not navigated:
                             if on_progress:
                                 await on_progress("No next page — crawl complete")
@@ -205,25 +279,17 @@ class CrawlEngine:
     async def _dismiss_cookie_banner(
         self, page: Any, *, cookie_hints: str | None = None
     ) -> tuple[bool, str]:
-        """Try to dismiss a cookie consent banner.
-
-        Returns (dismissed: bool, status_message: str).
-        First tries known CSS/text selectors, then an LLM-proposed selector,
-        then a user-supplied hint if provided.
-        """
-        # 1. Try well-known selectors
+        """Try to dismiss a cookie consent banner."""
         for sel in _COOKIE_SELECTORS:
             try:
                 el = await page.query_selector(sel)
                 if el and await el.is_visible():
                     await el.click()
                     await asyncio.sleep(1)
-                    log.debug("cookie_banner.dismissed", selector=sel)
                     return True, f"dismissed via known selector ({sel})"
             except Exception:
                 continue
 
-        # 2. User-supplied hint (extra button text or selector from a previous run)
         if cookie_hints:
             try:
                 hint_sel = (
@@ -239,28 +305,21 @@ class CrawlEngine:
             except Exception:
                 pass
 
-        # 3. LLM fallback — look for cookie-related dialog in page text
-        html_sample = _clean_html(await page.content())
+        html_sample = _clean_html_for_text(await page.content())
         cookie_keywords = ["cookie", "consent", "privacy", "gdpr", "tracking"]
-        has_cookie_text = any(kw in html_sample.lower() for kw in cookie_keywords)
-        if not has_cookie_text:
+        if not any(kw in html_sample.lower() for kw in cookie_keywords):
             return True, "no cookie banner detected"
 
-        system = "You are helping dismiss a cookie consent banner on a webpage. Return JSON only."
+        system = "You are helping dismiss a cookie consent banner. Return JSON only."
         prompt = f"""
-The following page text contains cookie/consent language. Identify the CSS selector or
-button text for the 'Accept' or 'Agree' button that dismisses the banner.
-
-Page content snippet:
+Page content (text):
 {html_sample[:3000]}
 
-Return JSON: {{"selector": "<css_selector_or_null>", "button_text": "<visible_text_or_null>", "found": true|false}}
-If you cannot identify the button with confidence, set found=false.
+Return JSON: {{"selector": "<css_or_null>", "button_text": "<text_or_null>", "found": true|false}}
 """
         result = await self.provider.propose_json(
             system, prompt, fallback={"selector": None, "button_text": None, "found": False}
         )
-
         if result.get("found"):
             sel = result.get("selector")
             btn_text = result.get("button_text")
@@ -278,55 +337,64 @@ If you cannot identify the button with confidence, set found=false.
                 log.debug("cookie_banner.llm_click_failed", error=str(exc))
 
         return False, (
-            "could not dismiss cookie banner automatically — "
-            "try passing a cookie hint like the accept button text for this site"
+            "could not dismiss cookie banner — try passing the accept button text as a cookie hint"
         )
 
     async def _get_extraction_plan(
         self, html: str, url: str, collection_prompt: str
     ) -> dict[str, Any]:
         system = (
-            "You are a web scraping expert. Analyze the page content and create a precise "
-            "extraction plan that maps EXACTLY to the user's requested data points. "
-            "Return JSON only."
+            "You are a web scraping expert. Analyze the page HTML and create a precise "
+            "extraction plan. Return JSON only."
         )
+        cleaned = _clean_html_for_plan(html)
         prompt = f"""
 URL: {url}
 User wants to collect: {collection_prompt}
 
-IMPORTANT: The user described specific data points they want. Your "fields" map MUST use
-snake_case keys that match those data points exactly (e.g. if they say "property name" use
-"property_name", "review score" → "review_score", "price per night" → "price_per_night").
-Every field the user mentioned must appear in the fields map, even if you're uncertain of
-the selector — use your best guess.
+The HTML below preserves tag structure and attributes (id, class, data-*, aria-*).
+Use this to identify the MOST STABLE CSS selectors — prefer:
+1. data-testid="..." attributes (most stable)
+2. aria-label="..." attributes
+3. id="..." attributes
+4. Semantic tags with role attributes
+5. Class names only as a last resort (avoid random-looking hash classes)
 
-Page content (truncated):
-{_clean_html(html)}
+Every field the user mentioned MUST appear in the "fields" map. Use your best guess
+for the selector even if uncertain — use the most descriptive attribute you can find.
 
-Return a JSON extraction plan:
+Page HTML (structure preserved):
+{cleaned}
+
+Return JSON:
 {{
-  "strategy": "brief description",
-  "item_selector": "CSS selector matching each individual listing/card/item on the page",
+  "strategy": "one-sentence description of what kind of page this is",
+  "item_selector": "CSS selector matching EACH individual listing/card/item (e.g. [data-testid='property-card'])",
   "fields": {{
-    "<snake_case_field_name>": "<CSS selector relative to item container>",
-    ...one entry per data point the user requested...
+    "<snake_case_field>": "<CSS selector relative to the item container>",
+    ...one entry per requested field...
   }},
-  "next_page_selector": "CSS selector for next-page button or null",
+  "next_page_selector": "CSS selector for the Next Page button/link, or null",
+  "pagination_hint": "scroll|click|unknown — whether the site uses infinite scroll or button pagination",
   "data_type": "hotel|product|review|property|listing|etc",
-  "requested_fields": ["list", "of", "field", "names", "user", "wants"]
+  "requested_fields": ["exact", "field", "names", "user", "wants"]
 }}
 """
         return await self.provider.propose_json(system, prompt, fallback={
             "strategy": "generic scrape",
-            "item_selector": "article, .card, [data-testid*='card'], .property, li.item",
+            "item_selector": (
+                "[data-testid*='card'], [data-testid*='property'], "
+                "article, .card, li.item"
+            ),
             "fields": {
-                "title": "h2, h3, .title",
-                "price": ".price, [data-testid*='price']",
-                "rating": ".rating, [aria-label*='rating'], [aria-label*='score']",
-                "location": ".location, address, [data-testid*='location']",
+                "title": "[data-testid='title'], h2, h3",
+                "price": "[data-testid*='price'], .price",
+                "rating": "[data-testid='review-score'], [aria-label*='rating'], [aria-label*='score']",
+                "location": "[data-testid='address'], address, [aria-label*='location']",
                 "description": "p",
             },
-            "next_page_selector": "[aria-label='Next page'], .next-page, button[data-testid='pagination-next']",
+            "next_page_selector": "[aria-label='Next page'], button[data-testid='pagination-next']",
+            "pagination_hint": "unknown",
             "data_type": "item",
             "requested_fields": [],
         })
@@ -334,40 +402,89 @@ Return a JSON extraction plan:
     async def _extract_with_playwright(
         self, page: Any, plan: dict[str, Any], url: str
     ) -> list[dict[str, Any]]:
-        """Use the browser DOM directly to extract records via CSS selectors.
+        """DOM-direct extraction — reliable for JS-rendered sites.
 
-        Much more reliable than sending cleaned HTML to the LLM for JS-rendered
-        sites (Booking.com, Amazon, etc.) where content is injected at runtime.
-        Falls back gracefully to [] on any error so the LLM path remains intact.
+        For each field, tries the primary selector AND a set of common fallback
+        patterns so partial plans still capture most data.
         """
         item_sel = plan.get("item_selector", "")
         fields: dict[str, str] = plan.get("fields") or {}
         if not item_sel or not fields:
             return []
 
+        # Build fallback selectors for common field names
+        fallbacks: dict[str, list[str]] = {
+            "title": ["[data-testid='title']", "h2", "h3", ".title"],
+            "price": [
+                "[data-testid='price-and-discounted-price']",
+                "[data-testid*='price']",
+                ".price",
+                "[class*='price']",
+                "[aria-label*='price' i]",
+            ],
+            "rating": [
+                "[data-testid='review-score']",
+                "[aria-label*='rating' i]",
+                "[aria-label*='score' i]",
+                ".rating",
+                "[class*='rating']",
+                "[class*='review-score']",
+            ],
+            "location": [
+                "[data-testid='address']",
+                "address",
+                "[aria-label*='location' i]",
+                "[aria-label*='address' i]",
+                "[class*='location']",
+                "[class*='address']",
+            ],
+            "description": ["p", "[data-testid='description']", ".description"],
+        }
+
+        # Merge plan selectors as the first option for each field
+        full_selectors: dict[str, list[str]] = {}
+        for field, sel in fields.items():
+            opts = [sel] if sel else []
+            for fb_key, fb_sels in fallbacks.items():
+                if fb_key in field.lower():
+                    opts = opts + [s for s in fb_sels if s != sel]
+                    break
+            full_selectors[field] = opts
+
         js = """
-        ({item_selector, fields, source_url}) => {
-            const items = Array.from(document.querySelectorAll(item_selector)).slice(0, 25);
+        ({item_selector, selectors, source_url}) => {
+            const items = Array.from(document.querySelectorAll(item_selector)).slice(0, 30);
             return items.map(item => {
                 const rec = {source_url};
-                for (const [field, sel] of Object.entries(fields)) {
-                    const el = item.querySelector(sel);
-                    if (el) {
-                        const text = (el.textContent || el.getAttribute('aria-label') ||
-                                      el.getAttribute('title') || el.getAttribute('content') || '').trim();
-                        rec[field] = text || null;
-                    } else {
-                        rec[field] = null;
+                for (const [field, sels] of Object.entries(selectors)) {
+                    let val = null;
+                    for (const sel of sels) {
+                        try {
+                            const el = item.querySelector(sel);
+                            if (el) {
+                                val = (
+                                    el.textContent ||
+                                    el.getAttribute('aria-label') ||
+                                    el.getAttribute('title') ||
+                                    el.getAttribute('content') ||
+                                    ''
+                                ).trim();
+                                if (val) break;
+                            }
+                        } catch(e) { continue; }
                     }
+                    rec[field] = val || null;
                 }
                 return rec;
-            }).filter(r => Object.values(r).some(v => v && v !== source_url));
+            }).filter(r =>
+                Object.entries(r).some(([k, v]) => k !== 'source_url' && v)
+            );
         }
         """
         try:
             results = await page.evaluate(js, {
                 "item_selector": item_sel,
-                "fields": fields,
+                "selectors": full_selectors,
                 "source_url": url,
             })
             if isinstance(results, list):
@@ -380,9 +497,8 @@ Return a JSON extraction plan:
         self, html: str, url: str, collection_prompt: str, plan: dict[str, Any]
     ) -> list[dict[str, Any]]:
         system = (
-            "You are a data extraction expert. Extract structured records from HTML. "
-            "Each record must be a complete property/item profile with ALL requested fields. "
-            "Use null for fields you cannot find. Return JSON only."
+            "You are a data extraction expert. Extract structured records from page text. "
+            "Use null for missing fields. Return JSON only."
         )
         requested = plan.get("requested_fields") or list((plan.get("fields") or {}).keys())
         fields_list = ", ".join(f'"{f}"' for f in requested) if requested else "all relevant fields"
@@ -391,15 +507,14 @@ URL: {url}
 Collection goal: {collection_prompt}
 Required fields per record: [{fields_list}]
 
-Page HTML (truncated):
-{_clean_html(html)}
+Page text:
+{_clean_html_for_text(html)}
 
-Extract every individual item/listing/property visible on this page as a structured object.
-Each object MUST contain ALL required fields above (use null if not found on the page).
+Extract every listing visible. Each object MUST have ALL required fields (null if absent).
 Include "source_url": "{url}" on every record.
 
-Return: {{"records": [{{...}}, {{...}}]}}
-Extract up to 25 records. Do not skip items — even partial data is better than omitting them.
+Return: {{"records": [{{...}}, ...]}}
+Extract up to 30 records.
 """
         result = await self.provider.propose_json(system, prompt, fallback={"records": []})
         records = result.get("records", [])
@@ -410,29 +525,58 @@ Extract up to 25 records. Do not skip items — even partial data is better than
     async def _heal(
         self, html: str, url: str, collection_prompt: str, plan: dict[str, Any]
     ) -> dict[str, Any]:
-        system = "You are debugging a web scraper. The current selectors returned 0 results. Return JSON only."
+        system = "You are debugging a web scraper. The current plan returned 0 results. Return JSON only."
         prompt = f"""
 URL: {url}
 Goal: {collection_prompt}
 Failed plan: {plan}
-Page HTML: {_clean_html(html)}
 
-The selectors above returned no items. Analyze the page and provide a corrected extraction plan
-with the same JSON structure as the original plan.
+Page HTML (structure preserved, attributes kept):
+{_clean_html_for_plan(html)}
+
+The selectors returned no items. Provide a CORRECTED extraction plan with the same JSON
+structure. Focus on data-testid, aria-label, and id attributes for maximum stability.
 """
         return await self.provider.propose_json(system, prompt, fallback=plan)
 
-    async def _go_next(self, page: Any, html: str, plan: dict[str, Any]) -> bool:
-        """Try to navigate to the next page. Returns True if successful."""
+    async def _go_next(
+        self, page: Any, html: str, plan: dict[str, Any], *, pagination_type: str = "auto"
+    ) -> bool:
+        """Navigate to the next page/batch of results.
+
+        Tries button/link click first, then scroll-based infinite loading.
+        """
         selector = plan.get("next_page_selector")
-        if not selector:
-            return False
-        try:
-            el = await page.query_selector(selector)
-            if el:
-                await el.click()
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                return True
-        except Exception as e:
-            log.debug("next_page.failed", error=str(e))
+
+        # 1. Button/link click
+        if selector and pagination_type in ("auto", "click"):
+            try:
+                el = await page.query_selector(selector)
+                if el and await el.is_visible():
+                    await el.click()
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    await asyncio.sleep(2)
+                    return True
+            except Exception as e:
+                log.debug("next_page.click_failed", error=str(e))
+
+        # 2. Infinite-scroll — detect if page grows after scrolling to bottom
+        if pagination_type in ("auto", "scroll"):
+            try:
+                prev_height = await page.evaluate("() => document.body.scrollHeight")
+                prev_count = await page.evaluate(
+                    f"() => document.querySelectorAll({repr(plan.get('item_selector', 'article'))}).length"
+                )
+                await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+                await asyncio.sleep(3)
+                new_height = await page.evaluate("() => document.body.scrollHeight")
+                new_count = await page.evaluate(
+                    f"() => document.querySelectorAll({repr(plan.get('item_selector', 'article'))}).length"
+                )
+                if new_height > prev_height + 100 or new_count > prev_count:
+                    log.debug("next_page.scroll_loaded", prev=prev_count, new=new_count)
+                    return True
+            except Exception as e:
+                log.debug("next_page.scroll_failed", error=str(e))
+
         return False
