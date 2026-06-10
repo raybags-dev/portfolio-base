@@ -185,10 +185,15 @@ async def _seed_microservices(db) -> None:
     for key, name, desc, category, flag in MICROSERVICES:
         existing = await db.scalar(select(Microservice).where(Microservice.key == key))
         if existing:
+            # Upsert base_url for known integrated services
+            if key == "hotel-reviews" and existing.base_url != "/hotel-reviews":
+                existing.base_url = "/hotel-reviews"
             continue
+        base_url = "/hotel-reviews" if key == "hotel-reviews" else None
         db.add(Microservice(
             key=key, name=name, description=desc, category=category,
             feature_flag_key=flag, status="registered", is_public=True,
+            base_url=base_url,
         ))
     for key, name, desc, category, flag, url in TOOLS:
         existing = await db.scalar(select(Microservice).where(Microservice.key == key))

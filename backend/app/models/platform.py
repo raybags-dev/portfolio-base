@@ -232,3 +232,35 @@ class StorageFile(PKMixin, TimestampMixin, Base):
     content_type: Mapped[str | None] = mapped_column(String(128))
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     meta: Mapped[dict | None] = mapped_column(JSON)
+
+
+class HotelCrawlSession(PKMixin, TimestampMixin, Base):
+    __tablename__ = "hotel_crawl_sessions"
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    target_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    collection_prompt: Mapped[str] = mapped_column(Text, nullable=False)  # "collect all hotels in California"
+    analytics_spec: Mapped[dict] = mapped_column(JSON, default=dict)
+    max_pages: Mapped[int] = mapped_column(Integer, default=5)
+    status: Mapped[str] = mapped_column(String(32), default="pending")  # pending|running|done|failed
+    progress: Mapped[dict] = mapped_column(JSON, default=dict)
+    analytics_result: Mapped[dict | None] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    records: Mapped[list["HotelCrawlRecord"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class HotelCrawlRecord(PKMixin, TimestampMixin, Base):
+    __tablename__ = "hotel_crawl_records"
+
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("hotel_crawl_sessions.id", ondelete="CASCADE"), index=True
+    )
+    source_url: Mapped[str | None] = mapped_column(String(2048))
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
+    validation_errors: Mapped[list | None] = mapped_column(JSON)
+
+    session: Mapped["HotelCrawlSession"] = relationship(back_populates="records")
