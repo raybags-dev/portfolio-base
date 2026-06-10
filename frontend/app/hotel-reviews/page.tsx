@@ -10,8 +10,12 @@ import {
   createCrawlSession,
   getCrawlSession,
   runCrawlSession,
+  updateCrawlSession,
   generateSessionBlog,
   listCrawlSessions,
+  deleteCrawlSession,
+  previewCrawlRecords,
+  exportCrawlRecordsUrl,
   type CrawlSession,
   type ChartData,
   ApiError,
@@ -221,7 +225,31 @@ export default function HotelReviewsPage() {
 
         {step === "configure" && <ConfigureStep {...{ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, formError, submitting, handleSubmit }} />}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
-        {step === "results" && activeSession && <ResultsStep session={activeSession} onRefresh={() => getCrawlSession(activeSession.id).then(setActiveSession)} />}
+        {step === "results" && activeSession && (
+          <ResultsStep
+            session={activeSession}
+            onRefresh={() => getCrawlSession(activeSession.id).then(setActiveSession)}
+            onDelete={reset}
+            onRetryWithHints={async (hints) => {
+              const updated = await updateCrawlSession(activeSession.id, {
+                analytics_spec: { ...(activeSession.analytics_spec || {}), selector_hints: hints },
+              });
+              setActiveSession(updated);
+              try {
+                await runCrawlSession(activeSession.id);
+              } catch (runErr) {
+                if (runErr instanceof ApiError && runErr.status === 403 && runErr.message === "rate_limited") {
+                  setTokenModal({ sessionId: activeSession.id });
+                  return;
+                }
+                throw runErr;
+              }
+              setStep("running");
+              startPolling(activeSession.id);
+              toast.success("Re-crawling with hints", "The crawler will use your CSS selector hints.");
+            }}
+          />
+        )}
       </main>
 
       {/* Token required modal */}
@@ -513,12 +541,31 @@ function RunningStep({ session }: { session: CrawlSession }) {
 
 // ── Results Step ─────────────────────────────────────────────────────────────
 
-function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh: () => void }) {
+function ResultsStep({
+  session,
+  onRefresh,
+  onDelete,
+  onRetryWithHints,
+}: {
+  session: CrawlSession;
+  onRefresh: () => void;
+  onDelete: () => void;
+  onRetryWithHints: (hints: Record<string, string>) => void;
+}) {
   const toast = useToast();
   const [blogStatus, setBlogStatus] = useState<"idle" | "generating" | "done" | "error">("idle");
   const [blogResult, setBlogResult] = useState<{ title: string; slug: string } | null>(null);
+  const [preview, setPreview] = useState<Record<string, unknown>[] | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // Selector hints form (shown when 0 records)
+  const [hints, setHints] = useState<Record<string, string>>({});
+
   const analytics = session.analytics_result;
   const progress = session.progress || {};
+  const recordCount = analytics?.total_records ?? progress.records_collected ?? 0;
+  const zeroRecords = session.status === "done" && recordCount === 0;
 
   async function handleGenerateBlog() {
     setBlogStatus("generating");
@@ -530,14 +577,46 @@ function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh:
       toast.success("Blog post created!", `"${result.title}" saved as a draft.`);
     } catch (err) {
       setBlogStatus("error");
-      toast.error("Blog generation failed", err instanceof Error ? err.message : undefined);
+      toast.error("Blog generation failed", err instanceof Error ? err.message : "Unknown error");
     }
   }
 
+  async function handlePreview() {
+    if (preview) { setShowPreview(v => !v); return; }
+    setLoadingPreview(true);
+    try {
+      const data = await previewCrawlRecords(session.id);
+      setPreview(data);
+      setShowPreview(true);
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Delete this session and all collected records? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      await deleteCrawlSession(session.id);
+      toast.success("Session deleted");
+      onDelete();
+    } catch {
+      toast.error("Delete failed");
+      setDeleting(false);
+    }
+  }
+
+  // Build hints form rows from the collection_prompt keywords
+  const promptFields = session.collection_prompt
+    .split(/[,;\n]/)
+    .map(s => s.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
+    .filter(Boolean)
+    .slice(0, 8);
+
   return (
     <div>
-      {/* Summary header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <div className="inline-flex items-center gap-2 text-green-400 mb-2">
             <span className="w-2 h-2 rounded-full bg-green-400" />
@@ -547,38 +626,55 @@ function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh:
           <p className="text-muted text-sm break-all">{session.target_url}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={onRefresh} className="text-sm rounded-theme border border-white/15 px-3 py-1.5 hover:bg-white/5">
-            Refresh
+          <button onClick={onRefresh} className="text-sm rounded-theme border border-white/15 px-3 py-1.5 hover:bg-white/5">Refresh</button>
+          <button
+            onClick={handlePreview}
+            disabled={loadingPreview || recordCount === 0}
+            className="text-sm rounded-theme border border-white/15 px-3 py-1.5 hover:bg-white/5 disabled:opacity-40"
+          >
+            {loadingPreview ? "Loading…" : showPreview ? "Hide JSON" : "View JSON"}
           </button>
-          {blogStatus === "idle" && (
-            <button
-              onClick={handleGenerateBlog}
-              className="text-sm rounded-theme bg-primary text-white px-3 py-1.5 hover:bg-primary/90"
-            >
-              Generate Blog Post
+          <a
+            href={exportCrawlRecordsUrl(session.id)}
+            download
+            className={`text-sm rounded-theme border border-white/15 px-3 py-1.5 hover:bg-white/5 ${recordCount === 0 ? "opacity-40 pointer-events-none" : ""}`}
+          >
+            Download JSON
+          </a>
+          <a
+            href={`/hotel-reviews/analytics/${session.id}`}
+            className={`text-sm rounded-theme bg-primary/20 text-primary border border-primary/30 px-3 py-1.5 hover:bg-primary/30 ${recordCount === 0 ? "opacity-40 pointer-events-none" : ""}`}
+          >
+            Full Analytics →
+          </a>
+          {blogStatus === "idle" && recordCount > 0 && (
+            <button onClick={handleGenerateBlog} className="text-sm rounded-theme bg-primary text-white px-3 py-1.5 hover:bg-primary/90">
+              Generate Blog
             </button>
           )}
-          {blogStatus === "generating" && (
-            <span className="text-sm text-muted px-3 py-1.5">Generating…</span>
-          )}
+          {blogStatus === "generating" && <span className="text-sm text-muted px-3 py-1.5">Generating…</span>}
           {blogStatus === "done" && blogResult && (
-            <a
-              href={`/blog/${blogResult.slug}`}
-              className="text-sm rounded-theme bg-green-600 text-white px-3 py-1.5 hover:bg-green-500"
-            >
-              View Blog Post
-            </a>
+            <a href={`/blog/${blogResult.slug}`} className="text-sm rounded-theme bg-green-600 text-white px-3 py-1.5 hover:bg-green-500">View Post</a>
           )}
           {blogStatus === "error" && (
-            <span className="text-sm text-red-400 px-3 py-1.5">Blog generation failed</span>
+            <button onClick={handleGenerateBlog} className="text-sm text-red-400 border border-red-500/30 rounded-theme px-3 py-1.5 hover:bg-red-500/10">
+              Retry Blog
+            </button>
           )}
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-sm rounded-theme border border-red-500/30 text-red-400 px-3 py-1.5 hover:bg-red-500/10 disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Records", value: analytics?.total_records ?? progress.records_collected ?? 0 },
+          { label: "Records", value: recordCount },
           { label: "Charts", value: analytics?.charts?.length ?? 0 },
           { label: "Fields Found", value: analytics?.fields_found?.length ?? 0 },
           { label: "Pages Crawled", value: session.max_pages },
@@ -589,6 +685,60 @@ function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh:
           </div>
         ))}
       </div>
+
+      {/* JSON preview drawer */}
+      {showPreview && preview && (
+        <div className="rounded-theme bg-surface border border-white/10 overflow-hidden mb-6">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              JSON Preview — {preview.length} record{preview.length !== 1 ? "s" : ""}
+            </span>
+            <button onClick={() => setShowPreview(false)} className="text-muted text-xs hover:text-white">close ✕</button>
+          </div>
+          <div className="h-72 overflow-auto p-4">
+            <pre className="text-xs font-mono text-muted/80 whitespace-pre-wrap">{JSON.stringify(preview, null, 2)}</pre>
+          </div>
+        </div>
+      )}
+
+      {/* Zero records → selector hints form */}
+      {zeroRecords && (
+        <div className="rounded-theme bg-yellow-500/10 border border-yellow-500/30 p-5 mb-6">
+          <h3 className="font-semibold text-yellow-300 mb-1">No records collected</h3>
+          <p className="text-sm text-muted mb-4">
+            The AI couldn&apos;t locate data automatically. You can help it by describing where each
+            field lives on the page — paste a CSS selector or a plain description like
+            &quot;the h2 inside each property card&quot;.
+          </p>
+          <div className="space-y-2 mb-4">
+            {promptFields.map(field => (
+              <div key={field} className="flex items-center gap-2">
+                <span className="text-xs font-mono text-primary w-36 flex-shrink-0">{field}</span>
+                <input
+                  value={hints[field] || ""}
+                  onChange={e => setHints(h => ({ ...h, [field]: e.target.value }))}
+                  placeholder={`CSS selector or description for "${field}"`}
+                  className="flex-1 rounded bg-bg border border-white/15 px-2 py-1 text-xs placeholder:text-muted/40 focus:outline-none focus:border-primary/60"
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => onRetryWithHints(hints)}
+            disabled={Object.values(hints).every(v => !v.trim())}
+            className="rounded-theme bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          >
+            Retry with these hints →
+          </button>
+        </div>
+      )}
+
+      {/* Analytics error */}
+      {analytics?.error && !zeroRecords && (
+        <div className="rounded-theme bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 text-sm mb-6">
+          {analytics.error}
+        </div>
+      )}
 
       {/* Summary stats */}
       {analytics?.summary_stats && Object.keys(analytics.summary_stats).length > 0 && (
@@ -621,24 +771,22 @@ function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh:
         </div>
       )}
 
-      {/* Error state */}
-      {analytics?.error && (
-        <div className="rounded-theme bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 text-sm mb-6">
-          {analytics.error}
+      {/* Inline charts (first 2) — full set on analytics page */}
+      {(analytics?.charts || []).slice(0, 2).map(chart => (
+        <ChartPanel key={chart.id} chart={chart} />
+      ))}
+      {(analytics?.charts?.length ?? 0) > 2 && (
+        <div className="text-center py-4">
+          <a href={`/hotel-reviews/analytics/${session.id}`} className="text-primary text-sm hover:underline">
+            View all {analytics!.charts!.length} charts on the Analytics page →
+          </a>
         </div>
       )}
 
-      {/* Charts */}
-      <div className="space-y-8">
-        {(analytics?.charts || []).map(chart => (
-          <ChartPanel key={chart.id} chart={chart} />
-        ))}
-      </div>
-
-      {(!analytics?.charts || analytics.charts.length === 0) && !analytics?.error && (
+      {(!analytics?.charts || analytics.charts.length === 0) && !analytics?.error && !zeroRecords && (
         <div className="rounded-theme bg-surface border border-white/10 p-8 text-center text-muted">
           <p className="text-lg mb-2">No charts generated</p>
-          <p className="text-sm">The crawler may not have found enough numeric data. Try a different URL or collection prompt.</p>
+          <p className="text-sm">The data was collected but no numeric fields (price, rating, etc.) were found to chart. Check the JSON preview to see what was captured.</p>
         </div>
       )}
     </div>

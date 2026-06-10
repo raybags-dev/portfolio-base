@@ -10,9 +10,27 @@ from typing import Any
 def _to_float(val: Any) -> float | None:
     if val is None:
         return None
-    s = str(val)
-    nums = re.findall(r"[\d]+(?:[.,]\d+)?", s.replace(",", ""))
-    return float(nums[0]) if nums else None
+    s = str(val).strip()
+    # Find the first number-like token, supporting both 1,234.56 and 1.234,56 formats
+    # Replace thousands-separator commas/dots, normalise decimal separator to "."
+    # Strategy: find sequences of digits with optional separators
+    m = re.search(r"[-+]?\d[\d.,]*", s)
+    if not m:
+        return None
+    token = m.group(0)
+    # Determine decimal separator: last comma or dot that is followed by 1-2 digits = decimal
+    last_comma = token.rfind(",")
+    last_dot = token.rfind(".")
+    if last_comma > last_dot:
+        # European format: 1.234,56 → remove dots, replace comma with dot
+        token = token.replace(".", "").replace(",", ".")
+    else:
+        # US/standard format: 1,234.56 → remove commas
+        token = token.replace(",", "")
+    try:
+        return float(token)
+    except ValueError:
+        return None
 
 
 def compute_analytics(
@@ -34,12 +52,12 @@ def compute_analytics(
         all_fields.update(r.keys())
     result["fields_found"] = sorted(all_fields - {"source_url"})
 
-    # Detect numeric fields
+    # Detect numeric fields — require at least 2 parseable values (not 30%)
     numeric_fields: dict[str, list[float]] = {}
     for field in all_fields:
         vals = [_to_float(r.get(field)) for r in records]
         clean = [v for v in vals if v is not None]
-        if len(clean) >= max(2, len(records) * 0.3):
+        if len(clean) >= 2:
             numeric_fields[field] = clean
 
     # Detect text / category fields

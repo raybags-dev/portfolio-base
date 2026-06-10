@@ -81,8 +81,13 @@ class CrawlEngine:
         on_record: Any = None,
         on_progress: Any = None,
         cookie_hints: str | None = None,
+        selector_hints: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run the crawl. Returns list of extracted records.
+
+        selector_hints: user-provided mapping of field_name → CSS selector or
+        description (e.g. {"price": ".price-text", "name": "h2.title"}).
+        When provided, these override the LLM-planned selectors for those fields.
 
         cookie_hints: optional extra context from the user about this site's
         cookie popup (e.g. 'The site has a button labeled "Akkoord"').
@@ -139,6 +144,9 @@ class CrawlEngine:
                 plan = await self._get_extraction_plan(
                     await page.content(), start_url, collection_prompt
                 )
+                # Merge any user-supplied selector hints into the plan
+                if selector_hints:
+                    plan["fields"] = {**(plan.get("fields") or {}), **selector_hints}
                 if on_progress:
                     await on_progress(f"Extraction plan: {plan.get('strategy', 'direct scrape')}")
 
@@ -278,34 +286,49 @@ If you cannot identify the button with confidence, set found=false.
         self, html: str, url: str, collection_prompt: str
     ) -> dict[str, Any]:
         system = (
-            "You are a web scraping expert. Analyze the page content and create an extraction plan. "
+            "You are a web scraping expert. Analyze the page content and create a precise "
+            "extraction plan that maps EXACTLY to the user's requested data points. "
             "Return JSON only."
         )
         prompt = f"""
 URL: {url}
-User wants: {collection_prompt}
+User wants to collect: {collection_prompt}
+
+IMPORTANT: The user described specific data points they want. Your "fields" map MUST use
+snake_case keys that match those data points exactly (e.g. if they say "property name" use
+"property_name", "review score" → "review_score", "price per night" → "price_per_night").
+Every field the user mentioned must appear in the fields map, even if you're uncertain of
+the selector — use your best guess.
 
 Page content (truncated):
 {_clean_html(html)}
 
-Return a JSON extraction plan with these keys:
-- "strategy": brief description of approach
-- "item_selector": CSS selector for each listing/item container (e.g. "[data-testid='property-card']")
-- "fields": object mapping field_name -> CSS selector relative to item
-- "next_page_selector": CSS selector for next page button (or null if single page)
-- "data_type": what kind of data this is (hotel, review, property, etc.)
+Return a JSON extraction plan:
+{{
+  "strategy": "brief description",
+  "item_selector": "CSS selector matching each individual listing/card/item on the page",
+  "fields": {{
+    "<snake_case_field_name>": "<CSS selector relative to item container>",
+    ...one entry per data point the user requested...
+  }},
+  "next_page_selector": "CSS selector for next-page button or null",
+  "data_type": "hotel|product|review|property|listing|etc",
+  "requested_fields": ["list", "of", "field", "names", "user", "wants"]
+}}
 """
         return await self.provider.propose_json(system, prompt, fallback={
             "strategy": "generic scrape",
             "item_selector": "article, .card, [data-testid*='card'], .property, li.item",
             "fields": {
                 "title": "h2, h3, .title",
-                "description": "p",
                 "price": ".price, [data-testid*='price']",
-                "rating": ".rating, [aria-label*='core']",
+                "rating": ".rating, [aria-label*='rating'], [aria-label*='score']",
+                "location": ".location, address, [data-testid*='location']",
+                "description": "p",
             },
             "next_page_selector": "[aria-label='Next page'], .next-page, button[data-testid='pagination-next']",
             "data_type": "item",
+            "requested_fields": [],
         })
 
     async def _extract_with_playwright(
@@ -357,22 +380,26 @@ Return a JSON extraction plan with these keys:
         self, html: str, url: str, collection_prompt: str, plan: dict[str, Any]
     ) -> list[dict[str, Any]]:
         system = (
-            "You are a data extraction expert. Extract structured records from this HTML. "
-            "Return JSON only — a list of records."
+            "You are a data extraction expert. Extract structured records from HTML. "
+            "Each record must be a complete property/item profile with ALL requested fields. "
+            "Use null for fields you cannot find. Return JSON only."
         )
-        fields_desc = ", ".join(f"{k}: {v}" for k, v in (plan.get("fields") or {}).items())
+        requested = plan.get("requested_fields") or list((plan.get("fields") or {}).keys())
+        fields_list = ", ".join(f'"{f}"' for f in requested) if requested else "all relevant fields"
         prompt = f"""
 URL: {url}
-Extraction goal: {collection_prompt}
-Item selector: {plan.get('item_selector', 'any relevant container')}
-Fields to extract: {fields_desc}
+Collection goal: {collection_prompt}
+Required fields per record: [{fields_list}]
 
 Page HTML (truncated):
 {_clean_html(html)}
 
-Return a JSON object with key "records": a list of objects, each with the extracted fields.
-Include source_url field set to "{url}" on each record.
-Extract up to 25 records from this page.
+Extract every individual item/listing/property visible on this page as a structured object.
+Each object MUST contain ALL required fields above (use null if not found on the page).
+Include "source_url": "{url}" on every record.
+
+Return: {{"records": [{{...}}, {{...}}]}}
+Extract up to 25 records. Do not skip items — even partial data is better than omitting them.
 """
         result = await self.provider.propose_json(system, prompt, fallback={"records": []})
         records = result.get("records", [])
