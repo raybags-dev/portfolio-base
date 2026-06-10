@@ -63,11 +63,13 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         log.info("crawl.progress", session_id=session_id, msg=msg)
 
     try:
+        cookie_hints = (session.analytics_spec or {}).get("cookie_hints")
         records = await engine.run(
             session.target_url,
             session.collection_prompt,
             on_record=on_record,
             on_progress=on_progress,
+            cookie_hints=cookie_hints,
         )
 
         await on_progress(f"Crawl complete. {len(records)} records collected. Running analytics...")
