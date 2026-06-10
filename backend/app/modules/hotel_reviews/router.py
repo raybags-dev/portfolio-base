@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -77,7 +76,6 @@ async def get_session(session_id: int, db: DbSession):
 
 @router.post("/sessions/{session_id}/run")
 async def run_session(session_id: int, db: DbSession, background_tasks: BackgroundTasks):
-    from app.modules.hotel_reviews.service import run_session as _run
 
     session = await db.get(HotelCrawlSession, session_id)
     if session is None:
