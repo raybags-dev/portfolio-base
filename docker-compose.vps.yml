@@ -37,9 +37,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # CI pushes to Docker Hub; prod-deploy.sh pulls from there.
-    # Falls back to local build (deploy-vps.sh --build) when DOCKERHUB_USERNAME unset.
-    image: ${DOCKERHUB_USERNAME:-local}/raybags-backend:${IMAGE_TAG:-latest}
+    # CI pushes to ghcr.io; prod-deploy.sh pulls from there.
+    # Falls back to local build when GHCR_OWNER is unset.
+    image: ghcr.io/${GHCR_OWNER:-local}/raybags-backend:${IMAGE_TAG:-latest}
     restart: always
     environment:
       ENVIRONMENT:            production
@@ -97,7 +97,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}
-    image: ${DOCKERHUB_USERNAME:-local}/raybags-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-local}/raybags-frontend:${IMAGE_TAG:-latest}
     restart: always
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://raybags.com}

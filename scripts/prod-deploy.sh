@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 # =============================================================================
-# prod-deploy.sh — Pull pre-built Docker Hub images and restart the stack.
+# prod-deploy.sh — Pull pre-built ghcr.io images and restart the stack.
 #
 # Called automatically by GitHub Actions (deploy.yml) after images are pushed.
 # Can also be run manually on the server:
 #
-#   DOCKERHUB_USERNAME=myuser IMAGE_TAG=abc123 bash scripts/prod-deploy.sh
-#   DOCKERHUB_USERNAME=myuser bash scripts/prod-deploy.sh           # uses :latest
+#   GHCR_OWNER=raybags-dev IMAGE_TAG=abc123 bash scripts/prod-deploy.sh
+#   GHCR_OWNER=raybags-dev bash scripts/prod-deploy.sh           # uses :latest
 #
 # Required env vars:
-#   DOCKERHUB_USERNAME  — Docker Hub account that owns the images
+#   GHCR_OWNER   — GitHub username / org that owns the ghcr.io packages
 #
 # Optional env vars:
-#   IMAGE_TAG           — image tag to deploy (default: latest)
-#   REMOTE_APP          — path to the app on the server (default: /mnt/portfolio-data/app)
+#   GHCR_TOKEN   — GitHub token with read:packages scope (for private packages)
+#   IMAGE_TAG    — image tag to deploy (default: latest)
+#   REMOTE_APP   — path to the app on the server (default: /mnt/portfolio-data/app)
 # =============================================================================
 set -Eeuo pipefail
 
-: "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required (set via env or .env.prod)}"
+: "${GHCR_OWNER:?GHCR_OWNER is required (GitHub username that owns the ghcr.io packages)}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 REMOTE_APP="${REMOTE_APP:-/mnt/portfolio-data/app}"
 COMPOSE_FILE="docker-compose.vps.yml"
@@ -35,22 +36,26 @@ die()  { echo -e "${C_RED}✗${C_RESET} $*" >&2; exit 1; }
 
 cd "$REMOTE_APP"
 
-export DOCKERHUB_USERNAME IMAGE_TAG
+# ---- 0. Log in to ghcr.io (needed when packages are private) ----
+if [[ -n "${GHCR_TOKEN:-}" ]]; then
+  log "Logging in to ghcr.io …"
+  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
+  ok "ghcr.io login successful"
+fi
+
+export GHCR_OWNER IMAGE_TAG
 
 # ---- 1. Pull new images ----
-log "Pulling ${DOCKERHUB_USERNAME}/raybags-{backend,frontend}:${IMAGE_TAG} …"
+log "Pulling ghcr.io/${GHCR_OWNER}/raybags-{backend,frontend}:${IMAGE_TAG} …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 
 # ---- 2. Run migrations BEFORE starting the app ----
-# Use `run --rm` (throwaway container, no uvicorn) to avoid OOM from running
-# two Python processes inside the same container simultaneously.
 log "Running Alembic migrations …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
   run --rm --no-deps backend alembic upgrade head
 ok "Migrations complete"
 
 # ---- 3. Start (or recreate) full stack with updated images ----
-# The backend lifespan seeds microservices + blog posts on startup (idempotent).
 log "Starting updated stack …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
@@ -77,6 +82,6 @@ fi
 
 echo ""
 ok "Deploy complete"
-echo "  Images:  ${DOCKERHUB_USERNAME}/raybags-{backend,frontend}:${IMAGE_TAG}"
+echo "  Images:  ghcr.io/${GHCR_OWNER}/raybags-{backend,frontend}:${IMAGE_TAG}"
 echo "  Site:    https://raybags.com"
 echo "  Admin:   https://raybags.com/admin"
