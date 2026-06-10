@@ -15,6 +15,7 @@ import {
   type CrawlSession,
   type ChartData,
 } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 const ANALYTICS_OPTIONS = [
   { id: "price_distribution", label: "Price Distribution" },
@@ -35,6 +36,8 @@ export default function HotelReviewsPage() {
   const [activeSession, setActiveSession] = useState<CrawlSession | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  const toast = useToast();
+
   // Form state
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
@@ -42,6 +45,7 @@ export default function HotelReviewsPage() {
   const [maxPages, setMaxPages] = useState(5);
   const [analyticsTypes, setAnalyticsTypes] = useState<string[]>([]);
   const [ratingThreshold, setRatingThreshold] = useState(7);
+  const [cookieHints, setCookieHints] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,6 +87,7 @@ export default function HotelReviewsPage() {
         analytics_spec: {
           types: analyticsTypes.length ? analyticsTypes : undefined,
           rating_threshold: ratingThreshold,
+          cookie_hints: cookieHints.trim() || undefined,
         },
         max_pages: maxPages,
       });
@@ -90,8 +95,11 @@ export default function HotelReviewsPage() {
       setStep("running");
       await runCrawlSession(session.id);
       startPolling(session.id);
+      toast.success("Crawl started", "The AI crawler is now running in the background.");
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to start crawl");
+      const msg = err instanceof Error ? err.message : "Failed to start crawl";
+      setFormError(msg);
+      toast.error("Failed to start crawl", msg);
       setSubmitting(false);
     }
   }
@@ -109,7 +117,7 @@ export default function HotelReviewsPage() {
     setStep("configure");
     setActiveSession(null);
     setUrl(""); setName(""); setPrompt(""); setSubmitting(false); setFormError("");
-    setAnalyticsTypes([]); setMaxPages(5); setRatingThreshold(7);
+    setAnalyticsTypes([]); setMaxPages(5); setRatingThreshold(7); setCookieHints("");
   }
 
   return (
@@ -173,7 +181,7 @@ export default function HotelReviewsPage() {
           </div>
         )}
 
-        {step === "configure" && <ConfigureStep {...{ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, formError, submitting, handleSubmit }} />}
+        {step === "configure" && <ConfigureStep {...{ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, formError, submitting, handleSubmit }} />}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
         {step === "results" && activeSession && <ResultsStep session={activeSession} onRefresh={() => getCrawlSession(activeSession.id).then(setActiveSession)} />}
       </main>
@@ -190,12 +198,13 @@ interface ConfigureProps {
   maxPages: number; setMaxPages: (v: number) => void;
   analyticsTypes: string[]; setAnalyticsTypes: React.Dispatch<React.SetStateAction<string[]>>;
   ratingThreshold: number; setRatingThreshold: (v: number) => void;
+  cookieHints: string; setCookieHints: (v: string) => void;
   formError: string;
   submitting: boolean;
   handleSubmit: (e: React.FormEvent) => void;
 }
 
-function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, formError, submitting, handleSubmit }: ConfigureProps) {
+function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages, analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold, cookieHints, setCookieHints, formError, submitting, handleSubmit }: ConfigureProps) {
   function toggleType(id: string) {
     setAnalyticsTypes((prev: string[]) => prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id]);
   }
@@ -241,6 +250,20 @@ function ConfigureStep({ url, setUrl, name, setName, prompt, setPrompt, maxPages
               placeholder="e.g. Booking.com – California Hotels"
               className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Cookie banner hint <span className="text-muted">(optional)</span>
+            </label>
+            <input
+              value={cookieHints}
+              onChange={e => setCookieHints(e.target.value)}
+              placeholder={`e.g. "Akkoord", "Alle cookies accepteren", or a CSS selector`}
+              className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60"
+            />
+            <p className="mt-1 text-xs text-muted">
+              If the site has a non-English or unusual cookie popup the AI could not dismiss, paste the accept button text here for the next run.
+            </p>
           </div>
         </fieldset>
 
@@ -409,6 +432,7 @@ function RunningStep({ session }: { session: CrawlSession }) {
 // ── Results Step ─────────────────────────────────────────────────────────────
 
 function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh: () => void }) {
+  const toast = useToast();
   const [blogStatus, setBlogStatus] = useState<"idle" | "generating" | "done" | "error">("idle");
   const [blogResult, setBlogResult] = useState<{ title: string; slug: string } | null>(null);
   const analytics = session.analytics_result;
@@ -416,12 +440,15 @@ function ResultsStep({ session, onRefresh }: { session: CrawlSession; onRefresh:
 
   async function handleGenerateBlog() {
     setBlogStatus("generating");
+    toast.info("Generating blog post…", "Groq AI is writing an article based on your crawl data.");
     try {
       const result = await generateSessionBlog(session.id);
       setBlogResult({ title: result.title, slug: result.slug });
       setBlogStatus("done");
-    } catch {
+      toast.success("Blog post created!", `"${result.title}" saved as a draft.`);
+    } catch (err) {
       setBlogStatus("error");
+      toast.error("Blog generation failed", err instanceof Error ? err.message : undefined);
     }
   }
 
