@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from app.core.access import _client_ip, require_app_access
 from app.core.deps import DbSession, require_admin, require_flag
+from app.models.content import Setting
 from app.models.platform import HotelCrawlRecord, HotelCrawlSession
 from app.modules import ModuleSpec
 from app.modules.agents.llm import get_provider
@@ -69,15 +70,12 @@ async def list_sessions(db: DbSession, limit: int = Query(20, ge=1, le=100)):
 
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
 async def create_session(payload: SessionCreate, db: DbSession, request: Request):
-    import json as _json
-    from app.models.content import Setting
-
     ip = _client_ip(request)
     is_guest = True
     setting = await db.scalar(select(Setting).where(Setting.key == "dev_mode_ips"))
     if setting:
         try:
-            if ip in _json.loads(setting.value or "[]"):
+            if ip in json.loads(setting.value or "[]"):
                 is_guest = False
         except Exception:
             pass
