@@ -42,3 +42,26 @@ export const useAuth = create<AuthState>()(
     { name: "raybags-auth" },
   ),
 );
+
+interface CookieConsentState {
+  decided: boolean;
+  analytics: boolean;
+  functional: boolean;
+  acceptAll: () => void;
+  declineAll: () => void;
+  decide: (analytics: boolean, functional: boolean) => void;
+}
+
+export const useCookieConsent = create<CookieConsentState>()(
+  persist(
+    (set) => ({
+      decided: false,
+      analytics: false,
+      functional: false,
+      acceptAll: () => set({ decided: true, analytics: true, functional: true }),
+      declineAll: () => set({ decided: true, analytics: false, functional: false }),
+      decide: (analytics, functional) => set({ decided: true, analytics, functional }),
+    }),
+    { name: "raybags-cookie-consent" },
+  ),
+);

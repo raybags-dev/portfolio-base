@@ -18,9 +18,13 @@ import {
   exportCrawlRecordsUrl,
   type CrawlSession,
   type ChartData,
+  type RunContactInfo,
   ApiError,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
+
+const DISCLAIMER_KEY = "run_disclaimer_ack_v1";
 
 const ANALYTICS_OPTIONS = [
   { id: "price_distribution", label: "Price Distribution" },
@@ -60,6 +64,7 @@ export default function HotelReviewsPage() {
   const [tokenInput, setTokenInput] = useState("");
   const [tokenError, setTokenError] = useState("");
   const [tokenSubmitting, setTokenSubmitting] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,6 +95,15 @@ export default function HotelReviewsPage() {
     if (!url.trim()) { setFormError("Website URL is required"); return; }
     if (!prompt.trim()) { setFormError("Tell me what to collect"); return; }
     setFormError("");
+
+    if (!sessionStorage.getItem(DISCLAIMER_KEY)) {
+      setShowDisclaimer(true);
+      return;
+    }
+    await doSubmit();
+  }
+
+  async function doSubmit(contact?: RunContactInfo) {
     setSubmitting(true);
     try {
       const cleanHints = Object.fromEntries(
@@ -107,6 +121,7 @@ export default function HotelReviewsPage() {
           selector_hints: Object.keys(cleanHints).length ? cleanHints : undefined,
         },
         max_pages: maxPages,
+        session_contact: contact,
       });
       setActiveSession(session);
       try {
@@ -171,6 +186,17 @@ export default function HotelReviewsPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
+      {showDisclaimer && (
+        <RunProjectDisclaimer
+          projectName="Hotel Review Analytics"
+          onRun={(contact) => {
+            setShowDisclaimer(false);
+            sessionStorage.setItem(DISCLAIMER_KEY, "1");
+            doSubmit(contact);
+          }}
+          onClose={() => setShowDisclaimer(false)}
+        />
+      )}
       {/* Header */}
       <header className="border-b border-white/10 bg-surface/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
