@@ -10,8 +10,11 @@ import {
   toggleDevMode,
   listIpUsage,
   deleteIpUsage,
+  listGuestSessions,
+  deleteGuestSession,
   type AppToken,
   type IpUsageEntry,
+  type CrawlSession,
 } from "@/lib/api";
 
 function timeLeft(expiresAt: string): string {
@@ -33,6 +36,8 @@ export default function TokensPage() {
   const [tokens, setTokens] = useState<AppToken[]>([]);
   const [ipUsage, setIpUsage] = useState<IpUsageEntry[]>([]);
   const [devMode, setDevMode] = useState<{ current_ip: string; dev_mode: boolean; whitelisted_ips: string[] } | null>(null);
+  const [guestSessions, setGuestSessions] = useState<CrawlSession[]>([]);
+  const [guestModal, setGuestModal] = useState(false);
   const [newToken, setNewToken] = useState<AppToken | null>(null);
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -41,14 +46,16 @@ export default function TokensPage() {
 
   const load = useCallback(async () => {
     if (!authToken) return;
-    const [toks, usage, dm] = await Promise.all([
+    const [toks, usage, dm, guests] = await Promise.all([
       listAppTokens(authToken).catch(() => [] as AppToken[]),
       listIpUsage(authToken).catch(() => [] as IpUsageEntry[]),
       getDevMode(authToken).catch(() => null),
+      listGuestSessions(authToken).catch(() => [] as CrawlSession[]),
     ]);
     setTokens(toks);
     setIpUsage(usage);
     setDevMode(dm);
+    setGuestSessions(guests);
   }, [authToken]);
 
   useEffect(() => { load(); }, [load]);
@@ -93,6 +100,12 @@ export default function TokensPage() {
     if (!authToken) return;
     await deleteIpUsage(authToken, id);
     setIpUsage(prev => prev.filter(e => e.id !== id));
+  }
+
+  async function handleDeleteGuestSession(id: number) {
+    if (!authToken) return;
+    await deleteGuestSession(authToken, id);
+    setGuestSessions(prev => prev.filter(s => s.id !== id));
   }
 
   function copy(text: string) {
@@ -242,6 +255,105 @@ export default function TokensPage() {
           </div>
         )}
       </section>
+
+      {/* Guest sessions */}
+      <section className="rounded-theme bg-surface border border-white/10 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-semibold">Guest Sessions</h2>
+            <p className="text-xs text-muted mt-0.5">
+              Crawl sessions created by non-whitelisted IPs.{" "}
+              <span className="text-yellow-400">{guestSessions.length} session{guestSessions.length !== 1 ? "s" : ""}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => setGuestModal(true)}
+            className="text-xs rounded-theme border border-white/15 px-3 py-1.5 hover:border-primary hover:text-primary transition-colors"
+          >
+            View all
+          </button>
+        </div>
+        {guestSessions.length === 0 ? (
+          <p className="text-sm text-muted">No guest sessions yet.</p>
+        ) : (
+          <div className="space-y-1">
+            {guestSessions.slice(0, 5).map(s => (
+              <div key={s.id} className="flex items-center gap-3 rounded bg-white/5 px-3 py-2 text-sm">
+                <span className="font-mono text-xs text-muted w-28 flex-shrink-0">{(s as unknown as { client_ip?: string }).client_ip || "unknown"}</span>
+                <span className="flex-1 text-xs truncate text-muted">{s.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                  s.status === "done" ? "bg-green-500/20 text-green-400" :
+                  s.status === "failed" ? "bg-red-500/20 text-red-400" :
+                  "bg-white/10 text-muted"
+                }`}>{s.status}</span>
+                <span className="text-xs text-muted flex-shrink-0">{new Date(s.created_at).toLocaleDateString()}</span>
+              </div>
+            ))}
+            {guestSessions.length > 5 && (
+              <button onClick={() => setGuestModal(true)} className="text-xs text-primary hover:underline mt-1">
+                View {guestSessions.length - 5} more…
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Guest sessions modal */}
+      {guestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-surface border border-white/15 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <h2 className="font-heading font-bold text-lg">Guest Sessions ({guestSessions.length})</h2>
+              <button onClick={() => setGuestModal(false)} className="text-muted hover:text-text transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-3">
+              {guestSessions.length === 0 ? (
+                <p className="text-sm text-muted">No guest sessions.</p>
+              ) : guestSessions.map(s => {
+                const ext = s as unknown as { client_ip?: string; session_contact?: Record<string, string> };
+                return (
+                  <div key={s.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{s.name}</div>
+                        <div className="text-xs text-muted mt-0.5 font-mono">{ext.client_ip || "unknown IP"}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          s.status === "done" ? "bg-green-500/20 text-green-400" :
+                          s.status === "failed" ? "bg-red-500/20 text-red-400" :
+                          "bg-white/10 text-muted"
+                        }`}>{s.status}</span>
+                        <button
+                          onClick={() => handleDeleteGuestSession(s.id)}
+                          className="text-xs text-red-400/70 hover:text-red-300 transition-colors"
+                        >
+                          delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted truncate mb-2">{s.target_url}</div>
+                    {ext.session_contact && Object.values(ext.session_contact).some(Boolean) && (
+                      <div className="mt-2 pt-2 border-t border-white/8 text-xs space-y-0.5">
+                        <div className="text-primary/80 font-medium mb-1">Contact info provided:</div>
+                        {ext.session_contact.name && <div>Name: <span className="text-text">{ext.session_contact.name}</span></div>}
+                        {ext.session_contact.role && <div>Role: <span className="text-text">{ext.session_contact.role}</span></div>}
+                        {ext.session_contact.email && <div>Email: <span className="text-text">{ext.session_contact.email}</span></div>}
+                        {ext.session_contact.phone && <div>Phone: <span className="text-text">{ext.session_contact.phone}</span></div>}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted mt-2">{new Date(s.created_at).toLocaleString()}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

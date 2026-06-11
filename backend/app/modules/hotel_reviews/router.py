@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.core.access import require_app_access
-from app.core.deps import DbSession, require_flag
+from app.core.access import _client_ip, require_app_access
+from app.core.deps import DbSession, require_admin, require_flag
 from app.models.platform import HotelCrawlRecord, HotelCrawlSession
 from app.modules import ModuleSpec
 from app.modules.agents.llm import get_provider
@@ -31,6 +31,7 @@ class SessionCreate(BaseModel):
     collection_prompt: str
     analytics_spec: dict[str, Any] = {}
     max_pages: int = 5
+    session_contact: dict[str, Any] | None = None
 
 
 class SessionPatch(BaseModel):
@@ -50,6 +51,9 @@ def _session_dict(s: HotelCrawlSession) -> dict[str, Any]:
         "analytics_result": s.analytics_result,
         "error": s.error,
         "created_at": s.created_at,
+        "client_ip": s.client_ip,
+        "is_guest": s.is_guest,
+        "session_contact": s.session_contact,
     }
 
 
@@ -64,12 +68,42 @@ async def list_sessions(db: DbSession, limit: int = Query(20, ge=1, le=100)):
 
 
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
-async def create_session(payload: SessionCreate, db: DbSession):
-    session = HotelCrawlSession(**payload.model_dump())
+async def create_session(payload: SessionCreate, db: DbSession, request: Request):
+    import json as _json
+    from app.models.content import Setting
+
+    ip = _client_ip(request)
+    is_guest = True
+    setting = await db.scalar(select(Setting).where(Setting.key == "dev_mode_ips"))
+    if setting:
+        try:
+            if ip in _json.loads(setting.value or "[]"):
+                is_guest = False
+        except Exception:
+            pass
+
+    session = HotelCrawlSession(
+        **payload.model_dump(),
+        client_ip=ip,
+        is_guest=is_guest,
+    )
     db.add(session)
     await db.commit()
     await db.refresh(session)
     return _session_dict(session)
+
+
+@router.get("/guest-sessions", dependencies=[Depends(require_admin())])
+async def list_guest_sessions(db: DbSession, limit: int = Query(50, ge=1, le=200)):
+    rows = (
+        await db.scalars(
+            select(HotelCrawlSession)
+            .where(HotelCrawlSession.is_guest.is_(True))
+            .order_by(HotelCrawlSession.id.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [_session_dict(s) for s in rows]
 
 
 @router.get("/sessions/{session_id}")
