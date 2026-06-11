@@ -16,6 +16,18 @@
 --   ENABLE_ANNOTATION Data Annotation Platform
 -- =============================================================================
 
+-- =============================================================================
+-- HOTEL REVIEWS — backfill columns added in migration bb2cc3dd4ee5
+-- (Only needed if hotel_crawl_sessions was already created via supabase_migrations.sql)
+-- =============================================================================
+
+ALTER TABLE hotel_crawl_sessions
+  ADD COLUMN IF NOT EXISTS client_ip        VARCHAR(64),
+  ADD COLUMN IF NOT EXISTS is_guest         BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS session_contact  JSONB;
+
+-- -----------------------------------------------------------------------------
+
 
 -- =============================================================================
 -- RETAIL PRICE INTELLIGENCE  (ENABLE_RETAIL)

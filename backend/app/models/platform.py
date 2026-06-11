@@ -247,6 +247,9 @@ class HotelCrawlSession(PKMixin, TimestampMixin, Base):
     progress: Mapped[dict] = mapped_column(JSON, default=dict)
     analytics_result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(Text)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_guest: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    session_contact: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     records: Mapped[list[HotelCrawlRecord]] = relationship(
         back_populates="session", cascade="all, delete-orphan"

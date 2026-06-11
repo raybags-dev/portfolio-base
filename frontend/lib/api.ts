@@ -394,17 +394,31 @@ export interface AnalyticsResult {
 export const listCrawlSessions = () =>
   request<CrawlSession[]>("/hotel-reviews/sessions");
 
+export interface RunContactInfo {
+  name?: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+}
+
 export const createCrawlSession = (body: {
   name: string;
   target_url: string;
   collection_prompt: string;
   analytics_spec?: Record<string, unknown>;
   max_pages?: number;
+  session_contact?: RunContactInfo;
 }) =>
   request<CrawlSession>("/hotel-reviews/sessions", {
     method: "POST",
     body: JSON.stringify(body),
   });
+
+export const listGuestSessions = (token: string) =>
+  request<CrawlSession[]>("/hotel-reviews/guest-sessions", { token });
+
+export const deleteGuestSession = (token: string, id: number) =>
+  request<void>(`/hotel-reviews/sessions/${id}`, { method: "DELETE", token });
 
 export const getCrawlSession = (id: number) =>
   request<CrawlSession>(`/hotel-reviews/sessions/${id}`);

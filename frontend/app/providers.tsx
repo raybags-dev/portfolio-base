@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
+import CookieBanner from "@/components/CookieBanner";
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -14,7 +15,10 @@ export default function Providers({ children }: { children: ReactNode }) {
   );
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        {children}
+        <CookieBanner />
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

@@ -167,18 +167,18 @@ export function Hero({ data }: { data: Bootstrap }) {
 
       {/* Scroll indicator — fades out after scrolling 60px */}
       <div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none transition-opacity duration-500"
+        className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none transition-opacity duration-500"
         style={{ opacity: scrolled ? 0 : 1 }}
       >
-        <span className="text-[10px] uppercase tracking-[0.2em] text-primary/70 font-medium">
+        <span className="text-xs uppercase tracking-[0.2em] text-primary/80 font-semibold">
           Scroll
         </span>
         <svg
-          className="w-5 h-5 text-primary animate-bounce"
+          className="w-10 h-10 text-primary animate-bounce"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
@@ -589,49 +589,52 @@ export function Footer({ data }: { data: Bootstrap }) {
 
         {/* navigation */}
         {navLinks.length > 0 && (
-          <div>
+          <div className="flex flex-col items-center md:items-start">
             <h4 className="font-heading font-semibold mb-3 text-sm uppercase tracking-wide text-muted">
               Navigation
             </h4>
-            <ul className="space-y-2 text-sm">
-              {navLinks.map((l) => (
-                <li key={l.label}>
-                  {l.href.startsWith("/#") ? (
-                    <a
-                      href={l.href}
-                      onClick={(e) => {
-                        const id = l.href.slice(2);
-                        const el = document.getElementById(id);
-                        if (el) {
-                          e.preventDefault();
-                          el.scrollIntoView({ behavior: "smooth" });
-                          window.history.replaceState(null, "", l.href);
-                        }
-                      }}
-                      className="hover:text-primary transition-colors"
-                    >
-                      {l.label}
-                    </a>
-                  ) : (
-                    <Link href={l.href} className="hover:text-primary transition-colors">
-                      {l.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
+              {navLinks.map((l) =>
+                l.href.startsWith("/#") ? (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    onClick={(e) => {
+                      const id = l.href.slice(2);
+                      const el = document.getElementById(id);
+                      if (el) {
+                        e.preventDefault();
+                        el.scrollIntoView({ behavior: "smooth" });
+                        window.history.replaceState(null, "", l.href);
+                      }
+                    }}
+                    className="flex items-center justify-center w-full sm:w-auto rounded-full border border-white/15 px-4 py-1.5 text-sm hover:border-primary hover:text-primary transition-colors"
+                  >
+                    {l.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={l.label}
+                    href={l.href}
+                    className="flex items-center justify-center w-full sm:w-auto rounded-full border border-white/15 px-4 py-1.5 text-sm hover:border-primary hover:text-primary transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                )
+              )}
+            </div>
           </div>
         )}
 
         {/* contact + socials */}
-        <div>
+        <div className="flex flex-col items-center md:items-start">
           <h4 className="font-heading font-semibold mb-3 text-sm uppercase tracking-wide text-muted">
             Contact
           </h4>
-          <ul className="space-y-3 text-sm">
+          <ul className="flex flex-col gap-2 w-full text-sm">
             {site.contact_email && (
               <li>
-                <a href={`mailto:${site.contact_email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                <a href={`mailto:${site.contact_email}`} className="flex items-center gap-2 justify-center md:justify-start w-full rounded-full border border-white/15 px-4 py-1.5 hover:border-primary hover:text-primary transition-colors">
                   <svg className="w-4 h-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
                   <span className="truncate">{site.contact_email}</span>
                 </a>
@@ -639,28 +642,30 @@ export function Footer({ data }: { data: Bootstrap }) {
             )}
             {site.phone && (
               <li>
-                <a href={`tel:${site.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                <a href={`tel:${site.phone}`} className="flex items-center gap-2 justify-center md:justify-start w-full rounded-full border border-white/15 px-4 py-1.5 hover:border-primary hover:text-primary transition-colors">
                   <svg className="w-4 h-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.73h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.34a16 16 0 0 0 5.76 5.76l1.7-1.71a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                   <span>{site.phone}</span>
                 </a>
               </li>
             )}
             {site.location_address && (
-              <li className="flex items-start gap-2 text-muted">
-                <svg className="w-4 h-4 shrink-0 text-primary mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>{site.location_address}</span>
+              <li>
+                <div className="flex items-center gap-2 justify-center md:justify-start w-full rounded-full border border-white/15 px-4 py-1.5 text-muted">
+                  <svg className="w-4 h-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span className="truncate">{site.location_address}</span>
+                </div>
               </li>
             )}
           </ul>
           {socials.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mt-4 w-full">
               {socials.map((s) => (
                 <a
                   key={s.id}
                   href={s.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 rounded-theme border border-white/15 px-3 py-1.5 text-xs hover:border-primary hover:text-primary transition-colors"
+                  className="flex items-center justify-center gap-1.5 w-full sm:w-auto rounded-full border border-white/15 px-3 py-1.5 text-xs hover:border-primary hover:text-primary transition-colors"
                 >
                   <PlatformIcon platform={s.platform} />
                   <span>{s.label || s.platform}</span>
