@@ -131,13 +131,13 @@ function ToggleRow({
         aria-checked={checked}
         onClick={() => !disabled && onChange?.(!checked)}
         disabled={disabled}
-        className={`relative flex-shrink-0 w-10 h-6 rounded-full transition-colors ${
-          checked ? "bg-primary" : "bg-white/20"
+        className={`relative flex-shrink-0 w-11 h-6 rounded-full overflow-hidden transition-colors ${
+          checked ? "bg-primary" : "bg-white/25"
         } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-            checked ? "translate-x-4" : "translate-x-0.5"
+          className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-transform duration-200 ${
+            checked ? "translate-x-[23px]" : "translate-x-[3px]"
           }`}
         />
       </button>
