@@ -5,7 +5,16 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import select
 
