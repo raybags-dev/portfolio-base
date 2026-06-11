@@ -114,7 +114,7 @@ export default function RecommendationsCarousel({
           <button
             aria-label="Previous"
             onClick={prev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-14 w-16 sm:h-16 sm:w-20 text-3xl sm:text-4xl rounded-2xl border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
+            className="absolute left-[2%] top-1/2 -translate-y-1/2 z-10 h-14 w-14 sm:h-16 sm:w-16 text-3xl sm:text-4xl rounded-2xl border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
           >
             ‹
           </button>
@@ -122,7 +122,7 @@ export default function RecommendationsCarousel({
           {/* Scroll-snap track: 88% wide cards → 6% peeks on each side */}
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth mx-16 sm:mx-20 pb-1"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-1"
             style={{ scrollbarWidth: "none" }}
           >
             {items.map((rec, i) => (
@@ -164,7 +164,7 @@ export default function RecommendationsCarousel({
           <button
             aria-label="Next"
             onClick={next}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-14 w-16 sm:h-16 sm:w-20 text-3xl sm:text-4xl rounded-2xl border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
+            className="absolute right-[2%] top-1/2 -translate-y-1/2 z-10 h-14 w-14 sm:h-16 sm:w-16 text-3xl sm:text-4xl rounded-2xl border border-white/15 bg-surface/80 backdrop-blur-sm hover:border-primary hover:text-primary transition-colors"
           >
             ›
           </button>

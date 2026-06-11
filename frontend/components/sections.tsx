@@ -59,9 +59,14 @@ export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
   const [scrolled, setScrolled] = useState(false);
+  const [scrollPct, setScrollPct] = useState(0);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 60);
+      setScrollPct(Math.min(1, y / (window.innerHeight * 0.75)));
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -93,26 +98,22 @@ export function Hero({ data }: { data: Bootstrap }) {
 
   return (
     <section
-      className="min-h-[80vh] flex items-center relative overflow-hidden"
-      style={
-        hasImage
-          ? {
-              backgroundImage: `url("${h.background_image_url}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundAttachment: t.parallax_enabled ? "fixed" : "scroll",
-            }
-          : background
-      }
+      className="min-h-screen flex items-center relative overflow-hidden"
+      style={!hasImage ? background : undefined}
     >
       {hasImage && (
         <>
-          {/* Grayscale + blur via backdrop-filter — doesn't break background-attachment:fixed */}
+          {/* Parallax zoom — image scales up slowly as user scrolls */}
           <div
-            className="absolute inset-0"
+            className="absolute inset-[-8%]"
             style={{
-              backdropFilter: "grayscale(1) blur(3px)",
-              WebkitBackdropFilter: "grayscale(1) blur(3px)",
+              backgroundImage: `url("${h.background_image_url}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "grayscale(1) blur(3px)",
+              transform: `scale(${1 + scrollPct * 0.12})`,
+              transformOrigin: "center center",
+              willChange: "transform",
             }}
           />
           {/* Gradient overlay for text legibility */}
@@ -122,6 +123,14 @@ export function Hero({ data }: { data: Bootstrap }) {
           />
         </>
       )}
+      {/* Themed scroll veil — pale themed colour grows from bottom as user scrolls */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          background: "linear-gradient(to top, var(--color-bg) 0%, transparent 65%)",
+          opacity: scrollPct * 0.85,
+        }}
+      />
       <div className="container-x relative z-10">
         <Reveal enabled={t.animations_enabled}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
@@ -155,7 +164,7 @@ export function Hero({ data }: { data: Bootstrap }) {
               {h.cta_text && h.cta_url && (
                 <a
                   href={h.cta_url}
-                  className="inline-block mt-8 rounded-theme bg-primary text-white font-medium px-6 py-3 hover:opacity-90 transition-opacity"
+                  className="mt-8 block sm:inline-block w-full sm:w-auto text-center rounded-theme bg-primary text-white font-medium px-6 py-3 hover:opacity-90 transition-opacity"
                 >
                   {h.cta_text}
                 </a>
@@ -276,13 +285,17 @@ export function Skills({ data }: { data: Bootstrap }) {
   );
 }
 
+const SERVICE_KEY_ROUTES: Record<string, string> = {
+  "hotel-reviews": "/hotel-reviews",
+};
+
 // --- Projects (with search + tag filter) ---
 export function Projects({ data }: { data: Bootstrap }) {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
 
   const serviceUrlMap = useMemo(() => {
-    const m: Record<string, string> = {};
+    const m: Record<string, string> = { ...SERVICE_KEY_ROUTES };
     data.microservices.forEach((s) => { if (s.key && s.base_url) m[s.key] = s.base_url; });
     return m;
   }, [data.microservices]);
@@ -375,21 +388,39 @@ export function Projects({ data }: { data: Bootstrap }) {
                   ))}
                 </div>
               )}
-              <div className="flex flex-wrap gap-3 text-sm mt-auto pt-1">
+              <div className="mt-auto pt-4 flex flex-col items-center gap-2">
+                {(() => {
+                  const launchUrl = p.service_key
+                    ? (serviceUrlMap[p.service_key] || null)
+                    : (p.demo_url || null);
+                  const launchLabel = p.service_key ? "Launch ↗" : "Demo ↗";
+                  const btnCls = "w-[72%] block text-center rounded-theme text-sm font-medium py-2.5 transition-opacity";
+                  if (!launchUrl) {
+                    return (
+                      <span className={`${btnCls} border border-white/10 text-muted cursor-not-allowed select-none`}>
+                        Coming soon
+                      </span>
+                    );
+                  }
+                  if (launchUrl.startsWith("http")) {
+                    return (
+                      <a href={launchUrl} target="_blank" rel="noopener noreferrer"
+                        className={`${btnCls} bg-primary text-white hover:opacity-90`}>
+                        {launchLabel}
+                      </a>
+                    );
+                  }
+                  return (
+                    <a href={launchUrl}
+                      className={`${btnCls} bg-primary text-white hover:opacity-90`}>
+                      {launchLabel}
+                    </a>
+                  );
+                })()}
                 {p.github_url && (
-                  <a href={p.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Code</a>
-                )}
-                {p.demo_url && !p.service_key && (
-                  <a href={p.demo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Demo</a>
-                )}
-                {p.service_key && serviceUrlMap[p.service_key] && (
-                  <a
-                    href={serviceUrlMap[p.service_key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-theme bg-primary text-white text-xs font-medium px-3 py-1.5 hover:opacity-90 transition-opacity"
-                  >
-                    Launch ↗
+                  <a href={p.github_url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-muted hover:text-primary transition-colors">
+                    View code ↗
                   </a>
                 )}
               </div>
