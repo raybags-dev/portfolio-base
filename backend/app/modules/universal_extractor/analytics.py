@@ -1,6 +1,7 @@
 """Universal Data Extractor — auto-analytics engine.
 
 Auto-detects numeric/categorical/date fields and generates chart-ready insights.
+Similar data points are aggregated/clustered so charts stay readable.
 """
 
 from __future__ import annotations
@@ -35,7 +36,8 @@ def _to_date(v: Any) -> datetime | None:
     return None
 
 
-def _histogram(values: list[float], bins: int = 8) -> list[dict]:
+def _histogram(values: list[float], bins: int = 10) -> list[dict]:
+    """Build a histogram with at most *bins* buckets. Returns clean, readable ranges."""
     if not values:
         return []
     lo, hi = min(values), max(values)
@@ -56,6 +58,19 @@ def _histogram(values: list[float], bins: int = 8) -> list[dict]:
     return buckets
 
 
+def _top_n_with_others(
+    counter: Counter,
+    n: int = 12,
+    others_label: str = "Other",
+) -> list[tuple[str, int]]:
+    """Return the top *n* entries; group the remainder into a single 'Other' bucket."""
+    top = counter.most_common(n)
+    remaining = sum(v for _, v in counter.most_common()[n:])
+    if remaining > 0:
+        top.append((others_label, remaining))
+    return top
+
+
 def compute_analytics(records: list[dict], analytics_spec: dict | None = None) -> dict[str, Any]:
     if not records:
         return {"total_records": 0, "fields_found": [], "charts": [], "summary_stats": {}}
@@ -67,8 +82,10 @@ def compute_analytics(records: list[dict], analytics_spec: dict | None = None) -
     category_fields: dict[str, list[str]] = {}
     date_fields: dict[str, list[datetime]] = {}
 
+    skip_fields = {"metadata", "raw_content", "raw_xml", "text", "_s3_key", "session_id"}
+
     for field in all_fields:
-        if field in ("metadata", "raw_content", "raw_xml", "text"):
+        if field in skip_fields:
             continue
         vals = [r.get(field) for r in records if r.get(field) not in (None, "")]
 
@@ -86,14 +103,15 @@ def compute_analytics(records: list[dict], analytics_spec: dict | None = None) -
 
         str_vals = [str(v).strip() for v in vals if str(v).strip()]
         unique = set(str_vals)
-        if 2 <= len(unique) <= max(20, len(records) * 0.4):
+        # Accept categorical fields with up to 60% unique ratio, max 200 unique
+        if 2 <= len(unique) <= min(200, max(20, len(records) * 0.6)):
             category_fields[field] = str_vals
 
     charts: list[dict] = []
     summary_stats: dict[str, Any] = {}
 
-    # ── Numeric histograms ────────────────────────────────────────────────────
-    for field, vals in list(numeric_fields.items())[:4]:
+    # ── Numeric histograms (up to 5 fields) ──────────────────────────────────
+    for field, vals in list(numeric_fields.items())[:5]:
         buckets = _histogram(vals)
         if buckets:
             charts.append({
@@ -111,11 +129,15 @@ def compute_analytics(records: list[dict], analytics_spec: dict | None = None) -
             "count": len(vals),
         }
 
-    # ── Category bar + pie charts ─────────────────────────────────────────────
+    # ── Category bar + pie charts (up to 4 fields) ───────────────────────────
     for field, vals in list(category_fields.items())[:4]:
-        counts = Counter(vals).most_common(15)
-        bar_data = [{"label": k, "count": v} for k, v in counts]
-        pie_data = [{"name": k, "value": v} for k, v in counts]
+        counter = Counter(vals)
+        # Top-N with "Other" bucket to avoid chart clutter
+        top_entries = _top_n_with_others(counter, n=12)
+        bar_data = [{"label": k, "count": v} for k, v in top_entries]
+        # Pie: top 7 + Other
+        pie_entries = _top_n_with_others(counter, n=7)
+        pie_data = [{"name": k, "value": v} for k, v in pie_entries]
 
         charts.append({
             "id": f"bar_{field}",

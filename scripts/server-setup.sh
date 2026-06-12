@@ -6,8 +6,8 @@
 # It is safe to re-run; every step is idempotent.
 #
 # Prerequisites (do these before running):
-#   1. DNS: raybags.com → 89.167.74.127 (A record, proxied via Cloudflare)
-#           www.raybags.com → raybags.com (CNAME)
+#   1. DNS: <DOMAIN> → 89.<IP_ADDRESS>.74.127 (A record, proxied via Cloudflare)
+#           www.<DOMAIN>.com → <DOMAIN>.com (CNAME)
 #   2. Cloudflare SSL/TLS mode: "Full (strict)"
 #   3. Temporarily disable "Always Use HTTPS" in Cloudflare (SSL/TLS → Edge Certs)
 #      — re-enable it after the cert is issued.

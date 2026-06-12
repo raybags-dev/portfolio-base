@@ -325,6 +325,8 @@ class UDESession(PKMixin, TimestampMixin, Base):
     client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     is_guest: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     session_contact: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    raw_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    mongodb_collection: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     records: Mapped[list[UDERecord]] = relationship(
         back_populates="session", cascade="all, delete-orphan"

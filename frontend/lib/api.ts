@@ -624,6 +624,18 @@ export const exportUDERecordsUrl = (id: number, format: "json" | "csv" = "json")
 export const generateUDESummary = (sessionId: number) =>
   request<{ summary: string }>(`/universal-extractor/sessions/${sessionId}/generate-summary`, { method: "POST" });
 
+export const generateUDEBlog = (sessionId: number) =>
+  request<{ id: number; title: string; slug: string }>(`/universal-extractor/sessions/${sessionId}/generate-blog`, { method: "POST" });
+
+export const getUDEStorageStats = () =>
+  request<{ s3_blob_count: number; mongodb_doc_count: number; postgres_session_count: number }>("/universal-extractor/storage/stats");
+
+export const clearUDES3 = (token: string) =>
+  request<{ deleted: number; message: string }>("/universal-extractor/admin/storage/s3", { method: "DELETE", token });
+
+export const clearUDEMongoDB = (token: string) =>
+  request<{ dropped: number; message: string }>("/universal-extractor/admin/storage/mongodb", { method: "DELETE", token });
+
 // ---- access tokens (admin) ----
 export interface AppToken {
   id: number;

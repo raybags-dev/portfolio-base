@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str | None = None
     S3_BUCKET: str = "raybags-platform"
     S3_REGION: str = "eu-central-1"
+    # Standard AWS env-var alternatives (boto3 respects these natively too)
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_REGION: str | None = None
+    AWS_S3_BUCKET: str | None = None
 
     # ---- supabase (optional convenience) ----
     SUPABASE_URL: AnyHttpUrl | None = None
