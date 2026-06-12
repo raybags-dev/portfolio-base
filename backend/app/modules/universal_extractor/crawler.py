@@ -470,7 +470,7 @@ class UDECrawler:
                                 if dismissed:
                                     await asyncio.sleep(1)
 
-                            await self._scroll_page(page, passes=6)
+                            await self._scroll_page(page, passes=6, on_progress=on_progress)
 
                             html = await page.content()
                             asyncio.ensure_future(
@@ -556,15 +556,23 @@ class UDECrawler:
 
     async def _load_page(self, page: Any, url: str, on_progress: Any) -> bool:
         """Load URL with adaptive wait strategy. Returns True on success."""
+        if on_progress:
+            await on_progress(f"Fetching: {url[:80]}…")
         try:
-            await page.goto(url, wait_until="networkidle", timeout=35_000)
+            await page.goto(url, wait_until="networkidle", timeout=30_000)
+            if on_progress:
+                await on_progress("Page loaded (networkidle)")
             return True
         except Exception:
             pass
-        # networkidle can hang on sites with persistent connections (e.g. SSE/WS)
+        # networkidle hangs on sites with persistent SSE/WS — fall back
+        if on_progress:
+            await on_progress("Retrying with domcontentloaded…")
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=25_000)
-            await asyncio.sleep(4)
+            await page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            await asyncio.sleep(3)
+            if on_progress:
+                await on_progress("Page loaded (domcontentloaded)")
             return True
         except Exception as exc:
             if on_progress:
@@ -573,19 +581,21 @@ class UDECrawler:
 
     # ── Multi-pass scrolling ──────────────────────────────────────────────────
 
-    async def _scroll_page(self, page: Any, passes: int = 6) -> None:
+    async def _scroll_page(self, page: Any, passes: int = 6, on_progress: Any = None) -> None:
         """Scroll the page multiple times to trigger lazy-loaded content."""
+        if on_progress:
+            await on_progress(f"Scrolling ({passes} passes to load lazy content)…")
         for i in range(passes):
             try:
                 await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-                await asyncio.sleep(1.2)
+                await asyncio.sleep(1.0)
                 if i == passes // 2:
-                    # Mid-way scroll back to top — triggers 'reveal on scroll up'
                     await page.evaluate("() => window.scrollTo(0, 0)")
-                    await asyncio.sleep(0.8)
+                    await asyncio.sleep(0.6)
+                    if on_progress:
+                        await on_progress(f"Scroll pass {i + 1}/{passes} — mid-page reveal…")
             except Exception:
                 break
-        # Return to top so pagination buttons are visible
         try:
             await page.evaluate("() => window.scrollTo(0, 0)")
         except Exception:
