@@ -22,13 +22,20 @@ else
   LOW_DISK=0
 fi
 
-# ── 2. Clear stale Playwright /tmp artifacts ───────────────────────────────────
-log "Cleaning stale Playwright /tmp artifacts…"
+# ── 2. Clear stale Playwright temp artifacts (both /tmp and ~/.pw-tmp) ────────
+log "Cleaning stale Playwright temp artifacts…"
 STALE_COUNT=0
-for dir in /tmp/playwright-artifacts-* /tmp/playwright_chromium*_profile-* /tmp/playwright_chromiumdev_profile-*; do
+PW_TMP="$HOME/.pw-tmp"
+mkdir -p "$PW_TMP"
+for dir in \
+  /tmp/playwright-artifacts-* \
+  /tmp/playwright_chromium*_profile-* \
+  /tmp/playwright_chromiumdev_profile-* \
+  "$PW_TMP"/playwright-artifacts-* \
+  "$PW_TMP"/playwright_chromium*_profile-* \
+  "$PW_TMP"/playwright_chromiumdev_profile-*; do
   [[ -e "$dir" ]] || continue
-  # Remove if older than 1 hour
-  if find "$dir" -maxdepth 0 -mmin +60 | grep -q .; then
+  if find "$dir" -maxdepth 0 -mmin +30 | grep -q .; then
     rm -rf "$dir" && (( STALE_COUNT++ )) || true
   fi
 done
