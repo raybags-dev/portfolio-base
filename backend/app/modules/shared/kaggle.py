@@ -64,12 +64,12 @@ async def search_datasets(query: str, page: int = 1) -> list[dict[str, Any]]:
             "ref": getattr(r, "ref", str(r)),
             "title": getattr(r, "title", ""),
             "subtitle": getattr(r, "subtitle", "") or "",
-            "size": getattr(r, "totalBytes", 0) or 0,
-            "downloads": getattr(r, "downloadCount", 0) or 0,
-            "votes": getattr(r, "voteCount", 0) or 0,
-            "last_updated": str(getattr(r, "lastUpdated", "")),
+            "size": getattr(r, "total_bytes", 0) or 0,
+            "downloads": getattr(r, "download_count", 0) or 0,
+            "votes": getattr(r, "vote_count", 0) or 0,
+            "last_updated": str(getattr(r, "last_updated", "")),
             "tags": [
-                t.get("name", t) if isinstance(t, dict) else str(t)
+                t.get("name", "") if isinstance(t, dict) else getattr(t, "name", str(t))
                 for t in (getattr(r, "tags", None) or [])
             ],
         }
