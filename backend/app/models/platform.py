@@ -310,7 +310,7 @@ class UDESession(PKMixin, TimestampMixin, Base):
     __tablename__ = "ude_sessions"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    source_url: Mapped[str] = mapped_column(String(4096), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_type: Mapped[str] = mapped_column(String(32), default="auto")
     source_type_detected: Mapped[str | None] = mapped_column(String(32))
     extraction_prompt: Mapped[str] = mapped_column(Text, default="Extract all structured data.")
