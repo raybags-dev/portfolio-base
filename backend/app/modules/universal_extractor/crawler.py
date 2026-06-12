@@ -399,109 +399,135 @@ class UDECrawler:
         extra_headers: dict | None = None,
         on_progress: Any = None,
     ) -> tuple[str, list[dict]]:
-        """Crawl *url* and return (strategy_used, flat_records)."""
+        """Crawl *url* and return (strategy_used, flat_records).
+
+        Retries once on ENOSPC (WSL2 /tmp quirk) after sweeping stale
+        playwright artifact dirs and redirecting TMPDIR to ~/.pw-tmp.
+        """
         try:
             from playwright.async_api import async_playwright
         except ImportError:
             if on_progress:
-                await on_progress("ERROR: Playwright not installed — `pip install playwright && playwright install chromium`")
+                await on_progress(
+                    "ERROR: Playwright not installed — "
+                    "`pip install playwright && playwright install chromium`"
+                )
             return "error", []
+
+        from app.core.health import _cleanup_pw_dirs, prepare_playwright
 
         all_records: list[dict] = []
         seen_keys: set[str] = set()
         strategy_used = "none"
 
-        async with async_playwright() as p:
-            browser = await self._launch_browser(p)
-            context = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1920, "height": 1080},
-                locale="en-US",
-                timezone_id="America/New_York",
-                extra_http_headers={
-                    "Accept-Language": "en-US,en;q=0.9",
-                    **(extra_headers or {}),
-                },
-            )
-            # Stealth: mask automation fingerprints
-            await context.add_init_script(_STEALTH_SCRIPT)
-            page = await context.new_page()
+        for attempt in range(2):
+            # On retry: do an aggressive tmp sweep first then wait briefly.
+            if attempt > 0:
+                _cleanup_pw_dirs()
+                await asyncio.sleep(1)
+
+            # Must be called right before async_playwright() so the Node.js
+            # child process inherits TMPDIR = ~/.pw-tmp.
+            prepare_playwright()
 
             try:
-                current_url = url
-                for page_num in range(self.max_pages):
-                    if on_progress:
-                        await on_progress(
-                            f"{'Loading' if page_num == 0 else 'Page ' + str(page_num + 1) + ':'} {current_url}"
-                        )
-
-                    loaded = await self._load_page(page, current_url, on_progress)
-                    if not loaded:
-                        break
-
-                    if page_num == 0:
-                        dismissed, status = await self._dismiss_cookie_banner(page)
-                        if on_progress:
-                            await on_progress(f"Cookie/modal: {status}")
-                        if dismissed:
-                            # Re-scroll after modal gone so lazy content loads
-                            await asyncio.sleep(1)
-
-                    await self._scroll_page(page, passes=6)
-
-                    # Save raw HTML to S3 (background, don't block extraction)
-                    html = await page.content()
-                    asyncio.ensure_future(_save_html_to_s3(session_id, page.url, html))
-
-                    # Run all three extraction strategies simultaneously
-                    page_records, strategy_used = await self._extract_page(
-                        page, page.url, max_records, prompt, html
+                async with async_playwright() as p:
+                    browser = await self._launch_browser(p)
+                    context = await browser.new_context(
+                        user_agent=(
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/124.0.0.0 Safari/537.36"
+                        ),
+                        viewport={"width": 1920, "height": 1080},
+                        locale="en-US",
+                        timezone_id="America/New_York",
+                        extra_http_headers={
+                            "Accept-Language": "en-US,en;q=0.9",
+                            **(extra_headers or {}),
+                        },
                     )
+                    await context.add_init_script(_STEALTH_SCRIPT)
+                    page = await context.new_page()
 
+                    try:
+                        current_url = url
+                        for page_num in range(self.max_pages):
+                            if on_progress:
+                                await on_progress(
+                                    f"{'Loading' if page_num == 0 else 'Page ' + str(page_num + 1) + ':'} "
+                                    f"{current_url}"
+                                )
+
+                            loaded = await self._load_page(page, current_url, on_progress)
+                            if not loaded:
+                                break
+
+                            if page_num == 0:
+                                dismissed, status = await self._dismiss_cookie_banner(page)
+                                if on_progress:
+                                    await on_progress(f"Cookie/modal: {status}")
+                                if dismissed:
+                                    await asyncio.sleep(1)
+
+                            await self._scroll_page(page, passes=6)
+
+                            html = await page.content()
+                            asyncio.ensure_future(
+                                _save_html_to_s3(session_id, page.url, html)
+                            )
+
+                            page_records, strategy_used = await self._extract_page(
+                                page, page.url, max_records, prompt, html
+                            )
+
+                            if on_progress:
+                                await on_progress(
+                                    f"Page {page_num + 1}: strategy={strategy_used}, "
+                                    f"{len(page_records)} records"
+                                )
+
+                            for rec in page_records:
+                                key = self._dedup_key(rec)
+                                if key in seen_keys:
+                                    continue
+                                seen_keys.add(key)
+                                all_records.append(rec)
+                                if len(all_records) >= max_records:
+                                    break
+
+                            if len(all_records) >= max_records:
+                                break
+
+                            if page_num < self.max_pages - 1:
+                                navigated = await self._go_next(page, page.url, page_num)
+                                if not navigated:
+                                    if on_progress:
+                                        await on_progress("No further pages — crawl complete.")
+                                    break
+                                current_url = page.url
+                                await asyncio.sleep(2.5)
+                    finally:
+                        await context.close()
+                        await browser.close()
+
+                # Success — break out of retry loop
+                break
+
+            except Exception as exc:
+                if "ENOSPC" in str(exc) and attempt == 0:
                     if on_progress:
                         await on_progress(
-                            f"Page {page_num + 1}: strategy={strategy_used}, "
-                            f"{len(page_records)} records"
+                            "WARNING: ENOSPC on /tmp — cleaning up and retrying…"
                         )
-
-                    # Deduplicate across pages by title+url fingerprint
-                    new_added = 0
-                    for rec in page_records:
-                        key = self._dedup_key(rec)
-                        if key in seen_keys:
-                            continue
-                        seen_keys.add(key)
-                        all_records.append(rec)
-                        new_added += 1
-                        if len(all_records) >= max_records:
-                            break
-
-                    if len(all_records) >= max_records:
-                        break
-
-                    if page_num < self.max_pages - 1:
-                        navigated = await self._go_next(page, page.url, page_num)
-                        if not navigated:
-                            if on_progress:
-                                await on_progress("No further pages — crawl complete.")
-                            break
-                        current_url = page.url
-                        await asyncio.sleep(2.5)
-
-            finally:
-                await context.close()
-                await browser.close()
+                    continue  # retry
+                raise  # re-raise on second attempt or non-ENOSPC error
 
         if on_progress:
             await on_progress(
                 f"Crawl done: {len(all_records)} unique records via {strategy_used}."
             )
 
-        # Flatten any nested objects that came from SPA state
         from app.modules.universal_extractor.extractor import _flatten_record
         return strategy_used, [_flatten_record(r) for r in all_records]
 

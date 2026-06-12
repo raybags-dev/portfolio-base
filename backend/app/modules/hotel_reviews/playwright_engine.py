@@ -339,6 +339,9 @@ class CrawlEngine:
                 await on_progress("ERROR: Playwright is not installed.")
             return []
 
+        from app.core.health import prepare_playwright
+        prepare_playwright()  # redirect TMPDIR, sweep stale artifacts
+
         records: list[dict[str, Any]] = []
         seen_keys: set[str] = set()
 
