@@ -57,6 +57,9 @@ services:
       CUSTOM_AUTH_TOKEN:      ${CUSTOM_AUTH_TOKEN}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-720}
       OPENAI_API_KEY:         ${OPENAI_API_KEY:-}
+      GROQ_API_KEY:           ${GROQ_API_KEY:-}
+      KAGGLE_USERNAME:        ${KAGGLE_USERNAME:-}
+      KAGGLE_KEY:             ${KAGGLE_KEY:-}
       SMTP_HOST:              ${SMTP_HOST:-}
       SMTP_PORT:              ${SMTP_PORT:-587}
       SMTP_USER:              ${SMTP_USER:-}
