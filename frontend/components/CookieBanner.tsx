@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Toggle } from "@/components/ui/Toggle";
 import { useCookieConsent } from "@/lib/store";
 
 export default function CookieBanner() {
@@ -125,22 +126,11 @@ function ToggleRow({
         <div className="text-xs font-medium">{title}</div>
         <div className="text-xs text-muted mt-0.5 leading-relaxed">{description}</div>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => !disabled && onChange?.(!checked)}
+      <Toggle
+        checked={checked}
+        onChange={(v) => onChange?.(v)}
         disabled={disabled}
-        className={`relative flex-shrink-0 w-11 h-6 rounded-full overflow-hidden transition-colors ${
-          checked ? "bg-primary" : "bg-white/25"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-      >
-        <span
-          className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-transform duration-200 ${
-            checked ? "translate-x-[23px]" : "translate-x-[3px]"
-          }`}
-        />
-      </button>
+      />
     </div>
   );
 }
