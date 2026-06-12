@@ -1,14 +1,63 @@
 #!/usr/bin/env bash
 # maintenance.sh — environment health, cleanup & self-healing
-# Run manually:          ./maintenance.sh
-# Or from cron / CI:     bash maintenance.sh --quiet
+#
+# Local (WSL2) mode:     ./maintenance.sh
+# VPS mode (SSH in):     ./maintenance.sh --vps
+# Quiet (cron):          ./maintenance.sh --quiet
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-QUIET=${1:-}
-log() { [[ "$QUIET" == "--quiet" ]] && return; echo "[maintenance] $*"; }
+QUIET=0
+VPS_MODE=0
+for arg in "${@:-}"; do
+  case "$arg" in
+    --quiet) QUIET=1 ;;
+    --vps)   VPS_MODE=1 ;;
+  esac
+done
+
+log()  { [[ "$QUIET" == 1 ]] && return; echo "[maintenance] $*"; }
 warn() { echo "[maintenance] ⚠  $*" >&2; }
-ok()   { [[ "$QUIET" == "--quiet" ]] && return; echo "[maintenance] ✓  $*"; }
+ok()   { [[ "$QUIET" == 1 ]] && return; echo "[maintenance] ✓  $*"; }
+
+# ── VPS mode — SSH into server and fix disk + permissions ─────────────────────
+if [[ "$VPS_MODE" == 1 ]]; then
+  log "Connecting to portfolio-server…"
+  ssh portfolio-server bash -s <<'VPS_SCRIPT'
+set -euo pipefail
+log()  { echo "[vps-maintenance] $*"; }
+ok()   { echo "[vps-maintenance] ✓  $*"; }
+warn() { echo "[vps-maintenance] ⚠  $*" >&2; }
+
+log "Disk before cleanup:"
+df -h /
+
+log "Pruning unused Docker images…"
+docker image prune -f
+log "Pruning build cache…"
+docker builder prune -f
+ok "Docker cleanup done"
+
+log "Fixing playwright mount permissions (appuser = UID 1000)…"
+mkdir -p /mnt/portfolio-data/playwright /mnt/portfolio-data/pw-tmp
+chown -R 1000:1000 /mnt/portfolio-data/playwright /mnt/portfolio-data/pw-tmp
+chmod 755         /mnt/portfolio-data/playwright /mnt/portfolio-data/pw-tmp
+ok "Permissions fixed"
+
+log "Cleaning stale playwright artifacts from /tmp…"
+find /tmp -maxdepth 1 -name 'playwright-artifacts-*' -mmin +30 -exec rm -rf {} + 2>/dev/null || true
+find /tmp -maxdepth 1 -name 'playwright_chromium*'   -mmin +30 -exec rm -rf {} + 2>/dev/null || true
+
+log "Disk after cleanup:"
+df -h /
+
+echo ""
+echo "┌──────────────────────────────────────────────┐"
+echo "│  VPS maintenance complete                     │"
+echo "└──────────────────────────────────────────────┘"
+VPS_SCRIPT
+  exit 0
+fi
 
 # ── 1. Disk space check ────────────────────────────────────────────────────────
 log "Checking disk space…"

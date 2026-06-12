@@ -12,9 +12,8 @@ interface NewsItem {
 }
 
 /**
- * Thin scrolling news ticker strip.
- * Designed to sit at the very bottom of the Hero section (absolute positioned
- * by the parent). Hides itself if no news items are available.
+ * Fixed news ticker strip — always glued to the bottom of the viewport,
+ * below the navbar. Hides itself if no news items are available.
  */
 export default function NewsTicker() {
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -39,17 +38,22 @@ export default function NewsTicker() {
 
   // Duplicate so the scroll loops seamlessly
   const doubled = [...items, ...items];
-  // Speed: 10s per item so long lists don't fly
-  const duration = Math.max(80, items.length * 10);
+  // ~2.5s per item — close to real broadcast ticker speed
+  const duration = Math.max(18, items.length * 2.5);
 
   return (
     <div
       className="w-full overflow-hidden flex items-center select-none"
       style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 30,
         height: "34px",
-        background: "rgba(0,0,0,0.55)",
+        background: "rgba(0,0,0,0.72)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(6px)",
+        backdropFilter: "blur(8px)",
       }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
