@@ -50,12 +50,12 @@ def _get_kaggle():
         raise
 
 
-async def search_datasets(query: str, page: int = 1, page_size: int = 12) -> list[dict[str, Any]]:
+async def search_datasets(query: str, page: int = 1) -> list[dict[str, Any]]:
     """Search Kaggle datasets. Raises KaggleNotConfigured if credentials are absent."""
     kg = _get_kaggle()
 
     def _sync_search() -> list[Any]:
-        return kg.api.dataset_list(search=query, page=page, page_size=page_size)
+        return kg.api.dataset_list(search=query, page=page)
 
     results = await asyncio.get_event_loop().run_in_executor(None, _sync_search)
 
