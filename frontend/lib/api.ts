@@ -570,7 +570,7 @@ export interface UDESession {
   source_config: Record<string, unknown>;
   analytics_spec: Record<string, unknown>;
   max_records: number;
-  status: "pending" | "running" | "done" | "failed";
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
   progress: {
     log: string[];
     last_message?: string;
@@ -611,6 +611,9 @@ export const runUDESession = (id: number, appToken?: string) =>
     `/universal-extractor/sessions/${id}/run`,
     { method: "POST", headers: appToken ? { "X-App-Token": appToken } : undefined }
   );
+
+export const cancelUDESession = (id: number) =>
+  request<{ message: string }>(`/universal-extractor/sessions/${id}/cancel`, { method: "POST" });
 
 export const deleteUDESession = (id: number) =>
   request<void>(`/universal-extractor/sessions/${id}`, { method: "DELETE" });
