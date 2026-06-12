@@ -67,6 +67,14 @@ async def _extract_cnn_news(db: AsyncSession, args: dict[str, Any]) -> dict[str,
     )
 
 
+@register_task("system.cleanup")
+async def _system_cleanup(db: AsyncSession, args: dict[str, Any]) -> dict[str, Any]:
+    """Clean stale playwright /tmp artifacts, ensure Chromium installed, check disk."""
+    from app.core.health import run_health_check_async
+
+    return await run_health_check_async()
+
+
 @register_task("ude.extract")
 async def _ude_extract(db: AsyncSession, args: dict[str, Any]) -> dict[str, Any]:
     """Generic UDE extraction task — create a session and run it."""

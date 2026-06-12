@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -54,6 +55,14 @@ async def lifespan(app: FastAPI):
         app.state.scheduler_task = scheduler_task
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("scheduler.ticker.start_failed", error=str(exc))
+
+    # Clean stale playwright /tmp artifacts and ensure Chromium is installed.
+    # Best-effort: a failure here never blocks startup.
+    try:
+        from app.core.health import run_health_check_async
+        asyncio.create_task(run_health_check_async())
+    except Exception as exc:  # pragma: no cover
+        log.warning("health.startup.failed", error=str(exc))
 
     log.info("startup.complete", environment=settings.ENVIRONMENT, version=__version__)
     yield
