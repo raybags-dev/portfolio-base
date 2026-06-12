@@ -54,15 +54,19 @@ async def run_one(db: AsyncSession, job: ScheduledJob, now: datetime) -> dict[st
     result: dict[str, Any]
     if task is None:
         job.status = "failed"
-        result = {"ok": False, "error": f"unknown task '{job.task}'"}
+        err = f"unknown task '{job.task}'"
+        job.last_error = err
+        result = {"ok": False, "error": err}
         log.warning("scheduler.unknown_task", task=job.task, job=job.name)
     else:
         try:
             output = await task(db, job.args or {})
             job.status = "scheduled"
+            job.last_error = None
             result = {"ok": True, "output": output}
         except Exception as exc:
             job.status = "failed"
+            job.last_error = str(exc)[:2000]
             result = {"ok": False, "error": str(exc)}
             log.warning("scheduler.task_failed", task=job.task, error=str(exc))
     job.last_run_at = now

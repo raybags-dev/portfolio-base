@@ -46,6 +46,7 @@ def _dict(j: ScheduledJob) -> dict[str, Any]:
         "interval_seconds": j.interval_seconds, "args": j.args,
         "is_enabled": j.is_enabled, "status": j.status,
         "last_run_at": j.last_run_at, "next_run_at": j.next_run_at,
+        "last_error": j.last_error,
     }
 
 

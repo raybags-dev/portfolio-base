@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Bootstrap } from "@/lib/types";
+import NewsTicker from "@/components/NewsTicker";
 
 // --- shared building blocks ---
 function Reveal({
@@ -193,6 +194,11 @@ export function Hero({ data }: { data: Bootstrap }) {
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
+      </div>
+
+      {/* News ticker — sits at the very bottom of the hero */}
+      <div className="absolute bottom-0 left-0 right-0 z-20">
+        <NewsTicker />
       </div>
     </section>
   );
