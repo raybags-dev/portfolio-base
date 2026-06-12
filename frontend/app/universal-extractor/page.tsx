@@ -13,6 +13,8 @@ import {
   deleteUDESession,
   listUDESessions,
   generateUDESummary,
+  generateUDEBlog,
+  getUDEStorageStats,
   exportUDERecordsUrl,
   getUDERecords,
   type UDESession,
@@ -163,7 +165,7 @@ export default function UniversalExtractorPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -197,6 +199,9 @@ export default function UniversalExtractorPage() {
             </div>
           )}
         </div>
+
+        {/* Storage stats (view only) */}
+        {step === "configure" && <StorageStats />}
 
         {/* Token modal */}
         {tokenModal && (
@@ -261,6 +266,9 @@ export default function UniversalExtractorPage() {
             toast={toast}
           />
         )}
+
+        {/* How It Works */}
+        {step === "configure" && <HowItWorks />}
       </div>
     </main>
   );
@@ -444,6 +452,8 @@ function ResultsStep({
   const [deleting, setDeleting] = useState(false);
   const [recordPreview, setRecordPreview] = useState<Record<string, unknown>[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogResult, setBlogResult] = useState<{ title: string; slug: string } | null>(null);
 
   async function loadPreview() {
     try {
@@ -465,6 +475,16 @@ function ResultsStep({
       toast.success("Summary generated");
     } catch { toast.error("Summary generation failed"); }
     finally { setSummaryLoading(false); }
+  }
+
+  async function handleGenerateBlog() {
+    setBlogLoading(true);
+    try {
+      const res = await generateUDEBlog(session.id);
+      setBlogResult({ title: res.title, slug: res.slug });
+      toast.success(`Blog post "${res.title}" saved as draft`);
+    } catch { toast.error("Blog generation failed"); }
+    finally { setBlogLoading(false); }
   }
 
   return (
@@ -567,7 +587,7 @@ function ResultsStep({
 
       {/* Export + actions */}
       {!isFailed && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           <a href={exportUDERecordsUrl(session.id, "json")} target="_blank" rel="noreferrer"
             className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent/30">
             ↓ Export JSON
@@ -576,11 +596,128 @@ function ResultsStep({
             className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent/30">
             ↓ Export CSV
           </a>
+
+          {!blogResult ? (
+            <button onClick={handleGenerateBlog} disabled={blogLoading}
+              className="px-4 py-2 rounded-lg border border-primary/40 text-primary text-sm hover:bg-primary/10 disabled:opacity-50">
+              {blogLoading ? "Writing blog…" : "✍ Generate Blog Post"}
+            </button>
+          ) : (
+            <a href={`/blog/${blogResult.slug}`}
+              className="px-4 py-2 rounded-lg bg-primary/10 border border-primary/40 text-primary text-sm hover:bg-primary/20">
+              View blog post →
+            </a>
+          )}
+
           <button onClick={async () => { setDeleting(true); try { await onDelete(); } finally { setDeleting(false); } }}
             disabled={deleting}
             className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 disabled:opacity-50 ml-auto">
             {deleting ? "Deleting…" : "Delete Session"}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Storage stats (view only) ─────────────────────────────────────────────────
+
+function StorageStats() {
+  const [stats, setStats] = useState<{ s3_blob_count: number; mongodb_doc_count: number; postgres_session_count: number } | null>(null);
+
+  useEffect(() => {
+    getUDEStorageStats().then(setStats).catch(() => {});
+  }, []);
+
+  if (!stats) return null;
+
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-6">
+      {[
+        { label: "Sessions", value: stats.postgres_session_count, icon: "📋" },
+        { label: "S3 Blobs", value: stats.s3_blob_count, icon: "☁️" },
+        { label: "MongoDB Docs", value: stats.mongodb_doc_count, icon: "🗄️" },
+      ].map(s => (
+        <div key={s.label} className="border border-border rounded-xl p-4 text-center">
+          <div className="text-2xl mb-1">{s.icon}</div>
+          <div className="text-2xl font-bold text-primary">{s.value.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── How It Works ──────────────────────────────────────────────────────────────
+
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+
+  const steps = [
+    {
+      num: "01",
+      title: "Choose Source Type",
+      body: "Select Auto-detect, Web Page, JSON API, CSV URL, Kaggle dataset, or paste raw data directly. Auto-detect works for most URLs."
+    },
+    {
+      num: "02",
+      title: "Set Extraction Goal",
+      body: 'Describe what you want to extract in plain English — e.g. "Extract all product names, prices, and ratings". The more specific, the better the schema normalisation.'
+    },
+    {
+      num: "03",
+      title: "Raw Blob → S3",
+      body: "As soon as data is fetched, the raw content (HTML, JSON, CSV) is uploaded to S3 for safe-keeping before any processing begins. This preserves the original source."
+    },
+    {
+      num: "04",
+      title: "LLM Schema Normalisation",
+      body: "Groq AI (llama-3.3-70b-versatile) proposes a unified field schema from sample records. All extracted rows are mapped to consistent snake_case field names."
+    },
+    {
+      num: "05",
+      title: "Structured Data → MongoDB",
+      body: "After normalisation, all clean records are stored in MongoDB (raybags_ude database) as well as PostgreSQL. Each session gets its own collection."
+    },
+    {
+      num: "06",
+      title: "Analytics + Export",
+      body: "Numeric fields get distribution histograms, categorical fields get bar/pie charts with the top entries (similar values are clustered into 'Other'). Export as JSON or CSV. Generate an AI blog post about the findings."
+    },
+  ];
+
+  return (
+    <div className="mt-10 border border-border rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-accent/20 transition-colors"
+      >
+        <div>
+          <h2 className="font-semibold text-base">How It Works</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Understanding the extraction pipeline</p>
+        </div>
+        <span className="text-muted-foreground text-lg">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-6 border-t border-border">
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            {steps.map(s => (
+              <div key={s.num} className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                  {s.num}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">{s.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+            <strong className="text-foreground">Supported sources:</strong> Any public HTTP URL, REST/GraphQL JSON API, CSV files, XML feeds, Kaggle datasets (<code className="font-mono">kaggle://owner/dataset</code>), or raw pasted JSON/CSV.
+            For JS-heavy pages that require a browser, the engine automatically falls back to Playwright-driven extraction.
+          </div>
         </div>
       )}
     </div>
@@ -594,37 +731,52 @@ function ChartBlock({ chart }: { chart: ChartData }) {
   const yKey = (chart as ChartData & { y_key?: string }).y_key || "value";
 
   return (
-    <div className="border border-border rounded-xl p-4">
-      <h4 className="text-sm font-medium mb-4">{chart.title}</h4>
+    <div className="border border-border rounded-xl p-5">
+      <h4 className="text-sm font-semibold mb-5">{chart.title}</h4>
       {chart.type === "pie" ? (
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={380}>
           <PieChart>
-            <Pie data={chart.data} dataKey={yKey} nameKey={xKey} cx="50%" cy="50%" outerRadius={90} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`}>
-              {chart.data.map((_: unknown, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            <Pie
+              data={chart.data}
+              dataKey={yKey}
+              nameKey={xKey}
+              cx="50%"
+              cy="50%"
+              outerRadius={140}
+              label={({ name, percent }: { name?: string; percent?: number }) =>
+                `${(name ?? "").slice(0, 20)} ${((percent ?? 0) * 100).toFixed(0)}%`
+              }
+              labelLine={true}
+            >
+              {chart.data.map((_: unknown, i: number) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
             </Pie>
             <Tooltip />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
       ) : chart.type === "line" ? (
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={chart.data}>
+        <ResponsiveContainer width="100%" height={340}>
+          <LineChart data={chart.data} margin={{ top: 10, right: 20, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
             <Line type="monotone" dataKey={yKey} stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chart.data}>
+        <ResponsiveContainer width="100%" height={340}>
+          <BarChart data={chart.data} margin={{ top: 10, right: 20, left: 10, bottom: 80 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Bar dataKey={yKey} radius={[4, 4, 0, 0]}>
-              {chart.data.map((_: unknown, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            <Bar dataKey={yKey} radius={[4, 4, 0, 0]} maxBarSize={60}>
+              {chart.data.map((_: unknown, i: number) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>

@@ -52,3 +52,6 @@ openai==1.58.1
 
 # --- MongoDB (optional — UDE raw document store) ---
 pymongo[srv]==3.12.3
+
+# --- S3 blob storage (UDE raw extraction blobs) ---
+boto3==1.35.90
