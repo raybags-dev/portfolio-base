@@ -144,19 +144,60 @@ async def run_session(session_id: int, db: DbSession, background_tasks: Backgrou
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
     if session.status == "running":
         raise HTTPException(status.HTTP_409_CONFLICT, "Session already running")
+    # Set running immediately so polling sees the state change before background task starts
+    session.status = "running"
+    session.progress = {"log": [], "records_collected": 0, "records_valid": 0}
+    await db.commit()
     background_tasks.add_task(_run_in_background, session_id)
     return {"message": "Extraction started", "session_id": session_id}
 
 
+@router.post("/sessions/{session_id}/cancel")
+async def cancel_session(session_id: int, db: DbSession):
+    session = await db.get(UDESession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if session.status not in ("pending", "running"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session is not running")
+    session.status = "cancelled"
+    session.error = "Cancelled by user"
+    await db.commit()
+    return {"message": "Session cancelled"}
+
+
 async def _run_in_background(session_id: int) -> None:
-    from app.core.database import SessionLocal
-    from app.modules.universal_extractor.service import run_session as _run
+    try:
+        from app.core.database import SessionLocal
+        from app.modules.universal_extractor.service import run_session as _run
+    except Exception as import_exc:  # noqa: BLE001
+        # Can't import — try to mark session failed via a raw connection
+        try:
+            from app.core.database import SessionLocal
+
+            async with SessionLocal() as db:
+                s = await db.get(UDESession, session_id)
+                if s and s.status in ("pending", "running"):
+                    s.status = "failed"
+                    s.error = f"Startup error: {import_exc}"
+                    await db.commit()
+        except Exception:
+            pass
+        return
 
     async with SessionLocal() as db:
         try:
             await _run(db, session_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Service already marks the session failed before re-raising, but
+            # make sure it's set in case the exception escaped before that.
+            try:
+                s = await db.get(UDESession, session_id)
+                if s and s.status in ("pending", "running"):
+                    s.status = "failed"
+                    s.error = str(exc)[:1000]
+                    await db.commit()
+            except Exception:
+                pass
 
 
 @router.get("/sessions/{session_id}/records")

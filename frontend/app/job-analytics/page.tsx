@@ -272,6 +272,7 @@ export default function JobAnalyticsPage() {
           />
         )}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
+        {step === "configure" && <HowItWorksJobs />}
         {step === "results" && activeSession && (
           <ResultsStep
             session={activeSession}
@@ -1034,6 +1035,62 @@ function ChartCard({ chart }: { chart: ChartData }) {
                 <span className="text-xs truncate" style={{ color: "var(--color-muted)" }}>{String((entry as Record<string, unknown>).name ?? "")}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── How It Works ──────────────────────────────────────────────────────────────
+
+function HowItWorksJobs() {
+  const [open, setOpen] = useState(false);
+
+  const steps = [
+    { num: "01", title: "Enter a URL or import Kaggle", body: "Paste any job board URL (LinkedIn, Indeed, Glassdoor, etc.) or a Kaggle job dataset slug. You can customise the extraction prompt to focus on specific fields." },
+    { num: "02", title: "Playwright + LLM Crawl", body: "A headless Chromium browser (Playwright) renders the page and follows pagination. An LLM (Groq AI) reads each listing and extracts: title, company, location, salary, skills, seniority, remote/hybrid status." },
+    { num: "03", title: "Schema Normalisation", body: "Field names vary wildly across job boards. The LLM proposes a unified snake_case schema so all records are comparable regardless of source." },
+    { num: "04", title: "Analytics + Charts", body: "Top skills are ranked by frequency, salary ranges are charted, work arrangement (remote/hybrid/onsite) and seniority breakdowns are visualised as clean charts." },
+    { num: "05", title: "AI Market Insights", body: "Groq AI generates a written market analysis — in-demand skills, salary benchmarks, hiring trends — and saves it as a draft blog post you can publish." },
+    { num: "06", title: "Export", body: "Download the full structured dataset as JSON or CSV for use in your own analysis pipelines or spreadsheet tools." },
+  ];
+
+  const tech = ["Python / FastAPI", "Playwright (Chromium)", "Groq AI (llama-3.3-70b)", "BeautifulSoup4", "PostgreSQL", "Next.js / Recharts"];
+
+  return (
+    <div className="mt-10 rounded-theme bg-surface border border-white/10 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors"
+      >
+        <div>
+          <h2 className="font-semibold text-base">How It Works</h2>
+          <p className="text-xs text-muted mt-0.5">Architecture, crawl pipeline, and tech stack</p>
+        </div>
+        <span className="text-muted text-sm">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-white/8 px-5 pb-6 pt-5">
+          <div className="grid sm:grid-cols-2 gap-4 mb-5">
+            {steps.map(s => (
+              <div key={s.num} className="flex gap-3">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{s.num}</div>
+                <div>
+                  <h3 className="text-sm font-semibold">{s.title}</h3>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">{s.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-theme bg-bg border border-white/8 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-2">Tech Stack</p>
+            <div className="flex flex-wrap gap-2">
+              {tech.map(t => (
+                <span key={t} className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded font-mono">{t}</span>
+              ))}
+            </div>
           </div>
         </div>
       )}
