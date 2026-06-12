@@ -38,8 +38,8 @@ export default function NewsTicker() {
 
   // Duplicate so the scroll loops seamlessly
   const doubled = [...items, ...items];
-  // ~2.5s per item — close to real broadcast ticker speed
-  const duration = Math.max(18, items.length * 2.5);
+  // ~0.7s per item — 3.5× the previous broadcast speed
+  const duration = Math.max(5, items.length * 0.7);
 
   return (
     <div
