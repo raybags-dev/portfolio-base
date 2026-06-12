@@ -51,4 +51,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.news.router import spec as news_spec
     specs.append(news_spec)
 
+    from app.modules.streams.router import spec as streams_spec
+    specs.append(streams_spec)
+
     return specs
