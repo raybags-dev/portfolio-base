@@ -1,10 +1,18 @@
 """Universal Data Extractor — source detection and extraction engine.
 
 Pipeline:
-  1. Detect source type from URL / content
+  1. Detect source type (url pattern / content-type)
   2. Extract raw records via the appropriate strategy
-  3. Flatten nested objects in every record
-  4. LLM-assisted schema normalization
+  3. Flatten all nested objects in every record
+  4. LLM-assisted schema normalisation
+
+HTML extraction:
+  - Quick static pass (httpx + BeautifulSoup): used only for genuine
+    structured data (JSON-LD *item arrays*, embedded JSON state, HTML tables).
+    Org-metadata JSON-LD (WebSite / Organization with ≤ 2 records) is skipped.
+  - Full Playwright crawl (UDECrawler): three parallel strategies — SPA state,
+    container DOM, link-anchor grouping — with cookie dismissal, multi-pass
+    scroll, stealth mode, and S3 raw HTML upload.
 """
 
 from __future__ import annotations
@@ -22,11 +30,17 @@ from app.modules.agents.llm import LLMProvider
 
 _Callback = Callable[[str], Awaitable[None]] | None
 
-# Maximum nesting depth to unpack — prevents explosive key counts on
-# deeply recursive structures (e.g. graph APIs).
 _FLATTEN_MAX_DEPTH = 5
-# Max list items expanded inline; longer lists become a compact JSON string.
 _FLATTEN_LIST_EXPAND = 8
+
+# JSON-LD @type values that represent org/site metadata, not content items.
+# If ALL records from a JSON-LD block have one of these types, skip the block.
+_ORG_TYPES = {
+    "WebSite", "WebPage", "WebApplication",
+    "Organization", "NewsMediaOrganization", "Corporation",
+    "LocalBusiness", "GovernmentOrganization",
+    "BreadcrumbList", "SearchAction",
+}
 
 
 # ── Nested object flattening ─────────────────────────────────────────────────
@@ -40,11 +54,10 @@ def _flatten_record(
     """Recursively flatten a nested dict/list into a single-level dict.
 
     Rules:
-    - Nested dicts → keys joined with `sep` (e.g. ``address_city``).
-    - Short lists of primitives → semicolon-joined string.
-    - Short lists of dicts → flattened with numeric indices
-      (e.g. ``tags_0_name``, ``tags_1_name``).
-    - Anything beyond _FLATTEN_MAX_DEPTH → serialised as a JSON string.
+    - Nested dicts → keys joined with ``sep``  (``address_city``).
+    - Short primitive lists → semicolon-joined string.
+    - Short object lists → flattened with numeric index (``tags_0_name``).
+    - Anything beyond _FLATTEN_MAX_DEPTH → compact JSON string.
     """
     out: dict[str, Any] = {}
 
@@ -58,7 +71,6 @@ def _flatten_record(
 
     if isinstance(obj, dict):
         for k, v in obj.items():
-            # Sanitise key: keep alphanumerics and underscores only
             safe_k = re.sub(r"[^a-zA-Z0-9]", sep, str(k)).strip(sep) or f"f{k}"
             full_key = f"{prefix}{sep}{safe_k}" if prefix else safe_k
             if isinstance(v, (dict, list)):
@@ -73,18 +85,14 @@ def _flatten_record(
         elif len(obj) <= _FLATTEN_LIST_EXPAND and all(
             isinstance(v, (str, int, float, bool, type(None))) for v in obj
         ):
-            # Short primitive list → join
             out[prefix] = "; ".join(str(v) for v in obj if v is not None)
         elif len(obj) <= _FLATTEN_LIST_EXPAND and all(isinstance(v, dict) for v in obj):
-            # Short list of dicts → expand with index
             for i, v in enumerate(obj):
                 full_key = f"{prefix}{sep}{i}" if prefix else str(i)
                 out.update(_flatten_record(v, full_key, sep, _depth + 1))
         else:
-            # Long or heterogeneous list → compact JSON string
             if prefix:
                 out[prefix] = json.dumps(obj, default=str, ensure_ascii=False)
-
     else:
         if prefix:
             out[prefix] = obj
@@ -124,27 +132,22 @@ def _unwrap_json(data: Any) -> list[Any]:
     if isinstance(data, list):
         return data
     if isinstance(data, dict):
-        # Prefer whichever top-level value is a non-empty list of dicts
         candidates = [
             (k, v) for k, v in data.items()
             if isinstance(v, list) and v
         ]
         if candidates:
-            # Pick the longest list
-            best_key, best_list = max(candidates, key=lambda kv: len(kv[1]))
+            _, best_list = max(candidates, key=lambda kv: len(kv[1]))
             return best_list
-        # Single-object response → wrap in list
         return [data]
     return []
 
 
 def _parse_json_records(text: str, max_records: int) -> list[dict]:
-    """Parse JSON text into a flat list of dicts, unpacking all nested objects."""
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
         return []
-
     rows = _unwrap_json(data)
     records: list[dict] = []
     for item in rows[:max_records]:
@@ -168,9 +171,7 @@ def _parse_xml_text(text: str, max_records: int) -> list[dict]:
         for child in root:
             row: dict[str, str] = {}
             for sub in child:
-                # Expand attributes of each sub-element too
-                text_val = (sub.text or "").strip()
-                row[sub.tag] = text_val
+                row[sub.tag] = (sub.text or "").strip()
                 for attr_k, attr_v in sub.attrib.items():
                     row[f"{sub.tag}_{attr_k}"] = attr_v
             if row:
@@ -193,8 +194,7 @@ async def _extract_api(
     if on_progress:
         await on_progress(f"Fetching API endpoint: {url}")
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-        resp = client.build_request("GET", url, headers=headers)
-        response = await client.send(resp)
+        response = await client.send(client.build_request("GET", url, headers=headers))
         response.raise_for_status()
     ct = response.headers.get("content-type", "")
     text = response.text
@@ -217,50 +217,55 @@ async def _extract_api(
     return detected, records
 
 
-# ── S3 upload helper ─────────────────────────────────────────────────────────
+# ── Static HTML pre-check (quick, no JS rendering) ───────────────────────────
 
-async def _save_raw_html_to_s3(url: str, html: str, label: str = "html") -> str | None:
-    try:
-        import hashlib
-
-        from app.core.storage_s3 import is_configured, upload_blob
-        if not is_configured():
-            return None
-        url_hash = hashlib.sha1(url.encode()).hexdigest()[:12]
-        key = f"ude/raw/{label}_{url_hash}.html"
-        await upload_blob(key, html, content_type="text/html; charset=utf-8")
-        return key
-    except Exception:
-        return None
+def _is_org_metadata(records: list[dict]) -> bool:
+    """Return True if the records look like site/org metadata (not content items)."""
+    if not records or len(records) > 3:
+        return False
+    for r in records:
+        # After flattening, @type becomes _type
+        rtype = str(r.get("_type") or r.get("type") or r.get("@type") or "")
+        if any(ot in rtype for ot in _ORG_TYPES):
+            return True
+    return False
 
 
-# ── Static HTML extraction ───────────────────────────────────────────────────
+async def _static_html_quickcheck(
+    url: str,
+    on_progress: _Callback,
+    max_records: int,
+) -> list[dict]:
+    """Fast static extraction (httpx + BeautifulSoup).
 
-async def _extract_html_static(url: str, on_progress: _Callback, max_records: int) -> list[dict]:
-    """Comprehensive HTML extraction using BeautifulSoup.
+    Only returns records for clearly structured sources:
+    - JSON-LD with genuine item arrays (not org metadata)
+    - Embedded JS state blobs
+    - HTML tables
 
-    Strategy:
-    1. Save raw HTML to S3.
-    2. Try JSON-LD embedded structured data (flatten nested objects).
-    3. Try embedded JS state blobs.
-    4. Try HTML tables.
-    5. Comprehensive DOM walk: group sibling leaf-nodes into pseudo-records.
+    Returns an empty list if the page needs JS rendering.
     """
-    import asyncio
 
     from bs4 import BeautifulSoup
 
-    if on_progress:
-        await on_progress(f"Fetching page: {url}")
-    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-        resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+            resp = await client.get(
+                url,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    )
+                },
+            )
+    except Exception:
+        return []
 
-    raw_html = resp.text
-    asyncio.ensure_future(_save_raw_html_to_s3(url, raw_html))
+    soup = BeautifulSoup(resp.text, "lxml")
 
-    soup = BeautifulSoup(raw_html, "lxml")
-
-    # ── 1. JSON-LD embedded data ───────────────────────────────────────────
+    # ── JSON-LD ────────────────────────────────────────────────────────────
     for tag in soup.find_all("script", {"type": "application/ld+json"}):
         try:
             data = json.loads(tag.string or "")
@@ -268,32 +273,37 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
             if not rows:
                 continue
             records = [_flatten_record(r) for r in rows[:max_records] if isinstance(r, dict)]
-            if records:
+            # Skip org-metadata blocks — they return 1-2 records about the site itself
+            if records and not _is_org_metadata(records) and len(records) >= 3:
                 if on_progress:
-                    await on_progress(f"JSON-LD: extracted {len(records)} records.")
+                    await on_progress(f"Static JSON-LD: {len(records)} item records.")
                 return records
         except Exception:
             pass
 
-    # ── 2. Embedded JS state blobs ─────────────────────────────────────────
+    # ── Embedded JS state (Next.js, Nuxt, etc.) ────────────────────────────
+    _SPA_PATTERNS = [
+        r"window\.__NEXT_DATA__\s*=\s*({.+?})\s*(?:;|</script>)",
+        r"window\.__NUXT__\s*=\s*({.+?})\s*(?:;|</script>)",
+        r"window\.__APP_STATE__\s*=\s*({.+?})\s*(?:;|</script>)",
+        r"window\.__INITIAL_STATE__\s*=\s*({.+?})\s*(?:;|</script>)",
+        r"window\.__PRELOADED_STATE__\s*=\s*({.+?})\s*(?:;|</script>)",
+    ]
     for tag in soup.find_all("script"):
         src = tag.string or ""
-        m = re.search(
-            r"window\.__(?:INITIAL|PRELOADED|NUXT|APP)_?(?:STATE|DATA)__\s*=\s*({.+?});?\s*\n",
-            src, re.S,
-        )
-        if m:
-            try:
-                state = json.loads(m.group(1))
-                records = _parse_json_records(json.dumps(state), max_records)
-                if records:
-                    if on_progress:
-                        await on_progress(f"JS state blob: extracted {len(records)} records.")
-                    return records
-            except Exception:
-                pass
+        for pattern in _SPA_PATTERNS:
+            m = re.search(pattern, src, re.S)
+            if m:
+                try:
+                    records = _parse_json_records(m.group(1), max_records)
+                    if len(records) >= 3:
+                        if on_progress:
+                            await on_progress(f"Static SPA state: {len(records)} records.")
+                        return records
+                except Exception:
+                    pass
 
-    # ── 3. HTML tables ─────────────────────────────────────────────────────
+    # ── HTML tables ────────────────────────────────────────────────────────
     tables = soup.find_all("table")
     if tables:
         best_table = max(tables, key=lambda t: len(t.find_all("tr")))
@@ -303,102 +313,22 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
                 th.get_text(strip=True) or f"col_{i}"
                 for i, th in enumerate(headers_row.find_all(["th", "td"]))
             ]
-            rows = best_table.find_all("tr")[1:]
+            rows_el = best_table.find_all("tr")[1:]
             records = []
-            for row in rows[:max_records]:
+            for row in rows_el[:max_records]:
                 cells = row.find_all(["td", "th"])
                 rec = {cols[i]: c.get_text(strip=True) for i, c in enumerate(cells) if i < len(cols)}
                 if rec:
                     records.append(rec)
-            if records:
+            if len(records) >= 3:
                 if on_progress:
-                    await on_progress(f"HTML table: extracted {len(records)} records.")
+                    await on_progress(f"Static HTML table: {len(records)} records.")
                 return records
 
-    # ── 4. Comprehensive DOM walk ─────────────────────────────────────────
-    for tag in soup.find_all([
-        "script", "style", "noscript", "svg",
-        "header", "footer", "nav", "aside", "meta", "link",
-    ]):
-        tag.decompose()
-
-    EXTRACT_TAGS = {
-        "div", "span", "p", "a", "li", "td", "th",
-        "h1", "h2", "h3", "h4", "h5", "h6",
-        "button", "label", "option", "dt", "dd",
-        "strong", "em", "b", "i", "caption", "time", "data",
-    }
-
-    def _get_leaf_text(el: Any) -> str:
-        inline = {"span", "a", "strong", "em", "b", "i", "abbr", "code", "small", "time"}
-        children_tags = [c for c in el.children if hasattr(c, "name") and c.name]
-        if any(c.name not in inline for c in children_tags):
-            return ""
-        return el.get_text(separator=" ", strip=True)
-
-    containers = soup.find_all([
-        "article", "section", "main",
-        "[class*='card']", "[class*='item']",
-        "[class*='row']", "[class*='result']",
-        "[class*='listing']", "[class*='product']",
-        "[class*='entry']", "[class*='post']",
-    ])
-    if not containers:
-        containers = [c for c in soup.find_all("div", recursive=False) if len(c.find_all()) >= 3]
-    if not containers:
-        containers = [soup.body or soup]
-
-    records: list[dict] = []
-    seen_texts: set[str] = set()
-
-    for container in containers[: max_records * 3]:
-        row: dict[str, Any] = {}
-        texts_found: list[str] = []
-
-        for el in container.find_all(list(EXTRACT_TAGS)):
-            t = _get_leaf_text(el)
-            if not t or len(t) < 2 or len(t) > 500:
-                continue
-            if t in seen_texts:
-                continue
-            seen_texts.add(t)
-            texts_found.append(t)
-            tag_name = el.name or "text"
-            key_hint = (
-                el.get("id")
-                or (el.get("class") or [""])[0].replace("-", "_").lower()[:30]
-                or tag_name
-            )
-            base_key = re.sub(r"[^a-z0-9_]", "_", key_hint.lower())[:30] or tag_name
-            key = base_key
-            counter = 1
-            while key in row:
-                key = f"{base_key}_{counter}"
-                counter += 1
-            row[key] = t
-
-            if el.name == "a":
-                href = el.get("href", "")
-                if href and href.startswith("http"):
-                    row[f"{key}_href"] = href
-            if el.name == "img":
-                src = el.get("src") or el.get("data-src") or ""
-                if src:
-                    row[f"{key}_src"] = src
-
-        if texts_found:
-            records.append(row)
-        if len(records) >= max_records:
-            break
-
-    if records:
-        return records
-
-    paras = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 30]
-    return [{"text": p} for p in paras[:max_records]] if paras else []
+    return []
 
 
-# ── Playwright extraction ─────────────────────────────────────────────────────
+# ── Full Playwright crawl ─────────────────────────────────────────────────────
 
 async def _extract_html_playwright(
     url: str,
@@ -406,42 +336,24 @@ async def _extract_html_playwright(
     on_progress: _Callback,
     max_records: int,
     max_pages: int,
+    session_id: int = 0,
+    extra_headers: dict | None = None,
+    provider: LLMProvider | None = None,
 ) -> list[dict]:
-    import asyncio as _asyncio
-
-    from app.modules.agents.llm import get_provider
-    from app.modules.hotel_reviews.playwright_engine import CrawlEngine
-
-    provider = get_provider()
-    engine = CrawlEngine(provider, max_pages=max_pages)
-    records: list[dict] = []
-    _raw_html_saved = False
-
-    async def on_record(record: dict, _url: str) -> None:
-        if len(records) < max_records:
-            records.append(record)
-
-    async def _on_prog(msg: str) -> None:
-        nonlocal _raw_html_saved
-        if not _raw_html_saved and "Loading" in msg:
-            _asyncio.ensure_future(_save_raw_html_to_s3(url, "", label="playwright"))
-            _raw_html_saved = True
-        if on_progress:
-            await on_progress(msg)
-
-    await engine.run(
+    from app.modules.universal_extractor.crawler import UDECrawler
+    crawler = UDECrawler(provider, max_pages=max_pages)
+    _, records = await crawler.crawl(
         url,
         extraction_prompt,
-        on_record=on_record,
-        on_progress=_on_prog,
-        max_items_per_page=max_records,
+        session_id=session_id,
+        max_records=max_records,
+        extra_headers=extra_headers or {},
+        on_progress=on_progress,
     )
-    # Playwright records are already flat (JS extraction returns flat dicts);
-    # run flatten anyway to handle any nested values returned by LLM fallback.
-    return _flatten_records(records)
+    return records
 
 
-# ── LLM schema normalization ─────────────────────────────────────────────────
+# ── LLM schema normalisation ──────────────────────────────────────────────────
 
 _NORMALIZE_SYSTEM = """You are a data normalisation expert.
 Given sample records from a data source (already flattened), propose a unified JSON schema
@@ -464,8 +376,7 @@ async def normalize_schema(
         "Propose a unified schema mapping."
     )
     try:
-        schema = await provider.propose_json(_NORMALIZE_SYSTEM, prompt, fallback={})
-        return schema
+        return await provider.propose_json(_NORMALIZE_SYSTEM, prompt, fallback={})
     except Exception:
         return {}
 
@@ -473,9 +384,9 @@ async def normalize_schema(
 def apply_schema(records: list[dict], schema: dict[str, Any]) -> list[dict]:
     """Map records to the normalised schema.
 
-    For each schema field, try each candidate source key including underscore
-    and dot variants. Leftover fields are merged into the record directly
-    (not buried under a ``metadata`` sub-dict) so no information is lost.
+    Looks up each source key with: direct match → underscore variant →
+    case-insensitive match.  Leftover fields are merged into the record
+    directly so no information is lost.
     """
     if not schema:
         return records
@@ -490,18 +401,15 @@ def apply_schema(records: list[dict], schema: dict[str, Any]) -> list[dict]:
                 continue
             candidates = [src] if isinstance(src, str) else (src if isinstance(src, list) else [])
             for c in candidates:
-                # Direct lookup
                 if c in raw:
                     row[norm_key] = raw[c]
                     used_keys.add(c)
                     break
-                # Underscore variant (flattened "a.b" → "a_b")
                 c_us = re.sub(r"[.\-/]", "_", c)
                 if c_us in raw:
                     row[norm_key] = raw[c_us]
                     used_keys.add(c_us)
                     break
-                # Case-insensitive fallback
                 c_lower = c.lower()
                 for raw_k in raw:
                     if raw_k.lower() == c_lower:
@@ -511,7 +419,6 @@ def apply_schema(records: list[dict], schema: dict[str, Any]) -> list[dict]:
                 if norm_key in row:
                     break
 
-        # Merge leftover fields at the top level so no information is lost.
         for k, v in raw.items():
             if k not in used_keys and k not in row:
                 row[k] = v
@@ -543,56 +450,74 @@ async def extract(
     max_pages: int = 5,
     provider: LLMProvider | None = None,
     on_progress: _Callback = None,
+    session_id: int = 0,
 ) -> tuple[str, list[dict], dict]:
     """Main entrypoint.
 
-    Returns (detected_type, raw_records, schema_mapping).
-    raw_records are always flat dicts (nested objects unpacked).
+    Returns ``(detected_type, raw_records, schema_mapping)``.
+    ``raw_records`` are always flat dicts (nested objects recursively unpacked).
     """
     cfg = source_config or {}
     headers = cfg.get("headers", {})
 
-    if source_type == "auto":
-        detected = detect_source_type(source_url)
-    else:
-        detected = source_type
+    detected = detect_source_type(source_url) if source_type == "auto" else source_type
 
     raw: list[dict] = []
 
+    # ── Kaggle ────────────────────────────────────────────────────────────
     if detected == "kaggle":
         from app.modules.shared.kaggle import download_and_parse
         if on_progress:
             await on_progress(f"Downloading Kaggle dataset '{source_url}'…")
-        raw = await download_and_parse(
-            source_url.replace("kaggle://", ""), max_rows=max_records
+        raw = _flatten_records(
+            await download_and_parse(source_url.replace("kaggle://", ""), max_rows=max_records)
         )
-        raw = _flatten_records(raw)
 
+    # ── REST API / JSON / CSV / XML ───────────────────────────────────────
     elif detected in ("api", "json", "csv", "xml"):
         detected, raw = await _extract_api(source_url, headers, on_progress, max_records)
 
+    # ── Inline text paste ─────────────────────────────────────────────────
     elif detected == "text":
-        text = source_url
         raw = (
-            _parse_json_records(text, max_records)
-            or _parse_csv_text(text, max_records)
+            _parse_json_records(source_url, max_records)
+            or _parse_csv_text(source_url, max_records)
         )
         if on_progress:
             await on_progress(f"Parsed {len(raw)} records from inline text.")
 
+    # ── HTML pages ────────────────────────────────────────────────────────
     elif detected == "html":
         if on_progress:
-            await on_progress("Detected HTML page — trying static extraction…")
-        raw = await _extract_html_static(source_url, on_progress, max_records)
+            await on_progress("Detected HTML — running quick static check…")
 
-        if not raw and on_progress:
-            await on_progress("Static extraction empty — falling back to Playwright…")
+        # Fast path: structured data already in the HTML (no JS needed)
+        raw = await _static_html_quickcheck(source_url, on_progress, max_records)
 
-        if not raw:
+        if raw:
+            if on_progress:
+                await on_progress(
+                    f"Static extraction yielded {len(raw)} records — "
+                    "skipping Playwright."
+                )
+        else:
+            if on_progress:
+                await on_progress(
+                    "Static check found no structured data — "
+                    "launching full Playwright crawler…"
+                )
             raw = await _extract_html_playwright(
-                source_url, extraction_prompt, on_progress, max_records, max_pages
+                source_url,
+                extraction_prompt,
+                on_progress,
+                max_records,
+                max_pages,
+                session_id=session_id,
+                extra_headers=headers,
+                provider=provider,
             )
 
+    # ── Nothing extracted ─────────────────────────────────────────────────
     if not raw:
         if on_progress:
             await on_progress("No records extracted from source.")

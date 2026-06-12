@@ -21,6 +21,9 @@ from app.core.logging import get_logger
 
 log = get_logger("storage.s3")
 
+# Module-level flag: ensure_bucket_exists() is only called once per process.
+_bucket_ensured: bool = False
+
 
 def _make_client() -> Any:
     import boto3  # type: ignore[import]
@@ -57,6 +60,64 @@ def is_configured() -> bool:
     )
 
 
+async def ensure_bucket_exists() -> bool:
+    """Create the S3 bucket if it does not already exist.
+
+    Safe to call at startup or before the first upload — idempotent.
+    Returns True if the bucket is ready, False on any error.
+    """
+    global _bucket_ensured
+    if _bucket_ensured:
+        return True
+    if not is_configured():
+        return False
+
+    bucket = _bucket()
+    region = settings.AWS_REGION or settings.S3_REGION
+
+    def _sync() -> bool:
+        client = _make_client()
+        try:
+            client.head_bucket(Bucket=bucket)
+            log.info("s3.bucket.exists", bucket=bucket)
+            return True
+        except Exception as exc:
+            # boto3 raises ClientError with Code 404 / NoSuchBucket when the bucket is missing
+            if "404" in str(exc) or "NoSuchBucket" in str(exc) or "Not Found" in str(exc):
+                try:
+                    if region and region != "us-east-1":
+                        client.create_bucket(
+                            Bucket=bucket,
+                            CreateBucketConfiguration={"LocationConstraint": region},
+                        )
+                    else:
+                        client.create_bucket(Bucket=bucket)
+                    # Block public access (security best practice)
+                    client.put_public_access_block(
+                        Bucket=bucket,
+                        PublicAccessBlockConfiguration={
+                            "BlockPublicAcls": True,
+                            "IgnorePublicAcls": True,
+                            "BlockPublicPolicy": True,
+                            "RestrictPublicBuckets": True,
+                        },
+                    )
+                    log.info("s3.bucket.created", bucket=bucket, region=region)
+                    return True
+                except Exception as create_exc:
+                    log.error("s3.bucket.create_failed", bucket=bucket, error=str(create_exc))
+                    return False
+            log.warning("s3.bucket.head_failed", bucket=bucket, error=str(exc))
+            return False
+        finally:
+            client.close()
+
+    ok = await asyncio.get_event_loop().run_in_executor(None, _sync)
+    if ok:
+        _bucket_ensured = True
+    return ok
+
+
 async def upload_blob(
     key: str,
     content: str | bytes,
@@ -69,6 +130,9 @@ async def upload_blob(
         body = content
 
     bucket = _bucket()
+
+    # Auto-create bucket on first upload if it doesn't exist
+    await ensure_bucket_exists()
 
     def _sync() -> None:
         client = _make_client()
