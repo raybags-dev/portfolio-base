@@ -64,6 +64,7 @@ export default function UniversalExtractorPage() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pasteStats, setPasteStats] = useState<{ count: number; kb: number; parsed: boolean } | null>(null);
 
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [tokenModal, setTokenModal] = useState<{ sessionId: number } | null>(null);
@@ -72,6 +73,7 @@ export default function UniversalExtractorPage() {
   const [tokenSubmitting, setTokenSubmitting] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingUrlRef = useRef<string | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -95,16 +97,42 @@ export default function UniversalExtractorPage() {
     try { setSessions(await listUDESessions()); } catch { /* ignore */ }
   }
 
+  const MAX_PASTE_BYTES = 2 * 1024 * 1024; // 2 MB — matches backend cap
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
     if (!sourceUrl.trim()) { setFormError("Source URL or data is required."); return; }
+
+    // Auto-truncate text paste to maxRecords if it looks like a JSON array
+    let finalUrl = sourceUrl;
+    if (sourceType === "text") {
+      const raw = sourceUrl.trim();
+      if (raw.startsWith("[")) {
+        try {
+          const parsed: unknown[] = JSON.parse(raw);
+          if (parsed.length > maxRecords) {
+            const truncated = parsed.slice(0, maxRecords);
+            finalUrl = JSON.stringify(truncated);
+          }
+        } catch { /* not valid JSON — pass as-is, backend will handle it */ }
+      }
+      if (new TextEncoder().encode(finalUrl).length > MAX_PASTE_BYTES) {
+        setFormError(`Dataset is too large even after truncation (>${MAX_PASTE_BYTES / 1024 / 1024} MB). Reduce the data or lower Max Records.`);
+        return;
+      }
+    }
+
     const ack = typeof window !== "undefined" && localStorage.getItem(DISCLAIMER_KEY);
-    if (!ack) { setShowDisclaimer(true); return; }
-    await doSubmit();
+    if (!ack) {
+      pendingUrlRef.current = finalUrl;
+      setShowDisclaimer(true);
+      return;
+    }
+    await doSubmit(undefined, finalUrl);
   }
 
-  async function doSubmit(contact?: RunContactInfo) {
+  async function doSubmit(contact?: RunContactInfo, overrideUrl?: string) {
     setShowDisclaimer(false);
     setSubmitting(true);
     try {
@@ -116,7 +144,7 @@ export default function UniversalExtractorPage() {
 
       const session = await createUDESession({
         name: name.trim() || `Extraction — ${new Date().toLocaleString()}`,
-        source_url: sourceUrl.trim(),
+        source_url: (overrideUrl ?? sourceUrl).trim(),
         source_type: sourceType,
         extraction_prompt: prompt.trim(),
         source_config: { headers, max_pages: maxPages },
@@ -264,7 +292,7 @@ export default function UniversalExtractorPage() {
         {showDisclaimer && (
           <RunProjectDisclaimer
             projectName="Universal Data Extractor"
-            onRun={(c) => { if (typeof window !== "undefined") localStorage.setItem(DISCLAIMER_KEY, "1"); doSubmit(c); }}
+            onRun={(c) => { if (typeof window !== "undefined") localStorage.setItem(DISCLAIMER_KEY, "1"); doSubmit(c, pendingUrlRef.current ?? undefined); }}
             onClose={() => setShowDisclaimer(false)}
           />
         )}
@@ -283,6 +311,8 @@ export default function UniversalExtractorPage() {
             formError={formError}
             submitting={submitting}
             onSubmit={handleSubmit}
+            pasteStats={pasteStats}
+            setPasteStats={setPasteStats}
           />
         )}
 
@@ -335,6 +365,7 @@ function ConfigureStep({
   customHeaders, setCustomHeaders,
   showAdvanced, setShowAdvanced,
   formError, submitting, onSubmit,
+  pasteStats, setPasteStats,
 }: {
   name: string; setName: (v: string) => void;
   sourceUrl: string; setSourceUrl: (v: string) => void;
@@ -346,8 +377,24 @@ function ConfigureStep({
   showAdvanced: boolean; setShowAdvanced: (v: boolean) => void;
   formError: string; submitting: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  pasteStats: { count: number; kb: number; parsed: boolean } | null;
+  setPasteStats: (v: { count: number; kb: number; parsed: boolean } | null) => void;
 }) {
   const selectedType = SOURCE_TYPES.find(t => t.id === sourceType)!;
+
+  function handlePasteChange(raw: string) {
+    setSourceUrl(raw);
+    if (!raw.trim()) { setPasteStats(null); return; }
+    const kb = Math.round(new TextEncoder().encode(raw).length / 1024);
+    const trimmed = raw.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const arr = JSON.parse(trimmed);
+        if (Array.isArray(arr)) { setPasteStats({ count: arr.length, kb, parsed: true }); return; }
+      } catch { /* partial paste — don't throw */ }
+    }
+    setPasteStats({ count: 0, kb, parsed: false });
+  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
@@ -383,13 +430,37 @@ function ConfigureStep({
           : "Source URL"}
         </label>
         {sourceType === "text" ? (
-          <textarea
-            value={sourceUrl}
-            onChange={e => setSourceUrl(e.target.value)}
-            rows={6}
-            placeholder={'[{"name":"Alice","age":30},{"name":"Bob","age":25}]'}
-            className={`${INPUT_CLS} font-mono resize-y`}
-          />
+          <>
+            <textarea
+              value={sourceUrl}
+              onChange={e => handlePasteChange(e.target.value)}
+              rows={6}
+              placeholder={'[{"name":"Alice","age":30},{"name":"Bob","age":25}]'}
+              className={`${INPUT_CLS} font-mono resize-y`}
+            />
+            {pasteStats && (
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                {pasteStats.parsed && (
+                  <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded font-mono">
+                    {pasteStats.count.toLocaleString()} records
+                  </span>
+                )}
+                <span className={`text-xs px-2.5 py-1 rounded font-mono ${pasteStats.kb > 1800 ? "bg-red-500/20 text-red-400" : pasteStats.kb > 800 ? "bg-amber-500/20 text-amber-400" : "bg-white/8 text-muted"}`}>
+                  {pasteStats.kb.toLocaleString()} KB
+                </span>
+                {pasteStats.parsed && pasteStats.count > maxRecords && (
+                  <span className="text-xs bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded">
+                    Will be auto-truncated to first {maxRecords.toLocaleString()} records before sending
+                  </span>
+                )}
+                {pasteStats.kb > 1800 && (
+                  <span className="text-xs bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 rounded">
+                    Approaching 2 MB limit — reduce data or lower Max Records
+                  </span>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           <input
             type={sourceType === "kaggle" ? "text" : "url"}

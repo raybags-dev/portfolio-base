@@ -82,8 +82,19 @@ async def list_sessions(db: DbSession, limit: int = Query(20, ge=1, le=100)):
     return [_session_dict(s) for s in rows]
 
 
+_MAX_TEXT_BYTES = 2 * 1024 * 1024  # 2 MB hard cap for paste-mode payloads
+
+
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
 async def create_session(payload: SessionCreate, db: DbSession, request: Request):
+    if payload.source_type == "text" and len(payload.source_url.encode()) > _MAX_TEXT_BYTES:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"Paste payload exceeds the 2 MB limit "
+            f"({len(payload.source_url.encode()) // 1024:,} KB). "
+            "Reduce the dataset or increase max_records to auto-truncate on the client.",
+        )
+
     ip = _client_ip(request)
     is_guest = True
     setting = await db.scalar(select(Setting).where(Setting.key == "dev_mode_ips"))
