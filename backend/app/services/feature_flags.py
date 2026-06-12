@@ -52,6 +52,8 @@ DEFAULT_FLAGS: dict[str, tuple[str, str, bool, str]] = {
     "ENABLE_SOCIAL": ("Social Media Trends", "projects", False, "Social trend detection"),
     # tools / standalone platforms
     "ENABLE_ANNOTATION": ("Data Annotation Platform", "projects", False, "Intelligent data annotation & AI labeling pipeline"),
+    "ENABLE_UNIVERSAL_EXTRACTOR": ("Universal Data Extractor", "projects", False, "Extract every data point from any page — auto-detects scroll/pagination, exports structured datasets"),
+    "ENABLE_STREAM_PIPELINE": ("Real-Time Stream Pipeline", "projects", False, "Kafka-based event pipeline — crawl events published as topics, consumed by real-time analytics workers"),
 }
 
 
