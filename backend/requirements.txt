@@ -42,7 +42,7 @@ tenacity==9.0.0
 # --- crawler (hotel-reviews module) ---
 playwright==1.49.1
 beautifulsoup4==4.12.3
-lxml==5.3.0
+lxml==6.1.0
 
 # --- kaggle (dataset import) ---
 kaggle==2.2.1
