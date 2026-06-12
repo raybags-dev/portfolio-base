@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from "recharts";
 import {
   createJobSession,
@@ -978,31 +978,64 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function ChartCard({ chart }: { chart: ChartData }) {
+  const labelKey0 = Object.keys(chart.data[0] || {})[0];
+  const valueKey0 = Object.keys(chart.data[0] || {})[1];
+  const needsScroll = chart.type === "bar" && chart.data.length > 10;
+  const dynamicWidth = Math.max(chart.data.length * 52, 280);
   return (
     <div className="rounded-theme bg-surface border border-white/10 p-4">
       <h3 className="font-semibold text-sm mb-4">{chart.title}</h3>
       {chart.type === "bar" && (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chart.data} margin={{ left: -10, bottom: 40 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey={Object.keys(chart.data[0] || {})[0]} tick={{ fontSize: 10, fill: "#9ca3af" }} angle={-35} textAnchor="end" interval={0} />
-            <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} />
-            <Tooltip contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} />
-            <Bar dataKey={Object.keys(chart.data[0] || {})[1]} fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className={needsScroll ? "overflow-x-auto chart-scroll" : ""}>
+          <div style={{ width: needsScroll ? dynamicWidth : "100%", minWidth: "100%" }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chart.data} margin={{ left: 0, bottom: 48, top: 4, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                <XAxis dataKey={labelKey0} tick={{ fontSize: 10, fill: "var(--color-muted)" }} angle={-35} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--color-muted)" }} width={36} />
+                <Tooltip
+                  contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "var(--color-fg)" }}
+                  itemStyle={{ color: "var(--color-primary)" }}
+                />
+                <Bar dataKey={valueKey0} fill="var(--color-primary)" radius={[3, 3, 0, 0]} maxBarSize={44} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
       {chart.type === "pie" && (
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
-              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
-              {chart.data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-            </Pie>
-            <Tooltip contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
-        </ResponsiveContainer>
+        <div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chart.data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%" cy="50%"
+                outerRadius={82}
+                innerRadius={36}
+                paddingAngle={2}
+                labelLine={false}
+              >
+                {chart.data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: "var(--color-fg)" }}
+                itemStyle={{ color: "var(--color-primary)" }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center mt-2 px-1">
+            {chart.data.map((entry, i) => (
+              <div key={i} className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="text-xs truncate" style={{ color: "var(--color-muted)" }}>{String((entry as Record<string, unknown>).name ?? "")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
