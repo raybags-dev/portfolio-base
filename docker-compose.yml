@@ -23,6 +23,8 @@ x-backend-env: &backend-env
   FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:?set FIRST_ADMIN_PASSWORD in .env}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   GROQ_API_KEY: ${GROQ_API_KEY:-}
+  KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
+  KAGGLE_KEY: ${KAGGLE_KEY:-}
 
 services:
   postgres:
