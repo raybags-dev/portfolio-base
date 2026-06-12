@@ -1,109 +1,112 @@
 """Kaggle dataset search + download helper.
 
-Reads KAGGLE_USERNAME and KAGGLE_KEY from the environment.
-Falls back gracefully when credentials are absent — search returns []
-and download raises KaggleNotConfigured.
+Uses the `kaggle` Python package which reads credentials from:
+  1. ~/.kaggle/kaggle.json  (standard kaggle CLI setup)
+  2. KAGGLE_USERNAME + KAGGLE_KEY environment variables
+
+Search returns [] when credentials are absent; download raises KaggleNotConfigured.
 """
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import json
 import os
-import zipfile
+import shutil
+import tempfile
+from pathlib import Path
 from typing import Any
-
-import httpx
-
-KAGGLE_USERNAME = os.getenv("KAGGLE_USERNAME", "")
-KAGGLE_KEY = os.getenv("KAGGLE_KEY", "")
-KAGGLE_BASE = "https://www.kaggle.com/api/v1"
 
 
 class KaggleNotConfigured(RuntimeError):
     pass
 
 
-def _auth() -> tuple[str, str]:
-    if not KAGGLE_USERNAME or not KAGGLE_KEY:
-        raise KaggleNotConfigured(
-            "Set KAGGLE_USERNAME and KAGGLE_KEY environment variables to use Kaggle integration."
-        )
-    return KAGGLE_USERNAME, KAGGLE_KEY
+def _get_kaggle():
+    """Authenticate and return the kaggle API object, or raise KaggleNotConfigured."""
+    username = os.getenv("KAGGLE_USERNAME", "")
+    key = os.getenv("KAGGLE_KEY", "")
+    if username:
+        os.environ["KAGGLE_USERNAME"] = username
+    if key:
+        os.environ["KAGGLE_KEY"] = key
+
+    try:
+        import kaggle  # noqa: PLC0415
+        kaggle.api.authenticate()
+        return kaggle
+    except ImportError as exc:
+        raise KaggleNotConfigured("kaggle package not installed — add kaggle to requirements.txt") from exc
+    except Exception as exc:
+        msg = str(exc)
+        if any(w in msg.lower() for w in ("credential", "username", "key", "api", "auth", "401", "403")):
+            raise KaggleNotConfigured(
+                "Kaggle credentials not configured. "
+                "Either set KAGGLE_USERNAME and KAGGLE_KEY environment variables, "
+                "or create ~/.kaggle/kaggle.json with your API token."
+            ) from exc
+        raise
 
 
 async def search_datasets(query: str, page: int = 1, page_size: int = 12) -> list[dict[str, Any]]:
     """Search Kaggle datasets. Returns [] when credentials are absent."""
-    if not KAGGLE_USERNAME or not KAGGLE_KEY:
+    try:
+        kg = _get_kaggle()
+    except KaggleNotConfigured:
         return []
 
-    params: dict[str, Any] = {
-        "search": query,
-        "page": page,
-        "pageSize": page_size,
-        "sortBy": "hottest",
-        "fileType": "csv",
-    }
+    def _sync_search() -> list[Any]:
+        return kg.api.dataset_list(search=query, page=page, page_size=page_size)
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.get(
-            f"{KAGGLE_BASE}/datasets/list",
-            params=params,
-            auth=_auth(),
-        )
-        resp.raise_for_status()
-        raw = resp.json()
+    try:
+        results = await asyncio.get_event_loop().run_in_executor(None, _sync_search)
+    except Exception:
+        return []
 
-    datasets = raw if isinstance(raw, list) else raw.get("datasets", raw.get("items", []))
-    results: list[dict[str, Any]] = []
-    for ds in datasets:
-        owner = ds.get("ownerUser") or ds.get("creatorName") or ds.get("owner", {}).get("name", "unknown")
-        slug = ds.get("datasetSlug") or ds.get("slug") or ds.get("ref", "").split("/")[-1]
-        results.append({
-            "ref": f"{owner}/{slug}",
-            "title": ds.get("title", slug),
-            "subtitle": ds.get("subtitle", ""),
-            "size": ds.get("totalBytes", 0),
-            "downloads": ds.get("downloadCount", ds.get("downloads", 0)),
-            "votes": ds.get("voteCount", ds.get("votes", 0)),
-            "last_updated": ds.get("lastUpdated", ""),
-            "tags": [t.get("name", t) if isinstance(t, dict) else str(t) for t in ds.get("tags", [])],
-        })
-    return results
+    return [
+        {
+            "ref": getattr(r, "ref", str(r)),
+            "title": getattr(r, "title", ""),
+            "subtitle": getattr(r, "subtitle", "") or "",
+            "size": getattr(r, "totalBytes", 0) or 0,
+            "downloads": getattr(r, "downloadCount", 0) or 0,
+            "votes": getattr(r, "voteCount", 0) or 0,
+            "last_updated": str(getattr(r, "lastUpdated", "")),
+            "tags": [
+                t.get("name", t) if isinstance(t, dict) else str(t)
+                for t in (getattr(r, "tags", None) or [])
+            ],
+        }
+        for r in results
+    ]
 
 
 async def download_and_parse(ref: str, max_rows: int = 3000) -> list[dict[str, Any]]:
-    """Download a Kaggle dataset ZIP; return the largest CSV as a list of dicts."""
-    auth = _auth()
-    owner, slug = ref.split("/", 1)
+    """Download a Kaggle dataset, extract the largest CSV/JSON, return records."""
+    kg = _get_kaggle()
+    tmp_dir = tempfile.mkdtemp(prefix="kaggle_dl_")
+    try:
+        def _sync_download() -> None:
+            kg.api.dataset_download_files(ref, path=tmp_dir, unzip=True, quiet=True)
 
-    async with httpx.AsyncClient(timeout=180.0, follow_redirects=True) as client:
-        resp = await client.get(
-            f"{KAGGLE_BASE}/datasets/download/{owner}/{slug}",
-            auth=auth,
-        )
-        resp.raise_for_status()
-        content = resp.content
+        await asyncio.get_event_loop().run_in_executor(None, _sync_download)
 
-    with zipfile.ZipFile(io.BytesIO(content)) as zf:
-        names = zf.namelist()
-        csv_names = [n for n in names if n.lower().endswith(".csv")]
-        json_names = [n for n in names if n.lower().endswith(".json")]
+        csv_files = sorted(Path(tmp_dir).rglob("*.csv"), key=lambda f: f.stat().st_size, reverse=True)
+        json_files = sorted(Path(tmp_dir).rglob("*.json"), key=lambda f: f.stat().st_size, reverse=True)
 
-        if csv_names:
-            target = max(csv_names, key=lambda n: zf.getinfo(n).file_size)
-            with zf.open(target) as f:
-                text = f.read().decode("utf-8", errors="replace")
+        if csv_files:
+            text = csv_files[0].read_text(encoding="utf-8", errors="replace")
             reader = csv.DictReader(io.StringIO(text))
             return [dict(row) for row in list(reader)[:max_rows]]
 
-        if json_names:
-            target = max(json_names, key=lambda n: zf.getinfo(n).file_size)
-            with zf.open(target) as f:
-                data = json.loads(f.read().decode("utf-8", errors="replace"))
+        if json_files:
+            data = json.loads(json_files[0].read_text(encoding="utf-8", errors="replace"))
             if isinstance(data, list):
                 return data[:max_rows]
             return [data]
 
-    raise ValueError(f"No CSV or JSON files found in dataset '{ref}'")
+        raise ValueError(f"No CSV or JSON files found in dataset '{ref}'")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
