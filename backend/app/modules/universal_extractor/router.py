@@ -16,7 +16,7 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.access import _client_ip, require_app_access
 from app.core.deps import DbSession, require_flag
@@ -275,6 +275,159 @@ async def generate_summary(session_id: int, db: DbSession):
     session.analytics_result = analytics
     await db.commit()
     return {"summary": summary_text}
+
+
+@router.post("/sessions/{session_id}/generate-blog")
+async def generate_blog(session_id: int, db: DbSession):
+    """Generate a blog post draft from a completed extraction session."""
+    from app.models.blog import BlogPost
+    from app.modules.agents.llm import get_provider
+    from app.modules.universal_extractor.blog_gen import generate_blog_post
+
+    session = await db.get(UDESession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if session.status != "done":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session must be completed first")
+
+    provider = get_provider()
+    try:
+        result = await generate_blog_post(
+            session_data={
+                "name": session.name,
+                "source_url": session.source_url,
+                "source_type_detected": session.source_type_detected,
+            },
+            analytics=dict(session.analytics_result or {}),
+            provider=provider,
+        )
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Blog generation failed: {exc}") from exc
+
+    # Ensure unique slug
+    base_slug = result["slug"]
+    slug = base_slug
+    counter = 1
+    while await db.scalar(select(BlogPost).where(BlogPost.slug == slug)):  # type: ignore[arg-type]
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    post = BlogPost(
+        title=result["title"],
+        slug=slug,
+        excerpt=result.get("excerpt"),
+        content_markdown=result.get("content"),
+        status="draft",
+        is_featured=False,
+        service_key="universal-extractor",
+    )
+    db.add(post)
+    await db.commit()
+    await db.refresh(post)
+    return {"id": post.id, "title": post.title, "slug": post.slug}
+
+
+# ── Storage stats endpoints (public — view only) ──────────────────────────────
+
+@router.get("/storage/stats")
+async def storage_stats(db: DbSession):
+    """Return S3 blob count and MongoDB document count for the UDE module."""
+
+    s3_count = 0
+    mongodb_count = 0
+
+    try:
+        from app.core.storage_s3 import count_blobs, is_configured
+        if is_configured():
+            s3_count = await count_blobs(prefix="ude/")
+    except Exception:
+        pass
+
+    try:
+        import asyncio
+
+        import pymongo  # type: ignore[import]
+
+        from app.core.config import settings
+
+        url = getattr(settings, "MONGODB_URL", None)
+        if url:
+            def _count() -> int:
+                client = pymongo.MongoClient(url, serverSelectionTimeoutMS=3000)
+                db_mongo = client["raybags_ude"]
+                cols = db_mongo.list_collection_names()
+                total = 0
+                for col in cols:
+                    if col.startswith("ude_session_"):
+                        total += db_mongo[col].count_documents({})
+                client.close()
+                return total
+            mongodb_count = await asyncio.get_event_loop().run_in_executor(None, _count)
+    except Exception:
+        pass
+
+    pg_sessions = await db.scalar(select(func.count()).select_from(UDESession)) or 0
+
+    return {
+        "s3_blob_count": s3_count,
+        "mongodb_doc_count": mongodb_count,
+        "postgres_session_count": int(pg_sessions),
+    }
+
+
+# ── Admin storage management (requires admin token via header) ────────────────
+
+@router.delete("/admin/storage/s3", status_code=status.HTTP_200_OK)
+async def admin_clear_s3(db: DbSession):
+    """Delete all UDE blobs from S3. Admin action."""
+    try:
+        from app.core.storage_s3 import delete_prefix, is_configured
+        if not is_configured():
+            return {"deleted": 0, "message": "S3 not configured"}
+        deleted = await delete_prefix(prefix="ude/")
+        # Clear s3 keys from sessions
+        sessions = (await db.scalars(select(UDESession).where(UDESession.raw_s3_key.isnot(None)))).all()
+        for s in sessions:
+            s.raw_s3_key = None
+        await db.commit()
+        return {"deleted": deleted, "message": f"Deleted {deleted} S3 blobs"}
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc)) from exc
+
+
+@router.delete("/admin/storage/mongodb", status_code=status.HTTP_200_OK)
+async def admin_clear_mongodb(db: DbSession):
+    """Drop all UDE collections from MongoDB. Admin action."""
+    try:
+        import asyncio
+
+        import pymongo  # type: ignore[import]
+
+        from app.core.config import settings
+
+        url = getattr(settings, "MONGODB_URL", None)
+        if not url:
+            return {"dropped": 0, "message": "MongoDB not configured"}
+
+        def _drop() -> int:
+            client = pymongo.MongoClient(url, serverSelectionTimeoutMS=5000)
+            db_mongo = client["raybags_ude"]
+            cols = db_mongo.list_collection_names()
+            dropped = 0
+            for col in cols:
+                db_mongo.drop_collection(col)
+                dropped += 1
+            client.close()
+            return dropped
+
+        dropped = await asyncio.get_event_loop().run_in_executor(None, _drop)
+        sessions = (await db.scalars(select(UDESession).where(UDESession.mongodb_collection.isnot(None)))).all()
+        for s in sessions:
+            s.mongodb_collection = None
+        await db.commit()
+        return {"dropped": dropped, "message": f"Dropped {dropped} MongoDB collections"}
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc)) from exc
 
 
 spec = ModuleSpec(

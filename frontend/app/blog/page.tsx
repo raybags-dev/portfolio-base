@@ -13,6 +13,9 @@ import { useToast } from "@/components/ui/Toast";
 // Static fallback routes for known service keys (when microservice.base_url isn't set in DB yet)
 const SERVICE_KEY_ROUTES: Record<string, string> = {
   "hotel-reviews": "/hotel-reviews",
+  "jobs": "/job-analytics",
+  "universal-extractor": "/universal-extractor",
+  "annotation": "/annotation",
 };
 
 // ---- Project button shown on every blog card --------------------------------

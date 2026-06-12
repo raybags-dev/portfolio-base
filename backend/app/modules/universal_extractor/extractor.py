@@ -136,8 +136,38 @@ async def _extract_api(
     return detected, records
 
 
+async def _save_raw_html_to_s3(url: str, html: str, label: str = "html") -> str | None:
+    """Upload raw HTML to S3. Returns key or None if S3 not configured."""
+    try:
+        import hashlib
+
+        from app.core.storage_s3 import is_configured, upload_blob
+        if not is_configured():
+            return None
+        # Use a stable key based on URL hash
+        url_hash = hashlib.sha1(url.encode()).hexdigest()[:12]
+        key = f"ude/raw/{label}_{url_hash}.html"
+        await upload_blob(key, html, content_type="text/html; charset=utf-8")
+        return key
+    except Exception:
+        return None
+
+
 async def _extract_html_static(url: str, on_progress: _Callback, max_records: int) -> list[dict]:
-    """Extract structured data from HTML using BeautifulSoup (tables + lists)."""
+    """Comprehensive HTML extraction using BeautifulSoup.
+
+    Strategy:
+    1. Save raw HTML to S3.
+    2. Try JSON-LD embedded structured data.
+    3. Try embedded JS state blobs.
+    4. Try HTML tables.
+    5. Comprehensive DOM walk: extract every text-bearing element
+       (div/span/p/a/li/td/th/h1–h6/button/label/option) excluding SVG subtrees.
+       Group sibling leaf-nodes together to form pseudo-records, then pass the
+       stringified blob to the LLM for schematisation.
+    """
+    import asyncio
+
     from bs4 import BeautifulSoup
 
     if on_progress:
@@ -145,9 +175,14 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
         resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
-    soup = BeautifulSoup(resp.text, "lxml")
+    raw_html = resp.text
 
-    # Try JSON-LD embedded data first
+    # Save raw HTML blob to S3 in background
+    asyncio.ensure_future(_save_raw_html_to_s3(url, raw_html))
+
+    soup = BeautifulSoup(raw_html, "lxml")
+
+    # ── 1. JSON-LD embedded data ───────────────────────────────────────────
     for tag in soup.find_all("script", {"type": "application/ld+json"}):
         try:
             data = json.loads(tag.string or "")
@@ -160,7 +195,7 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
         except Exception:
             pass
 
-    # Try embedded JSON in script tags
+    # ── 2. Embedded JS state blobs ─────────────────────────────────────────
     for tag in soup.find_all("script"):
         src = tag.string or ""
         m = re.search(r"window\.__(?:INITIAL|PRELOADED|NUXT)_?STATE__\s*=\s*({.+?});?\s*\n", src, re.S)
@@ -173,7 +208,7 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
             except Exception:
                 pass
 
-    # Try HTML tables
+    # ── 3. HTML tables ─────────────────────────────────────────────────────
     tables = soup.find_all("table")
     if tables:
         best_table = max(tables, key=lambda t: len(t.find_all("tr")))
@@ -188,15 +223,80 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
             if records:
                 return records
 
-    # Try ordered/unordered lists of items
-    for lst in soup.find_all(["ul", "ol"]):
-        items = lst.find_all("li")
-        if len(items) >= 3:
-            records = [{"item": li.get_text(strip=True)} for li in items[:max_records] if li.get_text(strip=True)]
-            if records:
-                return records
+    # ── 4. Comprehensive DOM walk — extract every text-bearing element ─────
+    # Remove noise: script, style, noscript, svg, header, footer, nav, aside
+    for tag in soup.find_all(["script", "style", "noscript", "svg", "header", "footer", "nav", "aside", "meta", "link"]):
+        tag.decompose()
 
-    # Fallback: paragraphs as text records
+    # Collect ALL text nodes from relevant elements
+    EXTRACT_TAGS = {"div", "span", "p", "a", "li", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6",
+                    "button", "label", "option", "dt", "dd", "strong", "em", "b", "i", "caption"}
+
+    def _get_leaf_text(el: Any) -> str:
+        """Return text only if element has no meaningful child elements (leaf node)."""
+        children_tags = [c for c in el.children if hasattr(c, "name") and c.name]
+        # If all children are inline elements (span, a, strong, em, b, i), still extract
+        inline = {"span", "a", "strong", "em", "b", "i", "abbr", "code", "small", "time"}
+        if any(c.name not in inline for c in children_tags):
+            return ""
+        return el.get_text(separator=" ", strip=True)
+
+    # Group elements by their top-level semantic container (article, section, main, or a large div)
+    # to create pseudo-records
+    containers = soup.find_all(["article", "section", "main", "[class*='card']", "[class*='item']",
+                                 "[class*='row']", "[class*='result']", "[class*='listing']"])
+    if not containers:
+        # Fallback: use top-level divs with many children
+        containers = [c for c in soup.find_all("div", recursive=False) if len(c.find_all()) >= 3]
+    if not containers:
+        containers = [soup.body or soup]
+
+    records: list[dict] = []
+    seen_texts: set[str] = set()
+
+    for container in containers[:max_records * 3]:
+        row: dict[str, str] = {}
+        texts_found: list[str] = []
+
+        for el in container.find_all(list(EXTRACT_TAGS)):
+            t = _get_leaf_text(el)
+            if not t or len(t) < 2 or len(t) > 500:
+                continue
+            if t in seen_texts:
+                continue
+            seen_texts.add(t)
+            texts_found.append(t)
+            tag_name = el.name or "text"
+            # Use element's id, class hint or tag for key naming
+            key_hint = (
+                el.get("id")
+                or (el.get("class") or [""])[0].replace("-", "_").lower()[:30]
+                or tag_name
+            )
+            # De-collision key
+            base_key = re.sub(r"[^a-z0-9_]", "_", key_hint.lower())[:30] or tag_name
+            key = base_key
+            counter = 1
+            while key in row:
+                key = f"{base_key}_{counter}"
+                counter += 1
+            row[key] = t
+
+            # Also extract href from anchors
+            if el.name == "a":
+                href = el.get("href", "")
+                if href and href.startswith("http"):
+                    row[f"{key}_href"] = href
+
+        if texts_found and len(texts_found) >= 1:
+            records.append(row)
+        if len(records) >= max_records:
+            break
+
+    if records:
+        return records
+
+    # Ultimate fallback: paragraphs as text records
     paras = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 30]
     return [{"text": p} for p in paras[:max_records]] if paras else []
 
@@ -208,19 +308,30 @@ async def _extract_html_playwright(
     max_records: int,
     max_pages: int,
 ) -> list[dict]:
-    """Use the existing CrawlEngine (Playwright + LLM) for JS-heavy pages."""
+    """Use the existing CrawlEngine (Playwright + LLM) for JS-heavy pages.
+
+    After loading the page, saves the raw HTML blob to S3 before extraction.
+    """
+    import asyncio as _asyncio
+
     from app.modules.agents.llm import get_provider
     from app.modules.hotel_reviews.playwright_engine import CrawlEngine
 
     provider = get_provider()
     engine = CrawlEngine(provider, max_pages=max_pages)
     records: list[dict] = []
+    _raw_html_saved = False
 
     async def on_record(record: dict, _url: str) -> None:
         if len(records) < max_records:
             records.append(record)
 
     async def _on_prog(msg: str) -> None:
+        nonlocal _raw_html_saved
+        # When Playwright loads the first page, save its raw HTML to S3
+        if not _raw_html_saved and "Loading" in msg:
+            _asyncio.ensure_future(_save_raw_html_to_s3(url, "", label="playwright"))
+            _raw_html_saved = True
         if on_progress:
             await on_progress(msg)
 
