@@ -45,11 +45,15 @@ fi
 
 export GHCR_OWNER IMAGE_TAG
 
-# ---- 1. Prune stale images to free overlayfs space before pulling ----
+# ---- 1. Ensure persistent data directories exist on the host ----
+mkdir -p /mnt/portfolio-data/playwright /mnt/portfolio-data/pw-tmp
+ok "Data directories ready"
+
+# ---- 2. Prune stale images to free overlayfs space before pulling ----
 log "Pruning unused Docker images …"
 docker image prune -f || true
 
-# ---- 2. Pull new images ----
+# ---- 3. Pull new images ----
 log "Pulling ghcr.io/${GHCR_OWNER}/raybags-{backend,frontend}:${IMAGE_TAG} …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 
