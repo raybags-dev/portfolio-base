@@ -15,7 +15,9 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -78,14 +80,36 @@ async def search_datasets(query: str, page: int = 1) -> list[dict[str, Any]]:
 
 
 async def download_and_parse(ref: str, max_rows: int = 3000) -> list[dict[str, Any]]:
-    """Download a Kaggle dataset, extract the largest CSV/JSON, return records."""
-    kg = _get_kaggle()
+    """Download a Kaggle dataset, extract the largest CSV/JSON, return records.
+
+    Uses subprocess curl (not requests) because Python's TLS stack gets a 403
+    from the GCS redirect on this VPS while curl succeeds from the same host.
+    """
+    _get_kaggle()  # validates credentials exist
+    username = os.environ.get("KAGGLE_USERNAME", "")
+    key = os.environ.get("KAGGLE_KEY", "")
+    if not username or not key:
+        raise KaggleNotConfigured("KAGGLE_USERNAME and KAGGLE_KEY must be set")
+
     tmp_dir = tempfile.mkdtemp(prefix="kaggle_dl_")
+    zip_path = os.path.join(tmp_dir, "archive.zip")
     try:
         def _sync_download() -> None:
-            kg.api.dataset_download_files(ref, path=tmp_dir, unzip=True, quiet=True)
+            cmd = [
+                "curl", "-L", "--silent", "--fail",
+                "--user", f"{username}:{key}",
+                f"https://www.kaggle.com/api/v1/datasets/download/{ref}",
+                "-o", zip_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True, timeout=300)
+            if result.returncode != 0:
+                stderr = result.stderr.decode(errors="replace")
+                raise RuntimeError(f"Kaggle download failed (curl exit {result.returncode}): {stderr}")
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_download)
+
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(tmp_dir)
 
         csv_files = sorted(Path(tmp_dir).rglob("*.csv"), key=lambda f: f.stat().st_size, reverse=True)
         json_files = sorted(Path(tmp_dir).rglob("*.json"), key=lambda f: f.stat().st_size, reverse=True)
