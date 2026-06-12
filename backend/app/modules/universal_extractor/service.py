@@ -107,17 +107,21 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
     session = await db.get(UDESession, session_id)
     if session is None:
         raise ValueError(f"session {session_id} not found")
-    if session.status == "running":
-        raise ValueError("session is already running")
+    if session.status == "cancelled":
+        return {"session_id": session_id, "records": 0, "cancelled": True}
 
-    session.status = "running"
-    session.progress = {
-        "log": [],
-        "records_collected": 0,
-        "records_valid": 0,
-        "source_type_detected": "",
-        "schema_fields": [],
-    }
+    # Router already set status=running; just ensure progress is initialised
+    if session.status != "running":
+        session.status = "running"
+    if not session.progress:
+        session.progress = {}
+    progress = dict(session.progress)
+    progress.setdefault("log", [])
+    progress.setdefault("records_collected", 0)
+    progress.setdefault("records_valid", 0)
+    progress.setdefault("source_type_detected", "")
+    progress.setdefault("schema_fields", [])
+    session.progress = progress
     await db.commit()
 
     provider = get_provider()

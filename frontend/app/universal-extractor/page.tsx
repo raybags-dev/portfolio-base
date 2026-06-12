@@ -3,13 +3,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
   LineChart, Line,
 } from "recharts";
 import {
   createUDESession,
   getUDESession,
   runUDESession,
+  cancelUDESession,
   deleteUDESession,
   listUDESessions,
   generateUDESummary,
@@ -34,13 +35,15 @@ const CHART_COLORS = [
 ];
 
 const SOURCE_TYPES = [
-  { id: "auto", label: "Auto-detect", icon: "🔍", hint: "Let the engine figure it out" },
-  { id: "html", label: "Web Page", icon: "🌐", hint: "Any HTML page (static or JS-heavy)" },
-  { id: "api", label: "JSON API", icon: "⚙️", hint: "REST/GraphQL endpoint returning JSON" },
-  { id: "csv", label: "CSV URL", icon: "📊", hint: "Direct link to a CSV file" },
-  { id: "kaggle", label: "Kaggle", icon: "🏆", hint: "kaggle://owner/dataset-slug" },
-  { id: "text", label: "Paste Data", icon: "📋", hint: "Paste raw CSV or JSON directly" },
+  { id: "auto",   label: "Auto-detect", icon: "🔍", hint: "Let the engine figure it out from the URL" },
+  { id: "html",   label: "Web Page",    icon: "🌐", hint: "Any HTML page — static or JS-rendered" },
+  { id: "api",    label: "JSON API",    icon: "⚙️", hint: "REST or GraphQL endpoint returning JSON" },
+  { id: "csv",    label: "CSV URL",     icon: "📊", hint: "Direct link to a CSV file" },
+  { id: "kaggle", label: "Kaggle",      icon: "🏆", hint: "kaggle://owner/dataset-slug format" },
+  { id: "text",   label: "Paste Data",  icon: "📋", hint: "Paste raw CSV or JSON directly" },
 ];
+
+const INPUT_CLS = "w-full bg-bg border border-white/15 rounded-theme px-3 py-2.5 text-sm text-fg placeholder:text-muted focus:outline-none focus:border-primary/60 transition-colors";
 
 type Step = "configure" | "running" | "results";
 
@@ -81,7 +84,7 @@ export default function UniversalExtractorPage() {
         const s = await getUDESession(sessionId);
         setActiveSession(s);
         if (s.status === "done") { setStep("results"); stopPolling(); }
-        if (s.status === "failed") { stopPolling(); }
+        if (s.status === "failed" || s.status === "cancelled") { stopPolling(); }
       } catch { stopPolling(); }
     }, 2500);
   }, [stopPolling]);
@@ -107,7 +110,8 @@ export default function UniversalExtractorPage() {
     try {
       let headers: Record<string, string> = {};
       if (customHeaders.trim()) {
-        try { headers = JSON.parse(customHeaders); } catch { setFormError("Custom headers must be valid JSON."); setSubmitting(false); return; }
+        try { headers = JSON.parse(customHeaders); }
+        catch { setFormError("Custom headers must be valid JSON."); setSubmitting(false); return; }
       }
 
       const session = await createUDESession({
@@ -155,6 +159,18 @@ export default function UniversalExtractorPage() {
     }
   }
 
+  async function handleCancel() {
+    if (!activeSession) return;
+    try {
+      await cancelUDESession(activeSession.id);
+      stopPolling();
+      setActiveSession(s => s ? { ...s, status: "cancelled", error: "Cancelled by user" } : s);
+      toast.info("Cancelled", "The extraction has been cancelled.");
+    } catch (err) {
+      toast.error("Could not cancel", err);
+    }
+  }
+
   function reset() {
     stopPolling();
     setStep("configure");
@@ -164,61 +180,81 @@ export default function UniversalExtractorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen" style={{ background: "var(--color-bg)", color: "var(--color-fg)" }}>
       <div className="max-w-5xl mx-auto px-4 py-10">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Universal Data Extractor</h1>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Point it at any URL, API, CSV, or Kaggle dataset — auto-detect, extract, normalise, analyse.
-              </p>
-            </div>
-            <button
-              onClick={() => { setShowHistory(h => !h); loadHistory(); }}
-              className="text-sm text-muted-foreground hover:text-foreground border border-border rounded px-3 py-1.5"
-            >
-              {showHistory ? "Hide History" : "History"}
-            </button>
-          </div>
 
-          {showHistory && sessions.length > 0 && (
-            <div className="mt-4 border border-border rounded-lg overflow-hidden">
-              <div className="divide-y divide-border">
-                {sessions.slice(0, 10).map(s => (
-                  <button key={s.id} onClick={() => { setActiveSession(s); setStep(s.status === "done" || s.status === "failed" ? "results" : "running"); setShowHistory(false); s.status === "running" && startPolling(s.id); }}
-                    className="w-full text-left px-4 py-3 hover:bg-accent/30 flex items-center justify-between text-sm">
-                    <span className="font-medium truncate max-w-xs">{s.name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "done" ? "bg-green-500/20 text-green-400" : s.status === "failed" ? "bg-red-500/20 text-red-400" : s.status === "running" ? "bg-blue-500/20 text-blue-400 animate-pulse" : "bg-muted text-muted-foreground"}`}>
-                      {s.status}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Header */}
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-heading font-bold tracking-tight">Universal Data Extractor</h1>
+            <p className="text-muted mt-1 text-sm max-w-xl">
+              Point it at any URL, API, CSV, or Kaggle dataset — auto-detect, extract, normalise, and analyse without writing a single line of code.
+            </p>
+          </div>
+          <button
+            onClick={() => { setShowHistory(h => !h); loadHistory(); }}
+            className="shrink-0 text-sm text-muted hover:text-fg border border-white/15 rounded-theme px-3 py-1.5 transition-colors hover:border-white/30"
+          >
+            {showHistory ? "Hide History" : "History"}
+          </button>
         </div>
 
-        {/* Storage stats (view only) */}
+        {/* Session history */}
+        {showHistory && sessions.length > 0 && (
+          <div className="mb-6 rounded-theme border border-white/10 bg-surface overflow-hidden">
+            <div className="px-4 py-2 border-b border-white/8 text-xs text-muted font-medium uppercase tracking-widest">Recent sessions</div>
+            <div className="divide-y divide-white/5">
+              {sessions.slice(0, 10).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setActiveSession(s);
+                    setStep(s.status === "done" || s.status === "failed" || s.status === "cancelled" ? "results" : "running");
+                    setShowHistory(false);
+                    if (s.status === "running") startPolling(s.id);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-white/5 flex items-center justify-between text-sm transition-colors"
+                >
+                  <span className="font-medium truncate max-w-xs text-fg">{s.name}</span>
+                  <StatusBadge status={s.status} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Storage stats */}
         {step === "configure" && <StorageStats />}
 
         {/* Token modal */}
         {tokenModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <form onSubmit={handleTokenSubmit} className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-lg">
-              <h2 className="font-semibold mb-2">Access Token Required</h2>
-              <p className="text-sm text-muted-foreground mb-4">Enter your one-time token to run this extraction.</p>
-              <input type="text" value={tokenInput} onChange={e => setTokenInput(e.target.value)}
-                placeholder="Paste token…" className="w-full bg-background border border-border rounded px-3 py-2 text-sm mb-3 font-mono" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <form onSubmit={handleTokenSubmit} className="bg-surface border border-white/15 rounded-theme p-6 w-full max-w-sm shadow-2xl">
+              <h2 className="font-semibold text-fg mb-1">Access Token Required</h2>
+              <p className="text-sm text-muted mb-4">Enter your one-time token to run this extraction.</p>
+              <input
+                type="text"
+                value={tokenInput}
+                onChange={e => setTokenInput(e.target.value)}
+                placeholder="Paste token…"
+                className={`${INPUT_CLS} font-mono mb-3`}
+              />
               {tokenError && <p className="text-sm text-red-400 mb-3">{tokenError}</p>}
               <div className="flex gap-2">
-                <button type="submit" disabled={tokenSubmitting || !tokenInput.trim()}
-                  className="flex-1 bg-primary text-primary-foreground rounded py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={tokenSubmitting || !tokenInput.trim()}
+                  className="flex-1 bg-primary text-white rounded-theme py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
                   {tokenSubmitting ? "Verifying…" : "Run Extraction"}
                 </button>
-                <button type="button" onClick={() => { setTokenModal(null); setTokenInput(""); setSubmitting(false); }}
-                  className="px-4 py-2 rounded border border-border text-sm hover:bg-accent/30">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => { setTokenModal(null); setTokenInput(""); setSubmitting(false); }}
+                  className="px-4 py-2 rounded-theme border border-white/15 text-sm hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </form>
           </div>
@@ -251,7 +287,7 @@ export default function UniversalExtractorPage() {
         )}
 
         {step === "running" && activeSession && (
-          <RunningStep session={activeSession} />
+          <RunningStep session={activeSession} onCancel={handleCancel} onReset={reset} />
         )}
 
         {step === "results" && activeSession && (
@@ -271,6 +307,23 @@ export default function UniversalExtractorPage() {
         {step === "configure" && <HowItWorks />}
       </div>
     </main>
+  );
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    done:      "bg-green-500/20 text-green-400",
+    failed:    "bg-red-500/20 text-red-400",
+    running:   "bg-blue-500/20 text-blue-400",
+    cancelled: "bg-amber-500/20 text-amber-400",
+    pending:   "bg-white/8 text-muted",
+  };
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[status] ?? map.pending} ${status === "running" ? "animate-pulse" : ""}`}>
+      {status}
+    </span>
   );
 }
 
@@ -297,142 +350,229 @@ function ConfigureStep({
   const selectedType = SOURCE_TYPES.find(t => t.id === sourceType)!;
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <div className="border border-border rounded-xl p-6 space-y-5">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Source Type</label>
-          <div className="grid grid-cols-3 gap-2">
-            {SOURCE_TYPES.map(t => (
-              <button key={t.id} type="button"
-                onClick={() => setSourceType(t.id)}
-                className={`flex flex-col items-center gap-1 p-3 rounded-lg border text-sm transition-colors ${sourceType === t.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50 text-muted-foreground"}`}>
-                <span className="text-lg">{t.icon}</span>
-                <span className="font-medium">{t.label}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">{selectedType.hint}</p>
-        </div>
+    <form onSubmit={onSubmit} className="space-y-5">
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5">
-            {sourceType === "text" ? "Paste Raw Data (CSV or JSON)" : sourceType === "kaggle" ? "Kaggle Dataset Ref (e.g. kaggle://owner/dataset-slug)" : "Source URL"}
-          </label>
-          {sourceType === "text" ? (
-            <textarea value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} rows={6}
-              placeholder='[{"name":"Alice","age":30},{"name":"Bob","age":25}]'
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono resize-y" />
-          ) : (
-            <input type={sourceType === "kaggle" ? "text" : "url"} value={sourceUrl} onChange={e => setSourceUrl(e.target.value)}
-              placeholder={sourceType === "kaggle" ? "kaggle://owner/dataset-slug" : "https://example.com/data"}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
-          )}
+      {/* Source type */}
+      <div className="rounded-theme bg-surface border border-white/10 p-5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-3">Source Type</p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {SOURCE_TYPES.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setSourceType(t.id)}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-theme border text-sm transition-all ${
+                sourceType === t.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-white/10 hover:border-white/25 text-muted hover:text-fg"
+              }`}
+            >
+              <span className="text-xl">{t.icon}</span>
+              <span className="font-medium text-xs">{t.label}</span>
+            </button>
+          ))}
         </div>
+        <p className="text-xs text-muted mt-2.5">{selectedType.hint}</p>
+      </div>
 
+      {/* Source URL / data */}
+      <div className="rounded-theme bg-surface border border-white/10 p-5">
+        <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-3">
+          {sourceType === "text"   ? "Paste Raw Data (CSV or JSON)"
+          : sourceType === "kaggle" ? "Kaggle Dataset Reference"
+          : "Source URL"}
+        </label>
+        {sourceType === "text" ? (
+          <textarea
+            value={sourceUrl}
+            onChange={e => setSourceUrl(e.target.value)}
+            rows={6}
+            placeholder={'[{"name":"Alice","age":30},{"name":"Bob","age":25}]'}
+            className={`${INPUT_CLS} font-mono resize-y`}
+          />
+        ) : (
+          <input
+            type={sourceType === "kaggle" ? "text" : "url"}
+            value={sourceUrl}
+            onChange={e => setSourceUrl(e.target.value)}
+            placeholder={sourceType === "kaggle" ? "kaggle://owner/dataset-slug" : "https://example.com/data"}
+            className={INPUT_CLS}
+          />
+        )}
+      </div>
+
+      {/* Extraction goal + name */}
+      <div className="rounded-theme bg-surface border border-white/10 p-5 space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1.5">Extraction Goal</label>
-          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={2}
+          <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-2">Extraction Goal</label>
+          <textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            rows={2}
             placeholder="Describe what data to extract and which fields matter most…"
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none" />
+            className={`${INPUT_CLS} resize-none`}
+          />
         </div>
-
         <div>
-          <label className="block text-sm font-medium mb-1.5">
-            Name (optional)
-          </label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)}
+          <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-2">Session Name <span className="font-normal normal-case text-muted/70">(optional)</span></label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
             placeholder="My extraction session"
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Max Records: {maxRecords.toLocaleString()}</label>
-          <input type="range" min={50} max={5000} step={50} value={maxRecords} onChange={e => setMaxRecords(Number(e.target.value))}
-            className="w-full accent-primary" />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>50</span><span>5 000</span></div>
-        </div>
-
-        {/* Advanced */}
-        <div>
-          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <span>{showAdvanced ? "▾" : "▸"}</span> Advanced options
-          </button>
-          {showAdvanced && (
-            <div className="mt-3 space-y-4 pl-4 border-l border-border">
-              {(sourceType === "html" || sourceType === "auto") && (
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Max Pages (for HTML crawl): {maxPages}</label>
-                  <input type="range" min={1} max={20} value={maxPages} onChange={e => setMaxPages(Number(e.target.value))}
-                    className="w-full accent-primary" />
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Custom Request Headers (JSON)</label>
-                <textarea value={customHeaders} onChange={e => setCustomHeaders(e.target.value)} rows={3}
-                  placeholder='{"Authorization": "Bearer token", "Accept": "application/json"}'
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono resize-none" />
-              </div>
-            </div>
-          )}
+            className={INPUT_CLS}
+          />
         </div>
       </div>
 
-      {formError && <p className="text-sm text-red-400">{formError}</p>}
+      {/* Max records */}
+      <div className="rounded-theme bg-surface border border-white/10 p-5">
+        <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-3">
+          Max Records: <span className="text-primary normal-case font-bold">{maxRecords.toLocaleString()}</span>
+        </label>
+        <input
+          type="range" min={50} max={5000} step={50} value={maxRecords}
+          onChange={e => setMaxRecords(Number(e.target.value))}
+          className="w-full accent-primary"
+        />
+        <div className="flex justify-between text-xs text-muted mt-1.5">
+          <span>50</span><span>5,000</span>
+        </div>
+      </div>
 
-      <button type="submit" disabled={submitting}
-        className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+      {/* Advanced */}
+      <div className="rounded-theme bg-surface border border-white/10 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full flex items-center justify-between px-5 py-3.5 text-sm text-muted hover:text-fg hover:bg-white/5 transition-colors"
+        >
+          <span className="font-medium">Advanced options</span>
+          <span className="text-xs">{showAdvanced ? "▲" : "▼"}</span>
+        </button>
+        {showAdvanced && (
+          <div className="border-t border-white/8 px-5 pb-5 pt-4 space-y-4">
+            {(sourceType === "html" || sourceType === "auto") && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-2">
+                  Max Pages for HTML crawl: <span className="text-primary normal-case font-bold">{maxPages}</span>
+                </label>
+                <input
+                  type="range" min={1} max={20} value={maxPages}
+                  onChange={e => setMaxPages(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-2">Custom Request Headers (JSON)</label>
+              <textarea
+                value={customHeaders}
+                onChange={e => setCustomHeaders(e.target.value)}
+                rows={3}
+                placeholder={'{"Authorization": "Bearer token", "Accept": "application/json"}'}
+                className={`${INPUT_CLS} font-mono resize-none`}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {formError && (
+        <div className="rounded-theme bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+          {formError}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="w-full bg-primary text-white font-semibold py-3.5 rounded-theme hover:opacity-90 disabled:opacity-50 transition-opacity text-sm"
+      >
         {submitting ? "Starting extraction…" : "Extract & Analyse →"}
       </button>
     </form>
   );
 }
 
-// ── Running step ─────────────────────────────────────────────────────────────
+// ── Running step ──────────────────────────────────────────────────────────────
 
-function RunningStep({ session }: { session: UDESession }) {
+function RunningStep({ session, onCancel, onReset }: { session: UDESession; onCancel: () => void; onReset: () => void }) {
   const progress = session.progress || {};
   const log: string[] = progress.log || [];
-  const isFailed = session.status === "failed";
+  const isFailed    = session.status === "failed";
+  const isCancelled = session.status === "cancelled";
+  const isDone      = session.status === "done";
+  const isRunning   = !isFailed && !isCancelled && !isDone;
 
   return (
-    <div className="border border-border rounded-xl p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        {!isFailed ? (
-          <span className="h-3 w-3 rounded-full bg-blue-400 animate-pulse" />
-        ) : (
-          <span className="h-3 w-3 rounded-full bg-red-400" />
-        )}
-        <h2 className="font-semibold">{isFailed ? "Extraction Failed" : "Extracting…"}</h2>
-        {progress.records_collected != null && (
-          <span className="ml-auto text-sm text-muted-foreground">{progress.records_collected.toLocaleString()} records</span>
-        )}
+    <div className="rounded-theme bg-surface border border-white/10 p-6 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {isRunning && <span className="h-3 w-3 rounded-full bg-blue-400 animate-pulse shrink-0" />}
+          {isFailed   && <span className="h-3 w-3 rounded-full bg-red-400 shrink-0" />}
+          {isCancelled && <span className="h-3 w-3 rounded-full bg-amber-400 shrink-0" />}
+          <h2 className="font-semibold">
+            {isFailed    ? "Extraction Failed"
+            : isCancelled ? "Extraction Cancelled"
+            : "Extracting…"}
+          </h2>
+          {progress.records_collected != null && (
+            <span className="text-sm text-muted">{progress.records_collected.toLocaleString()} records</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {isRunning && (
+            <button
+              onClick={onCancel}
+              className="text-xs px-3 py-1.5 rounded-theme border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+          {(isFailed || isCancelled) && (
+            <button
+              onClick={onReset}
+              className="text-xs px-3 py-1.5 rounded-theme border border-white/15 text-muted hover:text-fg hover:border-white/30 transition-colors"
+            >
+              ← Start over
+            </button>
+          )}
+        </div>
       </div>
 
       {progress.source_type_detected && (
-        <div className="text-xs text-muted-foreground">Detected: <span className="text-foreground font-mono">{progress.source_type_detected}</span></div>
+        <div className="text-xs text-muted">
+          Detected: <span className="text-fg font-mono">{progress.source_type_detected}</span>
+        </div>
       )}
 
-      {isFailed && session.error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-300">
+      {(isFailed || isCancelled) && session.error && (
+        <div className={`rounded-theme p-3 text-sm border ${isCancelled ? "bg-amber-500/10 border-amber-500/30 text-amber-300" : "bg-red-500/10 border-red-500/30 text-red-300"}`}>
           {session.error}
         </div>
       )}
 
-      <div className="bg-black/20 rounded-lg p-3 max-h-60 overflow-y-auto font-mono text-xs space-y-1">
-        {log.length === 0 && <span className="text-muted-foreground">Initialising…</span>}
+      <div className="bg-black/30 rounded-theme p-4 max-h-64 overflow-y-auto font-mono text-xs space-y-1 border border-white/6">
+        {log.length === 0 && <span className="text-muted">Initialising…</span>}
         {log.map((line, i) => (
-          <div key={i} className="text-muted-foreground">{line}</div>
+          <div key={i} className="text-muted leading-relaxed">{line}</div>
         ))}
-        {!isFailed && log.length > 0 && (
-          <div className="text-blue-400 animate-pulse">▌</div>
+        {isRunning && log.length > 0 && (
+          <div className="text-primary animate-pulse">▌</div>
         )}
       </div>
+
+      {isRunning && (
+        <div className="h-1 rounded-full bg-white/8 overflow-hidden">
+          <div className="h-full bg-primary/60 rounded-full animate-pulse" style={{ width: "60%" }} />
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Results step ─────────────────────────────────────────────────────────────
+// ── Results step ──────────────────────────────────────────────────────────────
 
 function ResultsStep({
   session, onReset, onDelete, toast,
@@ -444,7 +584,8 @@ function ResultsStep({
 }) {
   const analytics: AnalyticsResult = session.analytics_result || { charts: [], total_records: 0 };
   const progress = session.progress || {};
-  const isFailed = session.status === "failed";
+  const isFailed    = session.status === "failed";
+  const isCancelled = session.status === "cancelled";
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summary, setSummary] = useState(
     (session.analytics_result as Record<string, unknown> & { summary?: string } | null)?.summary || ""
@@ -487,64 +628,72 @@ function ResultsStep({
     finally { setBlogLoading(false); }
   }
 
+  const successfulSession = !isFailed && !isCancelled;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">{session.name}</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            <span className={`inline-flex items-center gap-1.5 font-medium ${isFailed ? "text-red-400" : "text-green-400"}`}>
-              <span className={`h-2 w-2 rounded-full ${isFailed ? "bg-red-400" : "bg-green-400"}`} />
-              {isFailed ? "failed" : "complete"}
-            </span>
-            {" · "}{(progress.records_collected ?? analytics.total_records ?? 0).toLocaleString()} records
-            {session.source_type_detected && ` · ${session.source_type_detected}`}
+          <h2 className="text-xl font-bold font-heading">{session.name}</h2>
+          <p className="text-sm text-muted mt-1 flex items-center gap-2">
+            <StatusBadge status={session.status} />
+            <span>{(progress.records_collected ?? analytics.total_records ?? 0).toLocaleString()} records</span>
+            {session.source_type_detected && <span className="font-mono">· {session.source_type_detected}</span>}
           </p>
         </div>
-        <button onClick={onReset} className="text-sm text-muted-foreground hover:text-foreground border border-border rounded px-3 py-1.5">
+        <button
+          onClick={onReset}
+          className="shrink-0 text-sm text-muted hover:text-fg border border-white/15 rounded-theme px-3 py-1.5 transition-colors hover:border-white/30"
+        >
           ← New Extraction
         </button>
       </div>
 
-      {isFailed && session.error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-300">
+      {(isFailed || isCancelled) && session.error && (
+        <div className={`rounded-theme p-4 text-sm border ${isCancelled ? "bg-amber-500/10 border-amber-500/30 text-amber-300" : "bg-red-500/10 border-red-500/30 text-red-300"}`}>
           {session.error}
         </div>
       )}
 
-      {/* Schema info */}
+      {/* Schema tags */}
       {session.schema_detected && Object.keys(session.schema_detected).length > 0 && (
-        <div className="border border-border rounded-xl p-4">
-          <h3 className="text-sm font-medium mb-2 text-muted-foreground">Detected Schema</h3>
+        <div className="rounded-theme bg-surface border border-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-3">Detected Schema</p>
           <div className="flex flex-wrap gap-2">
             {Object.keys(session.schema_detected).map(k => (
-              <span key={k} className="bg-primary/10 text-primary text-xs px-2 py-1 rounded font-mono">{k}</span>
+              <span key={k} className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded font-mono">{k}</span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Summary */}
-      {!isFailed && (
-        <div className="border border-border rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">AI Insights Summary</h3>
+      {/* AI summary */}
+      {successfulSession && (
+        <div className="rounded-theme bg-surface border border-white/10 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted">AI Insights</p>
             {!summary && (
-              <button onClick={handleSummary} disabled={summaryLoading}
-                className="text-xs bg-primary/10 text-primary px-3 py-1 rounded hover:bg-primary/20 disabled:opacity-50">
+              <button
+                onClick={handleSummary}
+                disabled={summaryLoading}
+                className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-theme hover:bg-primary/20 disabled:opacity-50 transition-colors"
+              >
                 {summaryLoading ? "Generating…" : "Generate →"}
               </button>
             )}
           </div>
-          {summary && <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{summary}</p>}
+          {summary
+            ? <p className="text-sm text-muted leading-relaxed whitespace-pre-wrap">{summary}</p>
+            : <p className="text-sm text-muted">Click Generate to produce an AI-written summary of this dataset.</p>
+          }
         </div>
       )}
 
       {/* Charts */}
       {analytics.charts && analytics.charts.length > 0 && (
         <div className="space-y-4">
-          <h3 className="font-semibold">Analytics</h3>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted">Analytics</p>
           {analytics.charts.map((chart: ChartData) => (
             <ChartBlock key={chart.id} chart={chart} />
           ))}
@@ -552,28 +701,31 @@ function ResultsStep({
       )}
 
       {/* Data preview */}
-      <div className="border border-border rounded-xl p-4">
+      <div className="rounded-theme bg-surface border border-white/10 p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium">Data Preview</h3>
-          <button onClick={loadPreview} className="text-xs text-primary hover:underline">
-            {showPreview ? "Refresh" : "Load preview (10 rows)"}
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted">Data Preview</p>
+          <button
+            onClick={loadPreview}
+            className="text-xs text-primary hover:underline"
+          >
+            {showPreview ? "Refresh" : "Load 10 rows"}
           </button>
         </div>
         {showPreview && recordPreview.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto chart-scroll">
+            <table className="w-full text-xs min-w-max">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-white/8">
                   {Object.keys(recordPreview[0]).slice(0, 8).map(k => (
-                    <th key={k} className="text-left py-1.5 px-2 text-muted-foreground font-mono">{k}</th>
+                    <th key={k} className="text-left py-2 px-3 text-muted font-mono font-normal">{k}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recordPreview.map((row, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-accent/10">
+                  <tr key={i} className="border-b border-white/5 hover:bg-white/4">
                     {Object.values(row).slice(0, 8).map((v, j) => (
-                      <td key={j} className="py-1.5 px-2 text-muted-foreground truncate max-w-[160px]">
+                      <td key={j} className="py-2 px-3 text-muted truncate max-w-[180px]">
                         {String(v ?? "").slice(0, 60)}
                       </td>
                     ))}
@@ -583,44 +735,61 @@ function ResultsStep({
             </table>
           </div>
         )}
+        {showPreview && recordPreview.length === 0 && (
+          <p className="text-sm text-muted">No records found.</p>
+        )}
       </div>
 
       {/* Export + actions */}
-      {!isFailed && (
-        <div className="flex flex-wrap gap-3 items-center">
-          <a href={exportUDERecordsUrl(session.id, "json")} target="_blank" rel="noreferrer"
-            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent/30">
-            ↓ Export JSON
-          </a>
-          <a href={exportUDERecordsUrl(session.id, "csv")} target="_blank" rel="noreferrer"
-            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-accent/30">
-            ↓ Export CSV
-          </a>
-
-          {!blogResult ? (
-            <button onClick={handleGenerateBlog} disabled={blogLoading}
-              className="px-4 py-2 rounded-lg border border-primary/40 text-primary text-sm hover:bg-primary/10 disabled:opacity-50">
-              {blogLoading ? "Writing blog…" : "✍ Generate Blog Post"}
-            </button>
-          ) : (
-            <a href={`/blog/${blogResult.slug}`}
-              className="px-4 py-2 rounded-lg bg-primary/10 border border-primary/40 text-primary text-sm hover:bg-primary/20">
-              View blog post →
+      <div className="flex flex-wrap gap-3 items-center">
+        {successfulSession && (
+          <>
+            <a
+              href={exportUDERecordsUrl(session.id, "json")}
+              target="_blank" rel="noreferrer"
+              className="px-4 py-2 rounded-theme border border-white/15 text-sm hover:bg-white/5 transition-colors"
+            >
+              ↓ Export JSON
             </a>
-          )}
+            <a
+              href={exportUDERecordsUrl(session.id, "csv")}
+              target="_blank" rel="noreferrer"
+              className="px-4 py-2 rounded-theme border border-white/15 text-sm hover:bg-white/5 transition-colors"
+            >
+              ↓ Export CSV
+            </a>
+            {!blogResult ? (
+              <button
+                onClick={handleGenerateBlog}
+                disabled={blogLoading}
+                className="px-4 py-2 rounded-theme border border-primary/40 text-primary text-sm hover:bg-primary/10 disabled:opacity-50 transition-colors"
+              >
+                {blogLoading ? "Writing blog…" : "✍ Generate Blog Post"}
+              </button>
+            ) : (
+              <a
+                href={`/blog/${blogResult.slug}`}
+                className="px-4 py-2 rounded-theme bg-primary/10 border border-primary/40 text-primary text-sm hover:bg-primary/20 transition-colors"
+              >
+                View blog post →
+              </a>
+            )}
+          </>
+        )}
 
-          <button onClick={async () => { setDeleting(true); try { await onDelete(); } finally { setDeleting(false); } }}
-            disabled={deleting}
-            className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 disabled:opacity-50 ml-auto">
-            {deleting ? "Deleting…" : "Delete Session"}
-          </button>
-        </div>
-      )}
+        <button
+          onClick={async () => { setDeleting(true); try { await onDelete(); } finally { setDeleting(false); } }}
+          disabled={deleting}
+          className="px-4 py-2 rounded-theme border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 disabled:opacity-50 transition-colors ml-auto"
+        >
+          {deleting ? "Deleting…" : "Delete Session"}
+        </button>
+      </div>
     </div>
   );
 }
 
-// ── Storage stats (view only) ─────────────────────────────────────────────────
+// ── Storage stats ─────────────────────────────────────────────────────────────
 
 function StorageStats() {
   const [stats, setStats] = useState<{ s3_blob_count: number; mongodb_doc_count: number; postgres_session_count: number } | null>(null);
@@ -634,14 +803,14 @@ function StorageStats() {
   return (
     <div className="grid grid-cols-3 gap-3 mb-6">
       {[
-        { label: "Sessions", value: stats.postgres_session_count, icon: "📋" },
-        { label: "S3 Blobs", value: stats.s3_blob_count, icon: "☁️" },
-        { label: "MongoDB Docs", value: stats.mongodb_doc_count, icon: "🗄️" },
+        { label: "Sessions",    value: stats.postgres_session_count, icon: "📋" },
+        { label: "S3 Blobs",   value: stats.s3_blob_count,           icon: "☁️" },
+        { label: "MongoDB Docs", value: stats.mongodb_doc_count,     icon: "🗄️" },
       ].map(s => (
-        <div key={s.label} className="border border-border rounded-xl p-4 text-center">
+        <div key={s.label} className="rounded-theme bg-surface border border-white/10 p-4 text-center">
           <div className="text-2xl mb-1">{s.icon}</div>
           <div className="text-2xl font-bold text-primary">{s.value.toLocaleString()}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+          <div className="text-xs text-muted mt-0.5">{s.label}</div>
         </div>
       ))}
     </div>
@@ -654,69 +823,49 @@ function HowItWorks() {
   const [open, setOpen] = useState(false);
 
   const steps = [
-    {
-      num: "01",
-      title: "Choose Source Type",
-      body: "Select Auto-detect, Web Page, JSON API, CSV URL, Kaggle dataset, or paste raw data directly. Auto-detect works for most URLs."
-    },
-    {
-      num: "02",
-      title: "Set Extraction Goal",
-      body: 'Describe what you want to extract in plain English — e.g. "Extract all product names, prices, and ratings". The more specific, the better the schema normalisation.'
-    },
-    {
-      num: "03",
-      title: "Raw Blob → S3",
-      body: "As soon as data is fetched, the raw content (HTML, JSON, CSV) is uploaded to S3 for safe-keeping before any processing begins. This preserves the original source."
-    },
-    {
-      num: "04",
-      title: "LLM Schema Normalisation",
-      body: "Groq AI (llama-3.3-70b-versatile) proposes a unified field schema from sample records. All extracted rows are mapped to consistent snake_case field names."
-    },
-    {
-      num: "05",
-      title: "Structured Data → MongoDB",
-      body: "After normalisation, all clean records are stored in MongoDB (raybags_ude database) as well as PostgreSQL. Each session gets its own collection."
-    },
-    {
-      num: "06",
-      title: "Analytics + Export",
-      body: "Numeric fields get distribution histograms, categorical fields get bar/pie charts with the top entries (similar values are clustered into 'Other'). Export as JSON or CSV. Generate an AI blog post about the findings."
-    },
+    { num: "01", title: "Choose Source Type", body: "Pick Auto-detect, Web Page, JSON API, CSV URL, Kaggle dataset, or paste raw data. Auto-detect works for most public URLs by probing the content-type." },
+    { num: "02", title: "Set Extraction Goal", body: 'Describe what you want in plain English — e.g. "Extract product names, prices, and ratings". The more specific, the better the LLM schema normalisation.' },
+    { num: "03", title: "Fetch + Save Raw to S3", body: "The engine fetches the source (Playwright for JS-heavy pages) and immediately uploads the raw content to AWS S3 before any processing — preserving the original." },
+    { num: "04", title: "LLM Schema Normalisation", body: "Groq AI (llama-3.3-70b-versatile) analyses sample records and proposes a unified snake_case schema. All rows are mapped to consistent field names." },
+    { num: "05", title: "Store in Postgres + MongoDB", body: "Normalised records are written to PostgreSQL for structured queries and mirrored to MongoDB (raybags_ude database) for flexible document access." },
+    { num: "06", title: "Analytics + Export", body: "Numeric fields get distribution histograms; categorical fields get bar/pie charts. Export as JSON or CSV, or let AI write a blog post from the findings." },
   ];
 
+  const tech = ["Python / FastAPI", "Playwright", "BeautifulSoup4", "Groq AI (llama-3.3-70b)", "AWS S3", "MongoDB", "PostgreSQL", "Next.js / Recharts"];
+
   return (
-    <div className="mt-10 border border-border rounded-xl overflow-hidden">
+    <div className="mt-10 rounded-theme bg-surface border border-white/10 overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-accent/20 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors"
       >
         <div>
           <h2 className="font-semibold text-base">How It Works</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Understanding the extraction pipeline</p>
+          <p className="text-xs text-muted mt-0.5">Architecture, pipeline, and tech stack</p>
         </div>
-        <span className="text-muted-foreground text-lg">{open ? "▲" : "▼"}</span>
+        <span className="text-muted text-sm">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div className="px-5 pb-6 border-t border-border">
-          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+        <div className="border-t border-white/8 px-5 pb-6 pt-5">
+          <div className="grid sm:grid-cols-2 gap-4 mb-5">
             {steps.map(s => (
               <div key={s.num} className="flex gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                  {s.num}
-                </div>
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{s.num}</div>
                 <div>
                   <h3 className="text-sm font-semibold">{s.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.body}</p>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">{s.body}</p>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-5 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
-            <strong className="text-foreground">Supported sources:</strong> Any public HTTP URL, REST/GraphQL JSON API, CSV files, XML feeds, Kaggle datasets (<code className="font-mono">kaggle://owner/dataset</code>), or raw pasted JSON/CSV.
-            For JS-heavy pages that require a browser, the engine automatically falls back to Playwright-driven extraction.
+          <div className="rounded-theme bg-bg border border-white/8 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-2">Tech Stack</p>
+            <div className="flex flex-wrap gap-2">
+              {tech.map(t => (
+                <span key={t} className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded font-mono">{t}</span>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -729,57 +878,82 @@ function HowItWorks() {
 function ChartBlock({ chart }: { chart: ChartData }) {
   const xKey = (chart as ChartData & { x_key?: string }).x_key || "label";
   const yKey = (chart as ChartData & { y_key?: string }).y_key || "value";
+  const needsScroll = chart.type !== "pie" && chart.data.length > 10;
+  const dynamicWidth = Math.max(chart.data.length * 54, 320);
+
+  const tooltipStyle = {
+    background: "var(--color-surface)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 8,
+    fontSize: 12,
+  };
 
   return (
-    <div className="border border-border rounded-xl p-5">
-      <h4 className="text-sm font-semibold mb-5">{chart.title}</h4>
+    <div className="rounded-theme bg-surface border border-white/10 p-5">
+      <h4 className="text-sm font-semibold mb-4">{chart.title}</h4>
+
       {chart.type === "pie" ? (
-        <ResponsiveContainer width="100%" height={380}>
-          <PieChart>
-            <Pie
-              data={chart.data}
-              dataKey={yKey}
-              nameKey={xKey}
-              cx="50%"
-              cy="50%"
-              outerRadius={140}
-              label={({ name, percent }: { name?: string; percent?: number }) =>
-                `${(name ?? "").slice(0, 20)} ${((percent ?? 0) * 100).toFixed(0)}%`
-              }
-              labelLine={true}
-            >
-              {chart.data.map((_: unknown, i: number) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+        <div>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={chart.data}
+                dataKey={yKey}
+                nameKey={xKey}
+                cx="50%" cy="50%"
+                outerRadius={108}
+                innerRadius={46}
+                paddingAngle={2}
+                labelLine={false}
+              >
+                {chart.data.map((_: unknown, i: number) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-fg)" }} itemStyle={{ color: "var(--color-primary)" }} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-3 px-2">
+            {chart.data.map((entry: Record<string, unknown>, i: number) => (
+              <div key={i} className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="text-xs truncate text-muted">{String(entry[xKey] ?? "")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : chart.type === "line" ? (
-        <ResponsiveContainer width="100%" height={340}>
-          <LineChart data={chart.data} margin={{ top: 10, right: 20, left: 10, bottom: 60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Line type="monotone" dataKey={yKey} stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className={needsScroll ? "overflow-x-auto chart-scroll" : ""}>
+          <div style={{ width: needsScroll ? dynamicWidth : "100%", minWidth: "100%" }}>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chart.data} margin={{ top: 8, right: 16, left: 0, bottom: 48 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: "var(--color-muted)" }} angle={-35} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--color-muted)" }} width={40} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-fg)" }} itemStyle={{ color: "var(--color-primary)" }} />
+                <Line type="monotone" dataKey={yKey} stroke="var(--color-primary)" strokeWidth={2} dot={{ fill: "var(--color-primary)", r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       ) : (
-        <ResponsiveContainer width="100%" height={340}>
-          <BarChart data={chart.data} margin={{ top: 10, right: 20, left: 10, bottom: 80 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Bar dataKey={yKey} radius={[4, 4, 0, 0]} maxBarSize={60}>
-              {chart.data.map((_: unknown, i: number) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div className={needsScroll ? "overflow-x-auto chart-scroll" : ""}>
+          <div style={{ width: needsScroll ? dynamicWidth : "100%", minWidth: "100%" }}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chart.data} margin={{ top: 8, right: 16, left: 0, bottom: 48 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: "var(--color-muted)" }} angle={-35} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--color-muted)" }} width={40} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-fg)" }} itemStyle={{ color: "var(--color-primary)" }} />
+                <Bar dataKey={yKey} radius={[4, 4, 0, 0]} maxBarSize={52}>
+                  {chart.data.map((_: unknown, i: number) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
     </div>
   );

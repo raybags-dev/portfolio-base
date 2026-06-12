@@ -272,6 +272,7 @@ export default function HotelReviewsPage() {
           />
         )}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
+        {step === "configure" && <HowItWorksHotel />}
         {step === "results" && activeSession && (
           <ResultsStep
             session={activeSession}
@@ -1156,6 +1157,62 @@ function LineChartView({ data }: { data: Record<string, unknown>[] }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+// ── How It Works ──────────────────────────────────────────────────────────────
+
+function HowItWorksHotel() {
+  const [open, setOpen] = useState(false);
+
+  const steps = [
+    { num: "01", title: "Enter a URL or import Kaggle", body: "Paste any hotel listing URL (Booking.com, TripAdvisor, etc.) or use a Kaggle dataset slug. The crawler auto-detects the page structure." },
+    { num: "02", title: "Playwright + LLM Crawl", body: "A headless Chromium browser (Playwright) loads each page — bypassing JavaScript rendering. An LLM (Groq AI) reads the DOM and extracts structured fields: name, rating, price, location, reviews." },
+    { num: "03", title: "Multi-page Pagination", body: "The engine follows pagination links automatically (up to the configured max pages), accumulating records across the full dataset." },
+    { num: "04", title: "Analytics + Charts", body: "Once collected, numeric fields (price, rating) get distribution histograms; categorical fields (category, location) get bar/pie charts. Top-rated and most-expensive items are ranked." },
+    { num: "05", title: "Blog Generation", body: "Groq AI writes a full markdown article analysing the extracted data — trends, outliers, and recommendations. Saved as a draft blog post." },
+    { num: "06", title: "Export", body: "Download all structured records as JSON or CSV for use in your own tools." },
+  ];
+
+  const tech = ["Python / FastAPI", "Playwright (Chromium)", "Groq AI (llama-3.3-70b)", "BeautifulSoup4", "PostgreSQL", "Next.js / Recharts"];
+
+  return (
+    <div className="mt-10 rounded-theme bg-surface border border-white/10 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors"
+      >
+        <div>
+          <h2 className="font-semibold text-base">How It Works</h2>
+          <p className="text-xs text-muted mt-0.5">Architecture, crawl pipeline, and tech stack</p>
+        </div>
+        <span className="text-muted text-sm">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-white/8 px-5 pb-6 pt-5">
+          <div className="grid sm:grid-cols-2 gap-4 mb-5">
+            {steps.map(s => (
+              <div key={s.num} className="flex gap-3">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{s.num}</div>
+                <div>
+                  <h3 className="text-sm font-semibold">{s.title}</h3>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">{s.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-theme bg-bg border border-white/8 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted mb-2">Tech Stack</p>
+            <div className="flex flex-wrap gap-2">
+              {tech.map(t => (
+                <span key={t} className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded font-mono">{t}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
