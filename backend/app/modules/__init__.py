@@ -42,4 +42,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.hotel_reviews.router import spec as hotel_reviews_spec
     specs.append(hotel_reviews_spec)
 
+    from app.modules.jobs.router import spec as jobs_spec
+    specs.append(jobs_spec)
+
     return specs
