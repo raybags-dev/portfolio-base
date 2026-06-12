@@ -387,3 +387,70 @@ class IpUsageLog(PKMixin, TimestampMixin, Base):
     app_name: Mapped[str] = mapped_column(String(64))
 
     __table_args__ = (UniqueConstraint("ip", "app_name", name="uq_ip_app_usage"),)
+
+
+# ── Stream Pipeline ───────────────────────────────────────────────────────────
+
+class StreamTopic(PKMixin, TimestampMixin, Base):
+    """A named event channel (e.g. 'news.raw', 'deals.raw', 'flights.raw')."""
+
+    __tablename__ = "stream_topics"
+
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(512))
+    source_key: Mapped[str | None] = mapped_column(String(64))   # e.g. "news", "deals"
+    event_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    events: Mapped[list[StreamEvent]] = relationship(
+        back_populates="topic", cascade="all, delete-orphan"
+    )
+    alert_rules: Mapped[list[AlertRule]] = relationship(
+        back_populates="topic", cascade="all, delete-orphan"
+    )
+
+
+class StreamEvent(PKMixin, TimestampMixin, Base):
+    """A single published event on a topic (kept last 500 per topic)."""
+
+    __tablename__ = "stream_events"
+
+    topic_name: Mapped[str] = mapped_column(
+        String(128), ForeignKey("stream_topics.name", ondelete="CASCADE"), index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    topic: Mapped[StreamTopic] = relationship(back_populates="events")
+
+
+class AlertRule(PKMixin, TimestampMixin, Base):
+    """A threshold rule that fires when a field in an event meets a condition."""
+
+    __tablename__ = "alert_rules"
+
+    topic_name: Mapped[str] = mapped_column(
+        String(128), ForeignKey("stream_topics.name", ondelete="CASCADE"), index=True
+    )
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    field_path: Mapped[str] = mapped_column(String(128), nullable=False)   # dot.notation
+    operator: Mapped[str] = mapped_column(String(16), nullable=False)       # lt gt eq ne contains
+    threshold: Mapped[str] = mapped_column(String(256), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    topic: Mapped[StreamTopic] = relationship(back_populates="alert_rules")
+    fired: Mapped[list[AlertFired]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan"
+    )
+
+
+class AlertFired(PKMixin, TimestampMixin, Base):
+    """One firing of an AlertRule — stores the triggering event snapshot."""
+
+    __tablename__ = "alert_fired"
+
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("alert_rules.id", ondelete="CASCADE"), index=True
+    )
+    event_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    rule: Mapped[AlertRule] = relationship(back_populates="fired")

@@ -25,6 +25,7 @@ const NAV = [
   { href: "/admin/crawlers", label: "Crawlers" },
   { href: "/admin/agents", label: "AI Agents" },
   { href: "/admin/scheduler", label: "Scheduler" },
+  { href: "/admin/streams", label: "Stream Pipeline" },
   { href: "/admin/storage", label: "Storage (UDE)" },
   { href: "/admin/account", label: "Account" },
 ];

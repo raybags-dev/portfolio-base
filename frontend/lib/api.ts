@@ -708,3 +708,72 @@ export const getNewsFeed = (limit = 60, source?: string) =>
 
 export const triggerNewsExtract = (token: string) =>
   request<{ inserted: number; skipped: number; total_crawled: number }>("/news/extract", { method: "POST", token });
+
+// ── Stream Pipeline ────────────────────────────────────────────────────────────
+
+export interface StreamTopic {
+  name: string;
+  description: string | null;
+  source_key: string | null;
+  event_count: number;
+  last_event_at: string | null;
+  created_at: string | null;
+}
+
+export interface StreamEvent {
+  id: number;
+  topic: string;
+  payload: Record<string, unknown>;
+  ts: string | null;
+}
+
+export interface AlertRule {
+  id: number;
+  topic_name: string;
+  label: string;
+  field_path: string;
+  operator: string;
+  threshold: string;
+  enabled: boolean;
+  created_at: string | null;
+}
+
+export interface AlertFired {
+  id: number;
+  rule_id: number;
+  event_snapshot: Record<string, unknown>;
+  fired_at: string | null;
+}
+
+export interface StreamStats {
+  total_topics: number;
+  total_events: number;
+  active_rules: number;
+  alerts_fired: number;
+  kafka_available: boolean;
+}
+
+export const getStreamStats = () => request<StreamStats>("/streams/stats");
+export const listStreamTopics = () => request<StreamTopic[]>("/streams/topics");
+export const createStreamTopic = (
+  token: string,
+  body: { name: string; description?: string; source_key?: string }
+) => request<{ name: string; created: boolean }>("/streams/topics", { method: "POST", token, body: JSON.stringify(body) });
+export const deleteStreamTopic = (token: string, name: string) =>
+  request<{ deleted: string }>(`/streams/topics/${encodeURIComponent(name)}`, { method: "DELETE", token });
+export const getTopicEvents = (name: string, limit = 50, offset = 0) =>
+  request<StreamEvent[]>(`/streams/topics/${encodeURIComponent(name)}/events?limit=${limit}&offset=${offset}`);
+export const publishStreamEvent = (token: string, topic: string, payload: Record<string, unknown>) =>
+  request<{ published: boolean; topic: string }>("/streams/publish", {
+    method: "POST", token, body: JSON.stringify({ topic, payload }),
+  });
+export const listAlertRules = (topic?: string) =>
+  request<AlertRule[]>(`/streams/alerts${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`);
+export const createAlertRule = (token: string, body: Omit<AlertRule, "id" | "created_at">) =>
+  request<{ id: number; label: string }>("/streams/alerts", { method: "POST", token, body: JSON.stringify(body) });
+export const deleteAlertRule = (token: string, id: number) =>
+  request<{ deleted: number }>(`/streams/alerts/${id}`, { method: "DELETE", token });
+export const listFiredAlerts = (limit = 50) =>
+  request<AlertFired[]>(`/streams/alerts/fired?limit=${limit}`);
+export const getStreamSseUrl = (topic?: string) =>
+  `${V1}/streams/sse${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`;
