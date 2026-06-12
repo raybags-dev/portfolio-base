@@ -45,21 +45,25 @@ fi
 
 export GHCR_OWNER IMAGE_TAG
 
-# ---- 1. Pull new images ----
+# ---- 1. Prune stale images to free overlayfs space before pulling ----
+log "Pruning unused Docker images …"
+docker image prune -f || true
+
+# ---- 2. Pull new images ----
 log "Pulling ghcr.io/${GHCR_OWNER}/raybags-{backend,frontend}:${IMAGE_TAG} …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull
 
-# ---- 2. Run migrations BEFORE starting the app ----
+# ---- 3. Run migrations BEFORE starting the app ----
 log "Running Alembic migrations …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
   run --rm --no-deps backend alembic upgrade head
 ok "Migrations complete"
 
-# ---- 3. Start (or recreate) full stack with updated images ----
+# ---- 4. Start (or recreate) full stack with updated images ----
 log "Starting updated stack …"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
-# ---- 4. Wait for backend health ----
+# ---- 5. Wait for backend health ----
 log "Waiting for backend health …"
 elapsed=0
 until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
@@ -73,7 +77,7 @@ until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
 done
 ok "Backend healthy"
 
-# ---- 5. Quick public smoke test ----
+# ---- 6. Quick public smoke test ----
 if curl -fsS --max-time 10 https://raybags.com/api/v1/health >/dev/null 2>&1; then
   ok "raybags.com responded"
 else

@@ -74,6 +74,10 @@ services:
       CONTACT_RECIPIENT:      ${CONTACT_RECIPIENT:-}
       SUPABASE_URL:           ${SUPABASE_URL:-}
       SUPABASE_SERVICE_KEY:   ${SUPABASE_SERVICE_KEY:-}
+    volumes:
+      # Playwright Chromium lives here — persisted across deploys so the
+      # browser is only downloaded once, not baked into the image layer.
+      - /mnt/portfolio-data/playwright:/app/.playwright
     depends_on:
       redis:
         condition: service_healthy
