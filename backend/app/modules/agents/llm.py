@@ -40,7 +40,7 @@ class StubProvider:
 
     async def complete(self, system: str, prompt: str) -> str:
         return (
-            "[stub-llm] Offline reasoning. Configure OPENAI_API_KEY for live "
+            "[stub-llm] Offline reasoning. Configure GROQ_API_KEY for live "
             "model output. Prompt summary: " + prompt[:160]
         )
 
