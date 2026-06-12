@@ -53,6 +53,7 @@ class BlogPostBase(BaseModel):
     category_id: int | None = None
     is_featured: bool = False
     service_key: str | None = None
+    project_url: str | None = None
 
 
 class BlogPostCreate(BlogPostBase):
@@ -76,6 +77,7 @@ class BlogPostUpdate(BaseModel):
     tag_slugs: list[str] | None = None
     is_featured: bool | None = None
     service_key: str | None = None
+    project_url: str | None = None
 
 
 class BlogPostRead(TimestampedRead, BlogPostBase):

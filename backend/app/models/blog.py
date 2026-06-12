@@ -68,6 +68,7 @@ class BlogPost(PKMixin, TimestampMixin, Base):
     seo: Mapped[dict | None] = mapped_column(JSON)
 
     service_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    project_url: Mapped[str | None] = mapped_column(String(1024))
 
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL")
