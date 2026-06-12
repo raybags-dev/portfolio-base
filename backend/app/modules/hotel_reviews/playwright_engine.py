@@ -14,45 +14,247 @@ log = get_logger("hotel_reviews.engine")
 _MAX_HTML_CHARS = 50_000  # HTML-with-tags for selector planning
 _MAX_TEXT_CHARS = 20_000  # stripped text for LLM content extraction
 
-# Common cookie/consent banner selectors tried before falling back to LLM
-_COOKIE_SELECTORS = [
-    # OneTrust
+# ── Cookie / consent modal dismissal ────────────────────────────────────────
+# Three-tier strategy:
+#   1. Try every selector below (fast, zero LLM tokens).
+#   2. JS brute-force scan (_COOKIE_DISMISS_JS) — scans all visible
+#      buttons / clickable elements and clicks the first match.
+#   3. LLM fallback — last resort, one call.
+
+_COOKIE_SELECTORS: list[str] = [
+    # ── Known vendor exact IDs ────────────────────────────────────────────
     "#onetrust-accept-btn-handler",
     "#accept-recommended-btn-handler",
-    # Cookiebot
     "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
     "#CybotCookiebotDialogBodyButtonAccept",
-    # Booking.com
+    "#cookie-accept", "#cookie_accept", "#cookieAccept",
+    "#acceptCookies", "#accept-cookies", "#acceptAllCookies",
+    "#btnAcceptAll", "#accept-all-cookies", "#acceptAll",
+    "#close-cookies", "#dismiss-cookie-message", "#cookie-close",
+    "#cookieConsentAccept", "#cookie-consent-accept",
+    "#cookie_agree", "#cookieAgree", "#cookie-agree",
+    # ── data-testid / data-action / data-* ───────────────────────────────
     '[data-testid="accept-cookie-button"]',
-    # Generic text-based (aria / visible text)
+    '[data-testid="cookie-accept"]',
+    '[data-testid*="cookie"][data-testid*="accept"]',
+    '[data-testid*="consent"][data-testid*="accept"]',
+    '[data-testid*="cookie"][data-testid*="allow"]',
+    '[data-testid*="dismiss"]',
+    '[data-testid*="cookie-close"]',
+    '[data-action="accept-cookies"]',
+    '[data-action="accept"]',
+    '[data-action="dismiss"]',
+    '[data-action="agree"]',
+    '[data-action="allow"]',
+    '[data-type="accept"]',
+    '[data-cookie="accept"]',
+    # ── aria-label patterns ───────────────────────────────────────────────
+    '[aria-label*="Accept"][aria-label*="cookie" i]',
+    '[aria-label*="Accept all" i]',
+    '[aria-label*="Agree" i]',
+    '[aria-label*="Dismiss cookie" i]',
+    '[aria-label*="Close cookie" i]',
+    '[aria-label="Dismiss"][role="button"]',
+    # ── Keyword-in-id (buttons only) ─────────────────────────────────────
+    'button[id*="accept"]', 'button[id*="Accept"]',
+    'button[id*="agree"]',  'button[id*="Agree"]',
+    'button[id*="allow"]',  'button[id*="Allow"]',
+    'button[id*="dismiss"]', 'button[id*="Dismiss"]',
+    'button[id*="consent"]', 'button[id*="cookie"]',
+    # ── Keyword-in-class (buttons only) ──────────────────────────────────
+    'button[class*="accept"]', 'button[class*="Accept"]',
+    'button[class*="agree"]',  'button[class*="Agree"]',
+    'button[class*="allow"]',  'button[class*="Allow"]',
+    'button[class*="dismiss"]', 'button[class*="Dismiss"]',
+    'button[class*="consent"]', 'button[class*="cookie"]',
+    # ── Container + button patterns ───────────────────────────────────────
+    ".cc-btn.cc-allow",
+    ".cc-accept", ".cc-dismiss",
+    "[class*='cookie'] button[class*='accept']",
+    "[class*='cookie'] button[class*='allow']",
+    "[class*='cookie'] button[class*='agree']",
+    "[class*='consent'] button[class*='accept']",
+    "[class*='gdpr'] button[class*='accept']",
+    "[class*='privacy'] button[class*='accept']",
+    "[class*='cookie-banner'] button",
+    "[class*='cookie-notice'] button",
+    "[class*='cookie-bar'] button",
+    "[class*='cookie-popup'] button",
+    "[class*='cookie-modal'] button",
+    "[class*='cookie-overlay'] button",
+    # ── Playwright text matchers (English) ────────────────────────────────
     "button:has-text('Accept all')",
     "button:has-text('Accept All')",
     "button:has-text('Accept All Cookies')",
+    "button:has-text('Accept Cookies')",
     "button:has-text('Accept cookies')",
+    "button:has-text('Accept & close')",
+    "button:has-text('Accept and close')",
     "button:has-text('Accept')",
     "button:has-text('Agree')",
     "button:has-text('I agree')",
+    "button:has-text('I Agree')",
     "button:has-text('Allow all')",
     "button:has-text('Allow All')",
+    "button:has-text('Allow All Cookies')",
+    "button:has-text('Allow cookies')",
+    "button:has-text('Allow')",
     "button:has-text('Got it')",
+    "button:has-text('Got It')",
     "button:has-text('OK')",
+    "button:has-text('Ok')",
     "button:has-text('Confirm')",
-    # Dutch / German
+    "button:has-text('Close')",
+    "button:has-text('Dismiss')",
+    "button:has-text('Reject all')",
+    "button:has-text('Reject All')",
+    "button:has-text('Reject')",
+    "button:has-text('Refuse')",
+    "button:has-text('Decline')",
+    "button:has-text('Continue')",
+    "button:has-text('Continue without accepting')",
+    # ── Non-English ───────────────────────────────────────────────────────
     "button:has-text('Akkoord')",
     "button:has-text('Alle akkoord')",
     "button:has-text('Alle cookies accepteren')",
+    "button:has-text('Accepteer')",
     "button:has-text('Zustimmen')",
     "button:has-text('Alle akzeptieren')",
-    # Common class patterns
-    ".cc-btn.cc-allow",
-    ".cc-accept",
-    "[class*='cookie'] button[class*='accept']",
-    "[class*='consent'] button[class*='accept']",
-    "[data-action='accept-cookies']",
-    "[data-testid*='cookie'][data-testid*='accept']",
-    "[aria-label*='Accept'][aria-label*='cookie' i]",
-    "[aria-label*='Accept all']",
+    "button:has-text('Accepter')",
+    "button:has-text('Accepter tout')",
+    "button:has-text('Aceptar')",
+    "button:has-text('Aceptar todo')",
+    "button:has-text('Accetta')",
+    "button:has-text('Accetta tutto')",
 ]
+
+# JS brute-force modal/cookie dismissal.
+# Priority order:
+#   1. Buttons inside [role=dialog], [aria-modal], or cookie-named containers.
+#   2. Any visible button whose text/id/class/aria-label contains dismiss keywords.
+#   3. Any [role="button"] or [onclick] element matching dismiss + context keywords.
+# Clicks the match directly in JS (avoids Playwright scroll/wait overhead),
+# then the caller waits for the animation.
+_COOKIE_DISMISS_JS = """
+() => {
+    const DISMISS_KWS = [
+        'accept','agree','allow','consent','dismiss','close','got it','ok',
+        'confirm','continue','yes','sure','reject','decline','refuse','deny',
+        'no thanks','i agree','i accept','allow all','accept all'
+    ];
+    const CONTEXT_KWS = [
+        'cookie','cookies','consent','privacy','gdpr','tracking','banner',
+        'notice','modal','popup','overlay'
+    ];
+
+    function norm(s) { return (s || '').toLowerCase().trim(); }
+
+    function isVisible(el) {
+        try {
+            const r = el.getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return r.width > 5 && r.height > 5
+                && s.visibility !== 'hidden'
+                && s.display !== 'none'
+                && parseFloat(s.opacity) > 0.05;
+        } catch(e) { return false; }
+    }
+
+    function textOf(el) {
+        return norm(el.innerText || el.textContent || el.value || '');
+    }
+
+    function attrsOf(el) {
+        return norm([
+            el.id,
+            el.className,
+            el.name,
+            el.getAttribute('aria-label'),
+            el.getAttribute('data-action'),
+            el.getAttribute('data-testid'),
+            el.getAttribute('data-cy'),
+            el.getAttribute('data-dismiss'),
+            el.getAttribute('title'),
+            el.getAttribute('value'),
+        ].join(' '));
+    }
+
+    function hasAny(text, list) { return list.some(kw => text.includes(kw)); }
+
+    function tryClick(el, source) {
+        try {
+            el.click();
+            return { clicked: true, text: textOf(el).slice(0, 80), source };
+        } catch(e) { return null; }
+    }
+
+    // PRIORITY 1 — inside known dialog / consent containers
+    const containers = [
+        ...document.querySelectorAll(
+            '[role="dialog"],[role="alertdialog"],[role="alert"],[aria-modal="true"]'
+        ),
+        ...document.querySelectorAll(
+            '[class*="cookie"],[class*="consent"],[class*="gdpr"],' +
+            '[class*="privacy"],[class*="banner"],[class*="modal"],' +
+            '[id*="cookie"],[id*="consent"],[id*="gdpr"],' +
+            '[id*="privacy"],[id*="banner"]'
+        ),
+    ];
+
+    const seenContainers = new Set();
+    for (const container of containers) {
+        if (seenContainers.has(container) || !isVisible(container)) continue;
+        seenContainers.add(container);
+        const btns = container.querySelectorAll(
+            'button,[role="button"],input[type="button"],input[type="submit"],' +
+            '[onclick],[tabindex="0"]'
+        );
+        for (const btn of btns) {
+            if (!isVisible(btn)) continue;
+            const combined = textOf(btn) + ' ' + attrsOf(btn);
+            if (hasAny(combined, DISMISS_KWS)) {
+                const res = tryClick(btn, 'dialog-container');
+                if (res) return res;
+            }
+        }
+    }
+
+    // PRIORITY 2 — any visible button with dismiss keyword that also has cookie context
+    // or lives inside a fixed/sticky positioned ancestor (overlay pattern)
+    const allBtns = document.querySelectorAll(
+        'button,[role="button"],input[type="button"],input[type="submit"]'
+    );
+    for (const btn of allBtns) {
+        if (!isVisible(btn)) continue;
+        const txt    = textOf(btn);
+        const attrs  = attrsOf(btn);
+        const combined = txt + ' ' + attrs;
+        if (!hasAny(combined, DISMISS_KWS)) continue;
+
+        const parent = btn.closest(
+            '[class*="cookie"],[class*="consent"],[class*="banner"],' +
+            '[class*="gdpr"],[id*="cookie"],[id*="consent"]'
+        );
+        if (hasAny(combined, CONTEXT_KWS) || parent !== null) {
+            const res = tryClick(btn, 'global-scan');
+            if (res) return res;
+        }
+    }
+
+    // PRIORITY 3 — role="button" / onclick divs matching dismiss + context
+    const clickables = document.querySelectorAll('[role="button"],[onclick]');
+    for (const el of clickables) {
+        if (!isVisible(el)) continue;
+        const combined = textOf(el) + ' ' + attrsOf(el);
+        if (hasAny(combined, DISMISS_KWS) && hasAny(combined, CONTEXT_KWS)) {
+            const res = tryClick(el, 'clickable-role');
+            if (res) return res;
+        }
+    }
+
+    return { clicked: false };
+}
+"""
 
 # Stable attributes useful for CSS selector generation
 _KEEP_ATTRS_RE = re.compile(
@@ -62,12 +264,7 @@ _KEEP_ATTRS_RE = re.compile(
 
 
 def _clean_html_for_plan(html: str) -> str:
-    """Preserve HTML structure (tags + stable attrs) for LLM selector planning.
-
-    Strips script/style/svg entirely; keeps id, class, data-*, aria-* and role
-    so the LLM can propose accurate CSS selectors against the live DOM.
-    """
-    # Remove entire block elements that add noise
+    """Preserve HTML structure (tags + stable attrs) for LLM selector planning."""
     html = re.sub(
         r"<(script|style|noscript|svg|meta|link)[^>]*>.*?</\1>",
         "",
@@ -91,7 +288,6 @@ def _clean_html_for_plan(html: str) -> str:
 
 
 def _clean_html_for_text(html: str) -> str:
-    """Strip all HTML tags, keep just text content for LLM extraction fallback."""
     html = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r"<[^>]+>", " ", html)
     html = re.sub(r"\s+", " ", html).strip()
@@ -99,7 +295,6 @@ def _clean_html_for_text(html: str) -> str:
 
 
 def _record_key(rec: dict) -> str:
-    """Stable dedup key so scroll-loaded duplicates are dropped."""
     title = str(rec.get("title") or rec.get("name") or rec.get("property_name") or "")
     price = str(rec.get("price") or rec.get("price_per_night") or "")
     url = str(rec.get("source_url") or "")
@@ -111,7 +306,7 @@ class CrawlEngine:
 
     Strategy:
       1. Load the start URL.
-      2. Dismiss any cookie/consent banner (known patterns → LLM fallback).
+      2. Dismiss any cookie/consent banner (known selectors → JS scan → LLM).
       3. Ask the LLM for an extraction plan with HTML-structure context.
       4. DOM-direct extraction first (fast, accurate for JS-rendered sites).
       5. LLM text-extraction fallback if DOM yields nothing.
@@ -133,14 +328,9 @@ class CrawlEngine:
         cookie_hints: str | None = None,
         selector_hints: dict[str, str] | None = None,
         pagination_type: str = "auto",
+        max_items_per_page: int = 150,
     ) -> list[dict[str, Any]]:
-        """Run the crawl. Returns list of extracted records.
-
-        pagination_type: "auto" (try button then scroll), "scroll" (infinite scroll only),
-                         "click" (button/link only).
-        selector_hints: user-provided {field: css_selector_or_description} overrides.
-        cookie_hints: optional text/selector for this site's cookie accept button.
-        """
+        """Run the crawl. Returns list of extracted records."""
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -171,13 +361,11 @@ class CrawlEngine:
                     await on_progress(f"Loading {start_url}")
                 await page.goto(start_url, wait_until="load", timeout=45000)
                 await asyncio.sleep(3)
-                # Scroll to trigger lazy content, then back to top
                 await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
                 await asyncio.sleep(1)
                 await page.evaluate("() => window.scrollTo(0, 0)")
                 await asyncio.sleep(1)
 
-                # --- Cookie banner dismissal ---
                 dismissed, cookie_status = await self._dismiss_cookie_banner(
                     page, cookie_hints=cookie_hints
                 )
@@ -185,11 +373,9 @@ class CrawlEngine:
                     await on_progress(f"Cookie banner: {cookie_status}")
                 if not dismissed and on_progress:
                     await on_progress(
-                        "WARNING: Could not dismiss cookie banner automatically. "
-                        "If data is incomplete, re-run with the accept button text as a cookie hint."
+                        "WARNING: Could not dismiss cookie banner automatically."
                     )
 
-                # --- Extraction plan (uses HTML-with-tags for accurate selectors) ---
                 plan = await self._get_extraction_plan(
                     await page.content(), start_url, collection_prompt
                 )
@@ -201,7 +387,6 @@ class CrawlEngine:
                         f"pagination: {plan.get('pagination_hint', pagination_type)}"
                     )
 
-                # Honour LLM's pagination hint if user left it on "auto"
                 effective_pagination = pagination_type
                 if effective_pagination == "auto":
                     llm_hint = plan.get("pagination_hint", "")
@@ -215,34 +400,34 @@ class CrawlEngine:
 
                     html = await page.content()
 
-                    # DOM-direct first
-                    page_records = await self._extract_with_playwright(page, plan, url)
+                    page_records = await self._extract_with_playwright(
+                        page, plan, url, max_items=max_items_per_page
+                    )
                     if on_progress:
                         await on_progress(
                             f"DOM extraction: {len(page_records)} records"
                             + (" — falling back to LLM" if not page_records else "")
                         )
 
-                    # LLM text-extraction fallback
                     if not page_records:
                         page_records = await self._extract_records(
                             html, url, collection_prompt, plan
                         )
 
-                    # Heal plan if first page yields nothing
                     if not page_records and page_num == 0:
                         if on_progress:
                             await on_progress("No records found — requesting healed plan")
                         plan = await self._heal(html, url, collection_prompt, plan)
                         if selector_hints:
                             plan["fields"] = {**(plan.get("fields") or {}), **selector_hints}
-                        page_records = await self._extract_with_playwright(page, plan, url)
+                        page_records = await self._extract_with_playwright(
+                            page, plan, url, max_items=max_items_per_page
+                        )
                         if not page_records:
                             page_records = await self._extract_records(
                                 html, url, collection_prompt, plan
                             )
 
-                    # Deduplicate (handles scroll overlap)
                     new_count = 0
                     for rec in page_records:
                         key = _record_key(rec)
@@ -279,17 +464,36 @@ class CrawlEngine:
     async def _dismiss_cookie_banner(
         self, page: Any, *, cookie_hints: str | None = None
     ) -> tuple[bool, str]:
-        """Try to dismiss a cookie consent banner."""
+        """Three-tier cookie/modal dismissal.
+
+        1. Iterate known CSS selectors (zero LLM cost, covers most major sites).
+        2. JS brute-force scan inside dialogs/containers and over all buttons.
+        3. User hint (text or CSS selector passed by the caller).
+        4. LLM fallback (one API call, last resort).
+        """
+        # ── Tier 1: known CSS selectors ───────────────────────────────────────
         for sel in _COOKIE_SELECTORS:
             try:
                 el = await page.query_selector(sel)
                 if el and await el.is_visible():
                     await el.click()
                     await asyncio.sleep(1)
-                    return True, f"dismissed via known selector ({sel})"
+                    return True, f"dismissed via selector: {sel[:60]}"
             except Exception:
                 continue
 
+        # ── Tier 2: JS brute-force scan ───────────────────────────────────────
+        try:
+            result = await page.evaluate(_COOKIE_DISMISS_JS)
+            if result.get("clicked"):
+                await asyncio.sleep(1.5)
+                src  = result.get("source", "js")
+                text = result.get("text", "")[:50]
+                return True, f"dismissed via JS scan ({src}): '{text}'"
+        except Exception as exc:
+            log.debug("cookie_banner.js_scan_failed", error=str(exc))
+
+        # ── Tier 3: caller-supplied hint ──────────────────────────────────────
         if cookie_hints:
             try:
                 hint_sel = (
@@ -301,10 +505,11 @@ class CrawlEngine:
                 if el and await el.is_visible():
                     await el.click()
                     await asyncio.sleep(1)
-                    return True, f"dismissed via user hint ({hint_sel})"
+                    return True, f"dismissed via user hint: {hint_sel[:60]}"
             except Exception:
                 pass
 
+        # ── Tier 4: LLM (last resort) ─────────────────────────────────────────
         html_sample = _clean_html_for_text(await page.content())
         cookie_keywords = ["cookie", "consent", "privacy", "gdpr", "tracking"]
         if not any(kw in html_sample.lower() for kw in cookie_keywords):
@@ -332,7 +537,7 @@ Return JSON: {{"selector": "<css_or_null>", "button_text": "<text_or_null>", "fo
                 if el and await el.is_visible():
                     await el.click()
                     await asyncio.sleep(1)
-                    return True, f"dismissed via LLM suggestion ({sel or btn_text})"
+                    return True, f"dismissed via LLM: {sel or btn_text}"
             except Exception as exc:
                 log.debug("cookie_banner.llm_click_failed", error=str(exc))
 
@@ -369,13 +574,13 @@ Page HTML (structure preserved):
 Return JSON:
 {{
   "strategy": "one-sentence description of what kind of page this is",
-  "item_selector": "CSS selector matching EACH individual listing/card/item (e.g. [data-testid='property-card'])",
+  "item_selector": "CSS selector matching EACH individual listing/card/item",
   "fields": {{
     "<snake_case_field>": "<CSS selector relative to the item container>",
     ...one entry per requested field...
   }},
   "next_page_selector": "CSS selector for the Next Page button/link, or null",
-  "pagination_hint": "scroll|click|unknown — whether the site uses infinite scroll or button pagination",
+  "pagination_hint": "scroll|click|unknown",
   "data_type": "hotel|product|review|property|listing|etc",
   "requested_fields": ["exact", "field", "names", "user", "wants"]
 }}
@@ -400,48 +605,42 @@ Return JSON:
         })
 
     async def _extract_with_playwright(
-        self, page: Any, plan: dict[str, Any], url: str
+        self, page: Any, plan: dict[str, Any], url: str, max_items: int = 150
     ) -> list[dict[str, Any]]:
-        """DOM-direct extraction — reliable for JS-rendered sites.
+        """DOM-direct extraction.
 
-        For each field, tries the primary selector AND a set of common fallback
-        patterns so partial plans still capture most data.
+        For each field, tries the primary selector and common fallback patterns.
+        Extracts text, aria-label, href, src, and data-* attributes so no
+        information is silently dropped for any element type.
         """
         item_sel = plan.get("item_selector", "")
         fields: dict[str, str] = plan.get("fields") or {}
         if not item_sel or not fields:
             return []
 
-        # Build fallback selectors for common field names
         fallbacks: dict[str, list[str]] = {
             "title": ["[data-testid='title']", "h2", "h3", ".title"],
             "price": [
                 "[data-testid='price-and-discounted-price']",
-                "[data-testid*='price']",
-                ".price",
-                "[class*='price']",
-                "[aria-label*='price' i]",
+                "[data-testid*='price']", ".price",
+                "[class*='price']", "[aria-label*='price' i]",
             ],
             "rating": [
                 "[data-testid='review-score']",
-                "[aria-label*='rating' i]",
-                "[aria-label*='score' i]",
-                ".rating",
-                "[class*='rating']",
-                "[class*='review-score']",
+                "[aria-label*='rating' i]", "[aria-label*='score' i]",
+                ".rating", "[class*='rating']", "[class*='review-score']",
             ],
             "location": [
-                "[data-testid='address']",
-                "address",
-                "[aria-label*='location' i]",
-                "[aria-label*='address' i]",
-                "[class*='location']",
-                "[class*='address']",
+                "[data-testid='address']", "address",
+                "[aria-label*='location' i]", "[aria-label*='address' i]",
+                "[class*='location']", "[class*='address']",
             ],
             "description": ["p", "[data-testid='description']", ".description"],
+            "image": ["img[src]", "img[data-src]", "[style*='background']"],
+            "url": ["a[href]"],
+            "link": ["a[href]"],
         }
 
-        # Merge plan selectors as the first option for each field
         full_selectors: dict[str, list[str]] = {}
         for field, sel in fields.items():
             opts = [sel] if sel else []
@@ -452,32 +651,108 @@ Return JSON:
             full_selectors[field] = opts
 
         js = """
-        ({item_selector, selectors, source_url}) => {
-            const items = Array.from(document.querySelectorAll(item_selector)).slice(0, 30);
+        ({ item_selector, selectors, source_url, max_items }) => {
+            const items = Array.from(document.querySelectorAll(item_selector))
+                              .slice(0, max_items);
+
+            function extractValue(el, fieldName) {
+                if (!el) return null;
+                const tag = el.tagName.toUpperCase();
+
+                // Images — prefer alt text, then src
+                if (tag === 'IMG') {
+                    return el.getAttribute('alt') || el.getAttribute('src') ||
+                           el.getAttribute('data-src') || null;
+                }
+
+                // Anchors — grab text AND href
+                if (tag === 'A') {
+                    const text = (el.innerText || el.textContent || '').trim();
+                    const href = el.getAttribute('href') || '';
+                    if (text) return text;
+                    if (href && !href.startsWith('javascript')) return href;
+                    return null;
+                }
+
+                // Input / button with value attribute
+                if (['INPUT','BUTTON'].includes(tag)) {
+                    const val = el.getAttribute('value') || (el.innerText || '').trim();
+                    if (val) return val;
+                }
+
+                // innerText gives rendered text including child elements
+                let text = (el.innerText || el.textContent || '').trim();
+                if (text) return text;
+
+                // Fallback: aria-label, title, content
+                text = el.getAttribute('aria-label') ||
+                       el.getAttribute('title') ||
+                       el.getAttribute('content') || null;
+                if (text) return text.trim();
+
+                // Last resort: any data-* attribute that looks like a value
+                for (const attr of el.attributes) {
+                    if (attr.name.startsWith('data-') &&
+                        attr.value && attr.value.length < 300) {
+                        return attr.value;
+                    }
+                }
+                return null;
+            }
+
             return items.map(item => {
-                const rec = {source_url};
+                const rec = { source_url };
+
                 for (const [field, sels] of Object.entries(selectors)) {
                     let val = null;
                     for (const sel of sels) {
                         try {
                             const el = item.querySelector(sel);
-                            if (el) {
-                                val = (
-                                    el.textContent ||
-                                    el.getAttribute('aria-label') ||
-                                    el.getAttribute('title') ||
-                                    el.getAttribute('content') ||
-                                    ''
-                                ).trim();
-                                if (val) break;
-                            }
+                            val = extractValue(el, field);
+                            if (val) break;
                         } catch(e) { continue; }
                     }
                     rec[field] = val || null;
+
+                    // For url/link fields: ensure we also capture the href
+                    const fl = field.toLowerCase();
+                    if (fl.includes('url') || fl.includes('link') || fl.includes('href')) {
+                        const a = item.querySelector('a[href]');
+                        if (a) {
+                            const href = a.getAttribute('href');
+                            if (href && !href.startsWith('javascript') && !rec[field + '_href']) {
+                                rec[field] = rec[field] || href;
+                            }
+                        }
+                    }
+
+                    // For image fields: ensure we also capture src
+                    if (fl.includes('image') || fl.includes('img') ||
+                        fl.includes('photo') || fl.includes('thumb')) {
+                        const img = item.querySelector('img[src],img[data-src]');
+                        if (img && !rec[field]) {
+                            rec[field] = img.getAttribute('src') ||
+                                         img.getAttribute('data-src') || null;
+                        }
+                    }
                 }
+
+                // Always grab the canonical item URL if available
+                const firstAnchor = item.querySelector('a[href]');
+                if (firstAnchor) {
+                    const href = firstAnchor.getAttribute('href');
+                    if (href && !href.startsWith('javascript') && !rec.item_url) {
+                        rec.item_url = href.startsWith('http')
+                            ? href
+                            : (new URL(href, source_url)).href;
+                    }
+                }
+
                 return rec;
             }).filter(r =>
-                Object.entries(r).some(([k, v]) => k !== 'source_url' && v)
+                Object.entries(r).some(([k, v]) =>
+                    k !== 'source_url' && k !== 'item_url' && v !== null && v !== ''
+                )
             );
         }
         """
@@ -486,6 +761,7 @@ Return JSON:
                 "item_selector": item_sel,
                 "selectors": full_selectors,
                 "source_url": url,
+                "max_items": max_items,
             })
             if isinstance(results, list):
                 return [r for r in results if isinstance(r, dict)]
@@ -542,13 +818,8 @@ structure. Focus on data-testid, aria-label, and id attributes for maximum stabi
     async def _go_next(
         self, page: Any, html: str, plan: dict[str, Any], *, pagination_type: str = "auto"
     ) -> bool:
-        """Navigate to the next page/batch of results.
-
-        Tries button/link click first, then scroll-based infinite loading.
-        """
         selector = plan.get("next_page_selector")
 
-        # 1. Button/link click
         if selector and pagination_type in ("auto", "click"):
             try:
                 el = await page.query_selector(selector)
@@ -560,7 +831,6 @@ structure. Focus on data-testid, aria-label, and id attributes for maximum stabi
             except Exception as e:
                 log.debug("next_page.click_failed", error=str(e))
 
-        # 2. Infinite-scroll — detect if page grows after scrolling to bottom
         if pagination_type in ("auto", "scroll"):
             try:
                 prev_height = await page.evaluate("() => document.body.scrollHeight")
