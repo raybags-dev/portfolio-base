@@ -392,6 +392,8 @@ export interface AnalyticsResult {
   // job analytics extras
   unique_skills?: number;
   salary_stats?: { min: number; max: number; avg: number; count: number };
+  // shared
+  summary?: string;
 }
 
 export const listCrawlSessions = () =>
@@ -520,6 +522,42 @@ export const generateJobBlog = (id: number) =>
     `/job-analytics/sessions/${id}/generate-blog`,
     { method: "POST" }
   );
+
+// ---- kaggle integration (shared) ----
+export interface KaggleDataset {
+  ref: string;
+  title: string;
+  subtitle: string;
+  size: number;
+  downloads: number;
+  votes: number;
+  last_updated: string;
+  tags: string[];
+}
+
+export const searchKaggleHotel = (q: string, page = 1) =>
+  request<KaggleDataset[]>(`/hotel-reviews/kaggle/search?q=${encodeURIComponent(q)}&page=${page}`);
+
+export const importKaggleHotel = (sessionId: number, dataset_ref: string, name?: string) =>
+  request<{ message: string; session_id: number }>(
+    `/hotel-reviews/sessions/${sessionId}/import-kaggle`,
+    { method: "POST", body: JSON.stringify({ dataset_ref, name: name || "" }) }
+  );
+
+export const generateHotelSummary = (sessionId: number) =>
+  request<{ summary: string }>(`/hotel-reviews/sessions/${sessionId}/generate-summary`, { method: "POST" });
+
+export const searchKaggleJobs = (q: string, page = 1) =>
+  request<KaggleDataset[]>(`/job-analytics/kaggle/search?q=${encodeURIComponent(q)}&page=${page}`);
+
+export const importKaggleJobs = (sessionId: number, dataset_ref: string, name?: string) =>
+  request<{ message: string; session_id: number }>(
+    `/job-analytics/sessions/${sessionId}/import-kaggle`,
+    { method: "POST", body: JSON.stringify({ dataset_ref, name: name || "" }) }
+  );
+
+export const generateJobSummary = (sessionId: number) =>
+  request<{ summary: string }>(`/job-analytics/sessions/${sessionId}/generate-summary`, { method: "POST" });
 
 // ---- access tokens (admin) ----
 export interface AppToken {

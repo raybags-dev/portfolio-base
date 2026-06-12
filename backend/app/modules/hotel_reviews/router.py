@@ -297,6 +297,93 @@ async def generate_blog(session_id: int, db: DbSession):
     return {"blog_post_id": post.id, "title": post.title, "slug": post.slug, "draft": True}
 
 
+# ── Kaggle integration ────────────────────────────────────────────────────────
+
+@router.get("/kaggle/search")
+async def kaggle_search(q: str = Query(..., min_length=2), page: int = Query(1, ge=1)):
+    from app.modules.shared.kaggle import KaggleNotConfigured, search_datasets
+
+    try:
+        return await search_datasets(q, page=page)
+    except KaggleNotConfigured as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Kaggle search failed: {exc}") from exc
+
+
+class KaggleImportPayload(BaseModel):
+    dataset_ref: str
+    name: str = ""
+    analytics_spec: dict[str, Any] = {}
+
+
+@router.post("/sessions/{session_id}/import-kaggle")
+async def import_kaggle_dataset(
+    session_id: int,
+    payload: KaggleImportPayload,
+    db: DbSession,
+    background_tasks: BackgroundTasks,
+):
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if session.status == "running":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Session already running")
+
+    session.target_url = f"kaggle://{payload.dataset_ref}"
+    if payload.name:
+        session.name = payload.name
+    if payload.analytics_spec:
+        session.analytics_spec = {**(session.analytics_spec or {}), **payload.analytics_spec}
+    await db.commit()
+
+    background_tasks.add_task(_run_kaggle_in_background, session_id, payload.dataset_ref)
+    return {"message": "Kaggle import started", "session_id": session_id}
+
+
+async def _run_kaggle_in_background(session_id: int, dataset_ref: str) -> None:
+    from app.core.database import SessionLocal
+    from app.modules.hotel_reviews.service import run_kaggle_import
+
+    async with SessionLocal() as db:
+        try:
+            await run_kaggle_import(db, session_id, dataset_ref)
+        except Exception:
+            pass
+
+
+# ── AI Insights Summary ───────────────────────────────────────────────────────
+
+@router.post("/sessions/{session_id}/generate-summary")
+async def generate_summary(session_id: int, db: DbSession):
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if session.status != "done":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session must be completed first")
+
+    provider = get_provider()
+    analytics = dict(session.analytics_result or {})
+    records = (session.progress or {}).get("records_collected", analytics.get("total_records", 0))
+
+    from app.modules.shared.summary import generate_insights_summary
+    try:
+        summary_text = await generate_insights_summary(
+            session_name=session.name,
+            source=session.target_url,
+            records=records,
+            analytics=analytics,
+            provider=provider,
+        )
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Summary generation failed: {exc}") from exc
+
+    analytics["summary"] = summary_text
+    session.analytics_result = analytics
+    await db.commit()
+    return {"summary": summary_text}
+
+
 spec = ModuleSpec(
     key="hotel-reviews",
     flag=FLAG,

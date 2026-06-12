@@ -106,3 +106,58 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         await db.commit()
         log.error("hotel_reviews.session.failed", session_id=session_id, error=str(exc))
         raise
+
+
+async def run_kaggle_import(db: AsyncSession, session_id: int, dataset_ref: str) -> dict[str, Any]:
+    """Download a Kaggle dataset, store records, run analytics."""
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise ValueError(f"session {session_id} not found")
+
+    session.status = "running"
+    session.progress = {"log": [], "records_collected": 0, "source": "kaggle"}
+    await db.commit()
+
+    async def _progress(msg: str) -> None:
+        progress = dict(session.progress or {})
+        progress.setdefault("log", [])
+        progress["log"] = (progress["log"] + [msg])[-50:]
+        progress["last_message"] = msg
+        session.progress = progress
+        await db.commit()
+
+    try:
+        from app.modules.shared.kaggle import download_and_parse
+
+        await _progress(f"Connecting to Kaggle and downloading '{dataset_ref}'…")
+        raw_rows = await download_and_parse(dataset_ref)
+
+        await _progress(f"Downloaded {len(raw_rows)} rows. Storing records…")
+        for row in raw_rows:
+            db.add(HotelCrawlRecord(
+                session_id=session.id,
+                source_url=f"kaggle://{dataset_ref}",
+                data=row,
+                is_valid=True,
+            ))
+        await db.commit()
+
+        await _progress(f"{len(raw_rows)} records stored. Running analytics…")
+        analytics = compute_analytics(raw_rows, session.analytics_spec or {})
+        session.analytics_result = analytics
+        session.status = "done"
+        progress = dict(session.progress or {})
+        progress["records_collected"] = len(raw_rows)
+        progress["charts_computed"] = len(analytics.get("charts", []))
+        session.progress = progress
+        await db.commit()
+
+        await _progress(f"Done. {len(analytics.get('charts', []))} charts generated.")
+        return {"session_id": session.id, "records": len(raw_rows), "analytics": analytics}
+
+    except Exception as exc:
+        session.status = "failed"
+        session.error = str(exc)
+        await db.commit()
+        log.error("hotel_reviews.kaggle.failed", session_id=session_id, error=str(exc))
+        raise
