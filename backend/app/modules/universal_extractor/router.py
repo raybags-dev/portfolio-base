@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -25,6 +26,9 @@ from app.models.platform import UDERecord, UDESession
 from app.modules import ModuleSpec
 
 FLAG = "ENABLE_UNIVERSAL_EXTRACTOR"
+
+# Tracks live asyncio Tasks so cancel_session can actually stop them.
+_RUNNING_TASKS: dict[int, asyncio.Task] = {}
 
 router = APIRouter(
     prefix="/universal-extractor",
@@ -149,17 +153,19 @@ async def delete_session(session_id: int, db: DbSession) -> Response:
 
 
 @router.post("/sessions/{session_id}/run", dependencies=[require_app_access("universal-extractor")])
-async def run_session(session_id: int, db: DbSession, background_tasks: BackgroundTasks):
+async def run_session(session_id: int, db: DbSession, background_tasks: BackgroundTasks):  # noqa: ARG001
     session = await db.get(UDESession, session_id)
     if session is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
     if session.status == "running":
         raise HTTPException(status.HTTP_409_CONFLICT, "Session already running")
-    # Set running immediately so polling sees the state change before background task starts
     session.status = "running"
     session.progress = {"log": [], "records_collected": 0, "records_valid": 0}
     await db.commit()
-    background_tasks.add_task(_run_in_background, session_id)
+    # Use create_task so we hold a handle to cancel it later.
+    task = asyncio.create_task(_run_in_background(session_id))
+    _RUNNING_TASKS[session_id] = task
+    task.add_done_callback(lambda _: _RUNNING_TASKS.pop(session_id, None))
     return {"message": "Extraction started", "session_id": session_id}
 
 
@@ -173,6 +179,11 @@ async def cancel_session(session_id: int, db: DbSession):
     session.status = "cancelled"
     session.error = "Cancelled by user"
     await db.commit()
+    # Kill the live asyncio task — raises CancelledError at its next await,
+    # which propagates through the crawler's finally block so browser is closed.
+    task = _RUNNING_TASKS.pop(session_id, None)
+    if task and not task.done():
+        task.cancel()
     return {"message": "Session cancelled"}
 
 

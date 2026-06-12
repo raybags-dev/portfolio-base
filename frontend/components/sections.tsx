@@ -196,10 +196,9 @@ export function Hero({ data }: { data: Bootstrap }) {
         </svg>
       </div>
 
-      {/* News ticker — sits at the very bottom of the hero */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
-        <NewsTicker />
-      </div>
+      {/* NewsTicker mounts here so it's only active on the home page,
+          but it renders with position:fixed so it sticks to viewport bottom */}
+      <NewsTicker />
     </section>
   );
 }
