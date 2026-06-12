@@ -82,10 +82,11 @@ async def search_datasets(query: str, page: int = 1) -> list[dict[str, Any]]:
 async def download_and_parse(ref: str, max_rows: int = 3000) -> list[dict[str, Any]]:
     """Download a Kaggle dataset, extract the largest CSV/JSON, return records.
 
-    Uses subprocess curl (not requests) because Python's TLS stack gets a 403
-    from the GCS redirect on this VPS while curl succeeds from the same host.
+    Uses subprocess curl because Python requests sends Host: storage.googleapis.com:443
+    which fails GCS signed-URL signature verification (signed for host without port).
+    curl normalises Host to storage.googleapis.com (no port) and succeeds.
     """
-    _get_kaggle()  # validates credentials exist
+    _get_kaggle()  # validates credentials are set
     username = os.environ.get("KAGGLE_USERNAME", "")
     key = os.environ.get("KAGGLE_KEY", "")
     if not username or not key:
@@ -95,16 +96,33 @@ async def download_and_parse(ref: str, max_rows: int = 3000) -> list[dict[str, A
     zip_path = os.path.join(tmp_dir, "archive.zip")
     try:
         def _sync_download() -> None:
+            # -w prints the HTTP status to stdout; -o writes the body to zip_path
             cmd = [
-                "curl", "-L", "--silent", "--fail",
+                "curl", "-L", "--silent",
                 "--user", f"{username}:{key}",
+                "-w", "%{http_code}",
                 f"https://www.kaggle.com/api/v1/datasets/download/{ref}",
                 "-o", zip_path,
             ]
             result = subprocess.run(cmd, capture_output=True, timeout=300)
-            if result.returncode != 0:
-                stderr = result.stderr.decode(errors="replace")
-                raise RuntimeError(f"Kaggle download failed (curl exit {result.returncode}): {stderr}")
+            http_status = result.stdout.decode().strip()
+
+            if http_status != "200":
+                body = ""
+                if os.path.exists(zip_path):
+                    try:
+                        body = Path(zip_path).read_text(encoding="utf-8", errors="replace")[:400]
+                    except Exception:
+                        pass
+                if http_status == "403":
+                    raise RuntimeError(
+                        f"Kaggle denied access to '{ref}' (HTTP 403). "
+                        "The dataset may require accepting license terms on kaggle.com/datasets/"
+                        f"{ref} before it can be downloaded via API."
+                    )
+                raise RuntimeError(
+                    f"Kaggle download returned HTTP {http_status} for '{ref}'. {body}".strip()
+                )
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_download)
 
