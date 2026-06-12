@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Download Chromium binaries into PLAYWRIGHT_BROWSERS_PATH (/app/.playwright)
-RUN playwright install chromium
+# Playwright Chromium is NOT baked into the image — it is downloaded at runtime
+# by health.py _ensure_playwright_chromium() into the PLAYWRIGHT_BROWSERS_PATH
+# volume so it persists across deploys without adding ~300 MB to the image layer.
 
 COPY . .
 
