@@ -379,6 +379,42 @@ async def generate_blog(session_id: int, db: DbSession):
     return {"id": post.id, "title": post.title, "slug": post.slug}
 
 
+@router.get("/sessions/{session_id}/report.pdf")
+async def download_pdf_report(session_id: int, db: DbSession):
+    """Generate and return a beautiful PDF analytics report for a session."""
+    import asyncio
+
+    session = await db.get(UDESession, session_id)
+    if session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    if session.status != "done":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session must be completed first")
+
+    from app.modules.universal_extractor.pdf_report import generate_pdf
+
+    session_data = {
+        "name": session.name,
+        "source_url": session.source_url,
+        "source_type_detected": session.source_type_detected,
+        "source_type": session.source_type,
+    }
+    analytics = dict(session.analytics_result or {})
+
+    loop = asyncio.get_event_loop()
+    try:
+        pdf_bytes = await loop.run_in_executor(None, generate_pdf, session_data, analytics)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"PDF generation failed: {exc}") from exc
+
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "-" for c in session.name)[:40]
+    filename = f"ude-report-{safe_name or session_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Storage stats endpoints (public — view only) ──────────────────────────────
 
 @router.get("/storage/stats")

@@ -223,6 +223,22 @@ class ContactMessage(PKMixin, TimestampMixin, Base):
     delivered: Mapped[bool] = mapped_column(Boolean, default=False)  # emailed out?
 
 
+class NewsItem(PKMixin, TimestampMixin, Base):
+    """A single news headline extracted by the scheduled CNN crawler."""
+
+    __tablename__ = "news_items"
+
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    url: Mapped[str | None] = mapped_column(String(2048), unique=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    image_url: Mapped[str | None] = mapped_column(String(2048))
+    source: Mapped[str] = mapped_column(String(128), default="CNN")
+    category: Mapped[str | None] = mapped_column(String(64))
+    author: Mapped[str | None] = mapped_column(String(128))
+    published_at: Mapped[str | None] = mapped_column(String(64))
+    is_breaking: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class StorageFile(PKMixin, TimestampMixin, Base):
     __tablename__ = "storage_files"
 
