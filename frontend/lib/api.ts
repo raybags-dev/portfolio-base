@@ -389,6 +389,9 @@ export interface AnalyticsResult {
   high_rated_count?: number;
   charts?: ChartData[];
   error?: string;
+  // job analytics extras
+  unique_skills?: number;
+  salary_stats?: { min: number; max: number; avg: number; count: number };
 }
 
 export const listCrawlSessions = () =>
@@ -457,6 +460,64 @@ export const getCrawlAnalytics = (id: number) =>
 export const generateSessionBlog = (id: number) =>
   request<{ blog_post_id: number; title: string; slug: string; draft: boolean }>(
     `/hotel-reviews/sessions/${id}/generate-blog`,
+    { method: "POST" }
+  );
+
+// ---- job market analytics ----
+export interface JobSession {
+  id: number;
+  name: string;
+  target_url: string;
+  collection_prompt: string;
+  analytics_spec: Record<string, unknown>;
+  max_pages: number;
+  status: "pending" | "running" | "done" | "failed";
+  progress: { log?: string[]; last_message?: string; records_collected?: number; current_url?: string; charts_computed?: number } | null;
+  analytics_result: AnalyticsResult | null;
+  error: string | null;
+  created_at: string;
+}
+
+export const listJobSessions = () =>
+  request<JobSession[]>("/job-analytics/sessions");
+
+export const createJobSession = (body: {
+  name: string;
+  target_url: string;
+  collection_prompt: string;
+  analytics_spec?: Record<string, unknown>;
+  max_pages?: number;
+  session_contact?: RunContactInfo;
+}) => request<JobSession>("/job-analytics/sessions", { method: "POST", body: JSON.stringify(body) });
+
+export const getJobSession = (id: number) =>
+  request<JobSession>(`/job-analytics/sessions/${id}`);
+
+export const runJobSession = (id: number, appToken?: string) =>
+  request<{ message: string; session_id: number }>(
+    `/job-analytics/sessions/${id}/run`,
+    { method: "POST", headers: appToken ? { "X-App-Token": appToken } : undefined }
+  );
+
+export const updateJobSession = (id: number, patch: Partial<{ analytics_spec: Record<string, unknown> }>) =>
+  request<JobSession>(`/job-analytics/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+
+export const deleteJobSession = (id: number) =>
+  request<void>(`/job-analytics/sessions/${id}`, { method: "DELETE" });
+
+export const previewJobRecords = (id: number) =>
+  request<Record<string, unknown>[]>(`/job-analytics/sessions/${id}/records/preview`);
+
+export const exportJobRecordsUrl = (id: number) =>
+  `${V1}/job-analytics/sessions/${id}/records/export`;
+
+export const generateJobBlog = (id: number) =>
+  request<{ blog_post_id: number; title: string; slug: string; draft: boolean }>(
+    `/job-analytics/sessions/${id}/generate-blog`,
     { method: "POST" }
   );
 
