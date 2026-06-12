@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
   LineChart, Line,
 } from "recharts";
 import {
@@ -1074,48 +1074,88 @@ function BarChartView({ data }: { data: Record<string, unknown>[] }) {
   const numKeys = Object.keys(data[0] || {}).filter(k => typeof data[0][k] === "number");
   const labelKey = Object.keys(data[0] || {}).find(k => typeof data[0][k] === "string") || "name";
   const valueKey = numKeys[0] || "count";
+  const needsScroll = data.length > 10;
+  const dynamicWidth = Math.max(data.length * 56, 320);
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 40 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-        <XAxis dataKey={labelKey} tick={{ fill: "#9ca3af", fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-        <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
-        <Tooltip contentStyle={{ background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} labelStyle={{ color: "#e5e7eb" }} itemStyle={{ color: "#a78bfa" }} />
-        <Bar dataKey={valueKey} fill="#6366f1" radius={[3, 3, 0, 0]} />
-        {numKeys[1] && <Bar dataKey={numKeys[1]} fill="#8b5cf6" radius={[3, 3, 0, 0]} />}
-      </BarChart>
-    </ResponsiveContainer>
+    <div className={needsScroll ? "overflow-x-auto chart-scroll" : ""}>
+      <div style={{ width: needsScroll ? dynamicWidth : "100%", minWidth: "100%" }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 48 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey={labelKey} tick={{ fill: "var(--color-muted)", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+            <YAxis tick={{ fill: "var(--color-muted)", fontSize: 11 }} width={40} />
+            <Tooltip
+              contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: "var(--color-fg)" }}
+              itemStyle={{ color: "var(--color-primary)" }}
+            />
+            <Bar dataKey={valueKey} fill="var(--color-primary)" radius={[3, 3, 0, 0]} maxBarSize={48} />
+            {numKeys[1] && <Bar dataKey={numKeys[1]} fill="var(--color-secondary)" radius={[3, 3, 0, 0]} maxBarSize={48} />}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
 
 function PieChartView({ data }: { data: Record<string, unknown>[] }) {
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <PieChart>
-        <Pie data={data} cx="50%" cy="50%" outerRadius={100} dataKey="value" nameKey="name"
-          label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`}
-          labelLine={{ stroke: "rgba(255,255,255,0.2)" }}>
-          {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-        </Pie>
-        <Legend formatter={(value: string) => <span style={{ color: "#9ca3af", fontSize: 12 }}>{value}</span>} />
-        <Tooltip contentStyle={{ background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-      </PieChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%" cy="50%"
+            outerRadius={100}
+            innerRadius={44}
+            dataKey="value"
+            nameKey="name"
+            paddingAngle={2}
+            labelLine={false}
+          >
+            {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+          </Pie>
+          <Tooltip
+            contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: "var(--color-fg)" }}
+            itemStyle={{ color: "var(--color-primary)" }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-3 px-2">
+        {data.map((entry, i) => (
+          <div key={i} className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+            <span className="text-xs truncate" style={{ color: "var(--color-muted)" }}>{String(entry.name ?? "")}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 function LineChartView({ data }: { data: Record<string, unknown>[] }) {
   const labelKey = Object.keys(data[0] || {}).find(k => typeof data[0][k] === "string") || "period";
   const valueKey = Object.keys(data[0] || {}).find(k => typeof data[0][k] === "number") || "count";
+  const needsScroll = data.length > 14;
+  const dynamicWidth = Math.max(data.length * 48, 320);
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 40 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-        <XAxis dataKey={labelKey} tick={{ fill: "#9ca3af", fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-        <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
-        <Tooltip contentStyle={{ background: "#1f2937", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-        <Line type="monotone" dataKey={valueKey} stroke="#6366f1" strokeWidth={2} dot={{ fill: "#6366f1", r: 4 }} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className={needsScroll ? "overflow-x-auto chart-scroll" : ""}>
+      <div style={{ width: needsScroll ? dynamicWidth : "100%", minWidth: "100%" }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 48 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey={labelKey} tick={{ fill: "var(--color-muted)", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+            <YAxis tick={{ fill: "var(--color-muted)", fontSize: 11 }} width={40} />
+            <Tooltip
+              contentStyle={{ background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: "var(--color-fg)" }}
+              itemStyle={{ color: "var(--color-primary)" }}
+            />
+            <Line type="monotone" dataKey={valueKey} stroke="var(--color-primary)" strokeWidth={2} dot={{ fill: "var(--color-primary)", r: 3 }} activeDot={{ r: 5 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

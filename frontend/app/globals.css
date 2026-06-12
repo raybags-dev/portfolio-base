@@ -86,3 +86,23 @@ h1, h2, h3, h4 {
 .prose-blog pre code { background: transparent; padding: 0; font-size: 0.85rem; }
 .prose-blog table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; }
 .prose-blog th, .prose-blog td { border: 1px solid rgba(255,255,255,0.12); padding: 0.5rem 0.75rem; }
+
+/* ---- chart scroll area ---- */
+.chart-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+  padding-bottom: 4px;
+}
+.chart-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.chart-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chart-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+.chart-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.28);
+}

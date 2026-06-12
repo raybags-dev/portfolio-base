@@ -36,12 +36,13 @@ interface EditorState {
   meta_title: string;
   meta_description: string;
   service_key: string;
+  project_url: string;
 }
 
 const EMPTY: EditorState = {
   title: "", slug: "", excerpt: "", content_markdown: "", cover_image_url: "",
   status: "draft", is_featured: false, category_id: null, tags: "",
-  meta_title: "", meta_description: "", service_key: "",
+  meta_title: "", meta_description: "", service_key: "", project_url: "",
 };
 
 export default function BlogAdmin() {
@@ -94,6 +95,7 @@ export default function BlogAdmin() {
         meta_title: editor.meta_title || null,
         meta_description: editor.meta_description || null,
         service_key: editor.service_key || null,
+        project_url: editor.project_url || null,
         tag_slugs,
         published_at: editor.status === "published" ? new Date().toISOString() : null,
       };
@@ -131,7 +133,7 @@ export default function BlogAdmin() {
         status: p.status, is_featured: p.is_featured, category_id: p.category_id ?? null,
         tags: p.tags.map((t) => t.name).join(", "),
         meta_title: p.meta_title || "", meta_description: p.meta_description || "",
-        service_key: p.service_key || "",
+        service_key: p.service_key || "", project_url: p.project_url || "",
       });
     } else setEditor({ ...EMPTY });
     setPreview(false);
@@ -275,15 +277,22 @@ export default function BlogAdmin() {
             </div>
           </details>
 
-          <div className="text-sm">
-            <label className="block text-muted mb-1">Related project / microservice (optional)</label>
+          <div className="space-y-2 text-sm">
+            <label className="block text-muted">Project action button (optional)</label>
             <input
-              placeholder="Service key, e.g. annotation, retail…"
+              placeholder="Direct URL, e.g. https://raybags.com/hotel-reviews"
+              value={editor.project_url}
+              onChange={(e) => setEditor({ ...editor, project_url: e.target.value })}
+              className={cls}
+            />
+            <p className="text-xs text-muted">Direct link shown on the &quot;View project ↗&quot; button. Takes priority over the service key below.</p>
+            <input
+              placeholder="Service key fallback, e.g. annotation, hotel-reviews…"
               value={editor.service_key}
               onChange={(e) => setEditor({ ...editor, service_key: e.target.value })}
               className={cls}
             />
-            <p className="text-xs text-muted mt-1">Adds a &quot;Launch project ↗&quot; button to this blog card when the service is enabled.</p>
+            <p className="text-xs text-muted">Used only if no direct URL is set — resolves to a microservice base URL or a known internal route.</p>
           </div>
 
           <div className="flex gap-2">
