@@ -45,4 +45,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.jobs.router import spec as jobs_spec
     specs.append(jobs_spec)
 
+    from app.modules.universal_extractor.router import spec as ude_spec
+    specs.append(ude_spec)
+
     return specs

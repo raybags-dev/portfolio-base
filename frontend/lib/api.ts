@@ -559,6 +559,71 @@ export const importKaggleJobs = (sessionId: number, dataset_ref: string, name?: 
 export const generateJobSummary = (sessionId: number) =>
   request<{ summary: string }>(`/job-analytics/sessions/${sessionId}/generate-summary`, { method: "POST" });
 
+// ---- universal data extractor ----
+export interface UDESession {
+  id: number;
+  name: string;
+  source_url: string;
+  source_type: string;
+  source_type_detected: string | null;
+  extraction_prompt: string;
+  source_config: Record<string, unknown>;
+  analytics_spec: Record<string, unknown>;
+  max_records: number;
+  status: "pending" | "running" | "done" | "failed";
+  progress: {
+    log: string[];
+    last_message?: string;
+    records_collected?: number;
+    records_valid?: number;
+    source_type_detected?: string;
+    schema_fields?: string[];
+    charts_computed?: number;
+  };
+  analytics_result: AnalyticsResult | null;
+  schema_detected: Record<string, string> | null;
+  error: string | null;
+  created_at: string;
+  client_ip: string | null;
+  is_guest: boolean;
+  session_contact: RunContactInfo | null;
+}
+
+export const listUDESessions = () =>
+  request<UDESession[]>("/universal-extractor/sessions");
+
+export const createUDESession = (body: {
+  name: string;
+  source_url: string;
+  source_type?: string;
+  extraction_prompt?: string;
+  source_config?: Record<string, unknown>;
+  analytics_spec?: Record<string, unknown>;
+  max_records?: number;
+  session_contact?: RunContactInfo;
+}) => request<UDESession>("/universal-extractor/sessions", { method: "POST", body: JSON.stringify(body) });
+
+export const getUDESession = (id: number) =>
+  request<UDESession>(`/universal-extractor/sessions/${id}`);
+
+export const runUDESession = (id: number, appToken?: string) =>
+  request<{ message: string; session_id: number }>(
+    `/universal-extractor/sessions/${id}/run`,
+    { method: "POST", headers: appToken ? { "X-App-Token": appToken } : undefined }
+  );
+
+export const deleteUDESession = (id: number) =>
+  request<void>(`/universal-extractor/sessions/${id}`, { method: "DELETE" });
+
+export const getUDERecords = (id: number, limit = 100) =>
+  request<Record<string, unknown>[]>(`/universal-extractor/sessions/${id}/records?limit=${limit}`);
+
+export const exportUDERecordsUrl = (id: number, format: "json" | "csv" = "json") =>
+  `${V1}/universal-extractor/sessions/${id}/records/export?format=${format}`;
+
+export const generateUDESummary = (sessionId: number) =>
+  request<{ summary: string }>(`/universal-extractor/sessions/${sessionId}/generate-summary`, { method: "POST" });
+
 // ---- access tokens (admin) ----
 export interface AppToken {
   id: number;

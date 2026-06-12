@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: AnyHttpUrl | None = None
     SUPABASE_SERVICE_KEY: str | None = None
 
+    # ---- MongoDB (optional — UDE raw document store) ----
+    MONGODB_URL: str | None = None
+
     # ---- AI ----
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o-mini"

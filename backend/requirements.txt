@@ -49,3 +49,6 @@ kaggle==2.2.1
 
 # --- LLM (Groq/OpenAI-compatible — required for AI summariser) ---
 openai==1.58.1
+
+# --- MongoDB (optional — UDE raw document store) ---
+pymongo[srv]==3.12.3
