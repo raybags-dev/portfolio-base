@@ -195,6 +195,7 @@ class ScheduledJob(PKMixin, TimestampMixin, Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(32), default="scheduled")
+    last_error: Mapped[str | None] = mapped_column(Text)
 
 
 class Notification(PKMixin, TimestampMixin, Base):
