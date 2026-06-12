@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
 import CookieBanner from "@/components/CookieBanner";
-import NewsTicker from "@/components/NewsTicker";
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -17,10 +16,8 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ToastProvider>
-        {/* Extra padding at the bottom so the ticker doesn't cover content */}
-        <div style={{ paddingBottom: "32px" }}>{children}</div>
+        {children}
         <CookieBanner />
-        <NewsTicker />
       </ToastProvider>
     </QueryClientProvider>
   );

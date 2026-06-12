@@ -11,108 +11,140 @@ interface NewsItem {
   source: string;
 }
 
+/**
+ * Thin scrolling news ticker strip.
+ * Designed to sit at the very bottom of the Hero section (absolute positioned
+ * by the parent). Hides itself if no news items are available.
+ */
 export default function NewsTicker() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [paused, setPaused] = useState(false);
-  const tickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const data = await getNewsFeed(60);
+        const data = await getNewsFeed(80);
         if (alive && data.length > 0) setItems(data);
       } catch {
-        // News feed unavailable — ticker stays hidden
+        // Feed unavailable — stay hidden
       }
     }
     load();
-    const interval = setInterval(load, 5 * 60 * 1000); // refresh every 5 min
+    const interval = setInterval(load, 5 * 60 * 1000);
     return () => { alive = false; clearInterval(interval); };
   }, []);
 
   if (items.length === 0) return null;
 
-  // Duplicate items so the scroll loops seamlessly
+  // Duplicate so the scroll loops seamlessly
   const doubled = [...items, ...items];
+  // Speed: 10s per item so long lists don't fly
+  const duration = Math.max(80, items.length * 10);
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center overflow-hidden"
+      className="w-full overflow-hidden flex items-center select-none"
       style={{
-        background: "rgba(10, 10, 15, 0.96)",
-        borderTop: "1px solid rgba(37, 99, 235, 0.35)",
-        height: "32px",
-        backdropFilter: "blur(8px)",
+        height: "34px",
+        background: "rgba(0,0,0,0.55)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(6px)",
       }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
     >
-      {/* Label */}
+      {/* Label chip */}
       <div
-        className="shrink-0 flex items-center gap-1.5 px-3 text-xs font-bold tracking-widest"
-        style={{ color: "#ef4444", borderRight: "1px solid rgba(255,255,255,0.1)", height: "100%" }}
+        className="shrink-0 flex items-center gap-1.5 px-3 h-full"
+        style={{
+          borderRight: "1px solid rgba(255,255,255,0.1)",
+          color: "#ef4444",
+          fontSize: "10px",
+          fontWeight: 800,
+          letterSpacing: "0.15em",
+        }}
       >
         <span
-          className="inline-block w-2 h-2 rounded-full bg-red-500"
-          style={{ animation: "pulse 1.4s ease-in-out infinite" }}
+          style={{
+            display: "inline-block",
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "#ef4444",
+            animation: "nt-pulse 1.4s ease-in-out infinite",
+          }}
         />
         LIVE
       </div>
 
       {/* Scrolling track */}
-      <div
-        className="flex-1 overflow-hidden relative"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
+      <div className="flex-1 overflow-hidden relative">
         <div
-          ref={tickerRef}
-          className="flex items-center whitespace-nowrap"
           style={{
-            animation: paused
-              ? "none"
-              : `ticker ${Math.max(60, items.length * 8)}s linear infinite`,
-            gap: 0,
+            display: "flex",
+            alignItems: "center",
+            whiteSpace: "nowrap",
+            animation: paused ? "none" : `nt-scroll ${duration}s linear infinite`,
           }}
         >
           {doubled.map((item, i) => (
-            <span key={`${item.id}-${i}`} className="inline-flex items-center">
+            <span
+              key={`${item.id}-${i}`}
+              style={{ display: "inline-flex", alignItems: "center" }}
+            >
               {item.category && (
                 <span
-                  className="inline-block text-xs font-bold mr-1.5 ml-6"
-                  style={{ color: "#2563eb" }}
+                  style={{
+                    color: "#3b82f6",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    marginRight: 5,
+                    marginLeft: 22,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
                 >
-                  {item.category.toUpperCase()}
+                  {item.category}
                 </span>
               )}
+              {!item.category && <span style={{ marginLeft: 22 }} />}
               {item.url ? (
                 <a
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs hover:text-blue-400 transition-colors"
-                  style={{ color: "rgba(255,255,255,0.88)" }}
+                  style={{
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: "12px",
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#60a5fa")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.85)")}
                 >
                   {item.title}
                 </a>
               ) : (
-                <span className="text-xs" style={{ color: "rgba(255,255,255,0.88)" }}>
+                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px" }}>
                   {item.title}
                 </span>
               )}
-              <span className="mx-4 text-white/20 select-none">·</span>
+              <span style={{ margin: "0 10px", color: "rgba(255,255,255,0.18)", fontSize: 10 }}>
+                ◆
+              </span>
             </span>
           ))}
         </div>
       </div>
 
       <style>{`
-        @keyframes ticker {
+        @keyframes nt-scroll {
           0%   { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        @keyframes pulse {
+        @keyframes nt-pulse {
           0%, 100% { opacity: 1; }
-          50%        { opacity: 0.3; }
+          50%       { opacity: 0.25; }
         }
       `}</style>
     </div>

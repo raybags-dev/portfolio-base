@@ -143,12 +143,16 @@ export default function SchedulerPage() {
         {jobs.map((j: any) => (
           <div
             key={j.id}
-            className="flex items-center justify-between rounded-theme bg-surface border border-white/10 px-4 py-3 text-sm"
+            className="rounded-theme bg-surface border border-white/10 px-4 py-3 text-sm"
           >
+            <div className="flex items-center justify-between">
             <div>
               <span className="font-medium">{j.name}</span>{" "}
               <span className="text-muted">
-                · {j.task} · every {j.interval_seconds ?? j.cron}s · {j.status}
+                · {j.task} · every {j.interval_seconds ?? j.cron}s ·{" "}
+                <span className={j.status === "failed" ? "text-red-400 font-semibold" : j.status === "running" ? "text-amber-400" : "text-green-400/80"}>
+                  {j.status}
+                </span>
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -167,6 +171,12 @@ export default function SchedulerPage() {
                 {j.is_enabled ? "Enabled" : "Disabled"}
               </button>
             </div>
+            </div>
+            {j.last_error && (
+              <p className="mt-1.5 text-xs text-red-400/80 font-mono break-all leading-relaxed">
+                ✕ {j.last_error.slice(0, 300)}
+              </p>
+            )}
           </div>
         ))}
         {jobs.length === 0 && <p className="text-muted text-sm">No scheduled jobs yet.</p>}
