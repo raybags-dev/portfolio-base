@@ -48,4 +48,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.universal_extractor.router import spec as ude_spec
     specs.append(ude_spec)
 
+    from app.modules.news.router import spec as news_spec
+    specs.append(news_spec)
+
     return specs

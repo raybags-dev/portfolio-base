@@ -630,6 +630,9 @@ export const generateUDESummary = (sessionId: number) =>
 export const generateUDEBlog = (sessionId: number) =>
   request<{ id: number; title: string; slug: string }>(`/universal-extractor/sessions/${sessionId}/generate-blog`, { method: "POST" });
 
+export const getUDEReportPdfUrl = (sessionId: number) =>
+  `${V1}/universal-extractor/sessions/${sessionId}/report.pdf`;
+
 export const getUDEStorageStats = () =>
   request<{ s3_blob_count: number; mongodb_doc_count: number; postgres_session_count: number }>("/universal-extractor/storage/stats");
 
@@ -684,3 +687,24 @@ export const listIpUsage = (token: string) =>
 
 export const deleteIpUsage = (token: string, id: number) =>
   request<void>(`/access-tokens/ip-usage/${id}`, { method: "DELETE", token });
+
+// ---- news feed (public) ----
+export interface NewsItem {
+  id: number;
+  title: string;
+  url: string | null;
+  description: string | null;
+  image_url: string | null;
+  source: string;
+  category: string | null;
+  author: string | null;
+  published_at: string | null;
+  is_breaking: boolean;
+  extracted_at: string | null;
+}
+
+export const getNewsFeed = (limit = 60, source?: string) =>
+  request<NewsItem[]>(`/news/feed?limit=${limit}${source ? `&source=${source}` : ""}`);
+
+export const triggerNewsExtract = (token: string) =>
+  request<{ inserted: number; skipped: number; total_crawled: number }>("/news/extract", { method: "POST", token });

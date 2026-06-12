@@ -53,3 +53,35 @@ async def _run_agent_workflow(db: AsyncSession, args: dict[str, Any]) -> dict[st
     return await AgentService.run(
         db, args["workflow"], args.get("input", {}), title=args.get("title")
     )
+
+
+@register_task("news.extract_cnn")
+async def _extract_cnn_news(db: AsyncSession, args: dict[str, Any]) -> dict[str, Any]:
+    from app.modules.news.service import extract_and_store
+
+    return await extract_and_store(
+        db,
+        source_url=args.get("url", "https://edition.cnn.com/"),
+        max_records=int(args.get("max_records", 80)),
+        source_name=args.get("source", "CNN"),
+    )
+
+
+@register_task("ude.extract")
+async def _ude_extract(db: AsyncSession, args: dict[str, Any]) -> dict[str, Any]:
+    """Generic UDE extraction task — create a session and run it."""
+    from app.models.platform import UDESession
+    from app.modules.universal_extractor.service import run_session
+
+    session = UDESession(
+        name=args.get("name", f"Scheduled: {args.get('source_url', '')[:40]}"),
+        source_url=args["source_url"],
+        source_type=args.get("source_type", "auto"),
+        extraction_prompt=args.get("extraction_prompt", "Extract all available data"),
+        max_records=int(args.get("max_records", 200)),
+        status="pending",
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+    return await run_session(db, session.id)

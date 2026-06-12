@@ -257,6 +257,10 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         session.source_type_detected = detected_type
         session.schema_detected = schema
         session.status = "done"
+        # For paste/text, replace the raw blob with a clean label so blog gen,
+        # API responses, and MongoDB don't carry 2MB strings.
+        if session.source_type == "text" and not (session.source_url or "").startswith("["):
+            session.source_url = f"[inline:{records_added}records]"
 
         progress = dict(session.progress or {})
         progress["records_collected"] = records_added
