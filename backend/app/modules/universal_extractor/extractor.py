@@ -3,7 +3,8 @@
 Pipeline:
   1. Detect source type from URL / content
   2. Extract raw records via the appropriate strategy
-  3. LLM-assisted schema normalization
+  3. Flatten nested objects in every record
+  4. LLM-assisted schema normalization
 """
 
 from __future__ import annotations
@@ -21,11 +22,83 @@ from app.modules.agents.llm import LLMProvider
 
 _Callback = Callable[[str], Awaitable[None]] | None
 
+# Maximum nesting depth to unpack — prevents explosive key counts on
+# deeply recursive structures (e.g. graph APIs).
+_FLATTEN_MAX_DEPTH = 5
+# Max list items expanded inline; longer lists become a compact JSON string.
+_FLATTEN_LIST_EXPAND = 8
+
+
+# ── Nested object flattening ─────────────────────────────────────────────────
+
+def _flatten_record(
+    obj: Any,
+    prefix: str = "",
+    sep: str = "_",
+    _depth: int = 0,
+) -> dict[str, Any]:
+    """Recursively flatten a nested dict/list into a single-level dict.
+
+    Rules:
+    - Nested dicts → keys joined with `sep` (e.g. ``address_city``).
+    - Short lists of primitives → semicolon-joined string.
+    - Short lists of dicts → flattened with numeric indices
+      (e.g. ``tags_0_name``, ``tags_1_name``).
+    - Anything beyond _FLATTEN_MAX_DEPTH → serialised as a JSON string.
+    """
+    out: dict[str, Any] = {}
+
+    if _depth >= _FLATTEN_MAX_DEPTH:
+        if prefix:
+            out[prefix] = (
+                json.dumps(obj, default=str, ensure_ascii=False)
+                if not isinstance(obj, str) else obj
+            )
+        return out
+
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            # Sanitise key: keep alphanumerics and underscores only
+            safe_k = re.sub(r"[^a-zA-Z0-9]", sep, str(k)).strip(sep) or f"f{k}"
+            full_key = f"{prefix}{sep}{safe_k}" if prefix else safe_k
+            if isinstance(v, (dict, list)):
+                out.update(_flatten_record(v, full_key, sep, _depth + 1))
+            else:
+                out[full_key] = v
+
+    elif isinstance(obj, list):
+        if not obj:
+            if prefix:
+                out[prefix] = None
+        elif len(obj) <= _FLATTEN_LIST_EXPAND and all(
+            isinstance(v, (str, int, float, bool, type(None))) for v in obj
+        ):
+            # Short primitive list → join
+            out[prefix] = "; ".join(str(v) for v in obj if v is not None)
+        elif len(obj) <= _FLATTEN_LIST_EXPAND and all(isinstance(v, dict) for v in obj):
+            # Short list of dicts → expand with index
+            for i, v in enumerate(obj):
+                full_key = f"{prefix}{sep}{i}" if prefix else str(i)
+                out.update(_flatten_record(v, full_key, sep, _depth + 1))
+        else:
+            # Long or heterogeneous list → compact JSON string
+            if prefix:
+                out[prefix] = json.dumps(obj, default=str, ensure_ascii=False)
+
+    else:
+        if prefix:
+            out[prefix] = obj
+
+    return out
+
+
+def _flatten_records(records: list[dict]) -> list[dict]:
+    return [_flatten_record(r) for r in records]
+
 
 # ── Source detection ─────────────────────────────────────────────────────────
 
 def detect_source_type(source_url: str, content_type: str = "") -> str:
-    """Infer source type from URL and content-type header."""
     url = source_url.lower().strip()
     if url.startswith("kaggle://"):
         return "kaggle"
@@ -44,42 +117,42 @@ def detect_source_type(source_url: str, content_type: str = "") -> str:
     return "text"
 
 
-# ── Extraction strategies ─────────────────────────────────────────────────────
+# ── JSON parsing helpers ─────────────────────────────────────────────────────
 
-async def _extract_kaggle(ref: str, on_progress: _Callback, max_records: int) -> list[dict]:
-    from app.modules.shared.kaggle import download_and_parse
-    if on_progress:
-        await on_progress(f"Downloading Kaggle dataset '{ref}'…")
-    return await download_and_parse(ref.replace("kaggle://", ""), max_rows=max_records)
+def _unwrap_json(data: Any) -> list[Any]:
+    """Return the most-record-rich list from an arbitrary JSON value."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        # Prefer whichever top-level value is a non-empty list of dicts
+        candidates = [
+            (k, v) for k, v in data.items()
+            if isinstance(v, list) and v
+        ]
+        if candidates:
+            # Pick the longest list
+            best_key, best_list = max(candidates, key=lambda kv: len(kv[1]))
+            return best_list
+        # Single-object response → wrap in list
+        return [data]
+    return []
 
 
 def _parse_json_records(text: str, max_records: int) -> list[dict]:
-    """Extract a list of dicts from a JSON response, handling nested structures."""
+    """Parse JSON text into a flat list of dicts, unpacking all nested objects."""
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
         return []
 
-    if isinstance(data, list):
-        rows = data
-    elif isinstance(data, dict):
-        # Look for a top-level array value
-        for v in data.values():
-            if isinstance(v, list) and v and isinstance(v[0], dict):
-                rows = v
-                break
-        else:
-            rows = [data]
-    else:
-        return []
-
-    flat: list[dict] = []
+    rows = _unwrap_json(data)
+    records: list[dict] = []
     for item in rows[:max_records]:
         if isinstance(item, dict):
-            flat.append(item)
-        else:
-            flat.append({"value": item})
-    return flat
+            records.append(_flatten_record(item))
+        elif item is not None:
+            records.append({"value": item})
+    return records
 
 
 def _parse_csv_text(text: str, max_records: int) -> list[dict]:
@@ -93,7 +166,13 @@ def _parse_xml_text(text: str, max_records: int) -> list[dict]:
         root = ET.fromstring(text)
         records = []
         for child in root:
-            row = {sub.tag: (sub.text or "").strip() for sub in child}
+            row: dict[str, str] = {}
+            for sub in child:
+                # Expand attributes of each sub-element too
+                text_val = (sub.text or "").strip()
+                row[sub.tag] = text_val
+                for attr_k, attr_v in sub.attrib.items():
+                    row[f"{sub.tag}_{attr_k}"] = attr_v
             if row:
                 records.append(row)
             if len(records) >= max_records:
@@ -102,6 +181,8 @@ def _parse_xml_text(text: str, max_records: int) -> list[dict]:
     except Exception:
         return [{"raw_xml": text[:500]}]
 
+
+# ── API / HTTP extraction ─────────────────────────────────────────────────────
 
 async def _extract_api(
     url: str,
@@ -136,15 +217,15 @@ async def _extract_api(
     return detected, records
 
 
+# ── S3 upload helper ─────────────────────────────────────────────────────────
+
 async def _save_raw_html_to_s3(url: str, html: str, label: str = "html") -> str | None:
-    """Upload raw HTML to S3. Returns key or None if S3 not configured."""
     try:
         import hashlib
 
         from app.core.storage_s3 import is_configured, upload_blob
         if not is_configured():
             return None
-        # Use a stable key based on URL hash
         url_hash = hashlib.sha1(url.encode()).hexdigest()[:12]
         key = f"ude/raw/{label}_{url_hash}.html"
         await upload_blob(key, html, content_type="text/html; charset=utf-8")
@@ -153,18 +234,17 @@ async def _save_raw_html_to_s3(url: str, html: str, label: str = "html") -> str 
         return None
 
 
+# ── Static HTML extraction ───────────────────────────────────────────────────
+
 async def _extract_html_static(url: str, on_progress: _Callback, max_records: int) -> list[dict]:
     """Comprehensive HTML extraction using BeautifulSoup.
 
     Strategy:
     1. Save raw HTML to S3.
-    2. Try JSON-LD embedded structured data.
+    2. Try JSON-LD embedded structured data (flatten nested objects).
     3. Try embedded JS state blobs.
     4. Try HTML tables.
-    5. Comprehensive DOM walk: extract every text-bearing element
-       (div/span/p/a/li/td/th/h1–h6/button/label/option) excluding SVG subtrees.
-       Group sibling leaf-nodes together to form pseudo-records, then pass the
-       stringified blob to the LLM for schematisation.
+    5. Comprehensive DOM walk: group sibling leaf-nodes into pseudo-records.
     """
     import asyncio
 
@@ -176,8 +256,6 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
         resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
     raw_html = resp.text
-
-    # Save raw HTML blob to S3 in background
     asyncio.ensure_future(_save_raw_html_to_s3(url, raw_html))
 
     soup = BeautifulSoup(raw_html, "lxml")
@@ -186,24 +264,31 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
     for tag in soup.find_all("script", {"type": "application/ld+json"}):
         try:
             data = json.loads(tag.string or "")
-            if isinstance(data, list) and data:
-                return data[:max_records]
-            if isinstance(data, dict) and "@type" in data:
-                items = data.get("itemListElement") or data.get("about") or []
-                if items:
-                    return [i for i in items if isinstance(i, dict)][:max_records]
+            rows = _unwrap_json(data)
+            if not rows:
+                continue
+            records = [_flatten_record(r) for r in rows[:max_records] if isinstance(r, dict)]
+            if records:
+                if on_progress:
+                    await on_progress(f"JSON-LD: extracted {len(records)} records.")
+                return records
         except Exception:
             pass
 
     # ── 2. Embedded JS state blobs ─────────────────────────────────────────
     for tag in soup.find_all("script"):
         src = tag.string or ""
-        m = re.search(r"window\.__(?:INITIAL|PRELOADED|NUXT)_?STATE__\s*=\s*({.+?});?\s*\n", src, re.S)
+        m = re.search(
+            r"window\.__(?:INITIAL|PRELOADED|NUXT|APP)_?(?:STATE|DATA)__\s*=\s*({.+?});?\s*\n",
+            src, re.S,
+        )
         if m:
             try:
                 state = json.loads(m.group(1))
                 records = _parse_json_records(json.dumps(state), max_records)
                 if records:
+                    if on_progress:
+                        await on_progress(f"JS state blob: extracted {len(records)} records.")
                     return records
             except Exception:
                 pass
@@ -214,39 +299,51 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
         best_table = max(tables, key=lambda t: len(t.find_all("tr")))
         headers_row = best_table.find("tr")
         if headers_row:
-            cols = [th.get_text(strip=True) or f"col_{i}" for i, th in enumerate(headers_row.find_all(["th", "td"]))]
+            cols = [
+                th.get_text(strip=True) or f"col_{i}"
+                for i, th in enumerate(headers_row.find_all(["th", "td"]))
+            ]
             rows = best_table.find_all("tr")[1:]
             records = []
             for row in rows[:max_records]:
                 cells = row.find_all(["td", "th"])
-                records.append({cols[i]: c.get_text(strip=True) for i, c in enumerate(cells) if i < len(cols)})
+                rec = {cols[i]: c.get_text(strip=True) for i, c in enumerate(cells) if i < len(cols)}
+                if rec:
+                    records.append(rec)
             if records:
+                if on_progress:
+                    await on_progress(f"HTML table: extracted {len(records)} records.")
                 return records
 
-    # ── 4. Comprehensive DOM walk — extract every text-bearing element ─────
-    # Remove noise: script, style, noscript, svg, header, footer, nav, aside
-    for tag in soup.find_all(["script", "style", "noscript", "svg", "header", "footer", "nav", "aside", "meta", "link"]):
+    # ── 4. Comprehensive DOM walk ─────────────────────────────────────────
+    for tag in soup.find_all([
+        "script", "style", "noscript", "svg",
+        "header", "footer", "nav", "aside", "meta", "link",
+    ]):
         tag.decompose()
 
-    # Collect ALL text nodes from relevant elements
-    EXTRACT_TAGS = {"div", "span", "p", "a", "li", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6",
-                    "button", "label", "option", "dt", "dd", "strong", "em", "b", "i", "caption"}
+    EXTRACT_TAGS = {
+        "div", "span", "p", "a", "li", "td", "th",
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "button", "label", "option", "dt", "dd",
+        "strong", "em", "b", "i", "caption", "time", "data",
+    }
 
     def _get_leaf_text(el: Any) -> str:
-        """Return text only if element has no meaningful child elements (leaf node)."""
-        children_tags = [c for c in el.children if hasattr(c, "name") and c.name]
-        # If all children are inline elements (span, a, strong, em, b, i), still extract
         inline = {"span", "a", "strong", "em", "b", "i", "abbr", "code", "small", "time"}
+        children_tags = [c for c in el.children if hasattr(c, "name") and c.name]
         if any(c.name not in inline for c in children_tags):
             return ""
         return el.get_text(separator=" ", strip=True)
 
-    # Group elements by their top-level semantic container (article, section, main, or a large div)
-    # to create pseudo-records
-    containers = soup.find_all(["article", "section", "main", "[class*='card']", "[class*='item']",
-                                 "[class*='row']", "[class*='result']", "[class*='listing']"])
+    containers = soup.find_all([
+        "article", "section", "main",
+        "[class*='card']", "[class*='item']",
+        "[class*='row']", "[class*='result']",
+        "[class*='listing']", "[class*='product']",
+        "[class*='entry']", "[class*='post']",
+    ])
     if not containers:
-        # Fallback: use top-level divs with many children
         containers = [c for c in soup.find_all("div", recursive=False) if len(c.find_all()) >= 3]
     if not containers:
         containers = [soup.body or soup]
@@ -254,8 +351,8 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
     records: list[dict] = []
     seen_texts: set[str] = set()
 
-    for container in containers[:max_records * 3]:
-        row: dict[str, str] = {}
+    for container in containers[: max_records * 3]:
+        row: dict[str, Any] = {}
         texts_found: list[str] = []
 
         for el in container.find_all(list(EXTRACT_TAGS)):
@@ -267,13 +364,11 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
             seen_texts.add(t)
             texts_found.append(t)
             tag_name = el.name or "text"
-            # Use element's id, class hint or tag for key naming
             key_hint = (
                 el.get("id")
                 or (el.get("class") or [""])[0].replace("-", "_").lower()[:30]
                 or tag_name
             )
-            # De-collision key
             base_key = re.sub(r"[^a-z0-9_]", "_", key_hint.lower())[:30] or tag_name
             key = base_key
             counter = 1
@@ -282,13 +377,16 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
                 counter += 1
             row[key] = t
 
-            # Also extract href from anchors
             if el.name == "a":
                 href = el.get("href", "")
                 if href and href.startswith("http"):
                     row[f"{key}_href"] = href
+            if el.name == "img":
+                src = el.get("src") or el.get("data-src") or ""
+                if src:
+                    row[f"{key}_src"] = src
 
-        if texts_found and len(texts_found) >= 1:
+        if texts_found:
             records.append(row)
         if len(records) >= max_records:
             break
@@ -296,10 +394,11 @@ async def _extract_html_static(url: str, on_progress: _Callback, max_records: in
     if records:
         return records
 
-    # Ultimate fallback: paragraphs as text records
     paras = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 30]
     return [{"text": p} for p in paras[:max_records]] if paras else []
 
+
+# ── Playwright extraction ─────────────────────────────────────────────────────
 
 async def _extract_html_playwright(
     url: str,
@@ -308,10 +407,6 @@ async def _extract_html_playwright(
     max_records: int,
     max_pages: int,
 ) -> list[dict]:
-    """Use the existing CrawlEngine (Playwright + LLM) for JS-heavy pages.
-
-    After loading the page, saves the raw HTML blob to S3 before extraction.
-    """
     import asyncio as _asyncio
 
     from app.modules.agents.llm import get_provider
@@ -328,24 +423,32 @@ async def _extract_html_playwright(
 
     async def _on_prog(msg: str) -> None:
         nonlocal _raw_html_saved
-        # When Playwright loads the first page, save its raw HTML to S3
         if not _raw_html_saved and "Loading" in msg:
             _asyncio.ensure_future(_save_raw_html_to_s3(url, "", label="playwright"))
             _raw_html_saved = True
         if on_progress:
             await on_progress(msg)
 
-    await engine.run(url, extraction_prompt, on_record=on_record, on_progress=_on_prog)
-    return records
+    await engine.run(
+        url,
+        extraction_prompt,
+        on_record=on_record,
+        on_progress=_on_prog,
+        max_items_per_page=max_records,
+    )
+    # Playwright records are already flat (JS extraction returns flat dicts);
+    # run flatten anyway to handle any nested values returned by LLM fallback.
+    return _flatten_records(records)
 
 
 # ── LLM schema normalization ─────────────────────────────────────────────────
 
 _NORMALIZE_SYSTEM = """You are a data normalisation expert.
-Given sample records from a data source, propose a unified JSON schema that captures the key fields.
-Return ONLY a JSON object with keys being the normalised field names (snake_case) and values being
-the source field name(s) that map to it, or null if the field must be derived.
-Example: {"title": "name", "price": ["cost","price","amount"], "location": "city", "date": "created_at"}
+Given sample records from a data source (already flattened), propose a unified JSON schema
+that captures the key fields. Return ONLY a JSON object with keys being the normalised field
+names (snake_case) and values being the source field name(s) that map to it, or null if
+the field must be derived.
+Example: {"title": "name", "price": ["cost","price","amount"], "location": "city"}
 """
 
 
@@ -354,11 +457,10 @@ async def normalize_schema(
     extraction_prompt: str,
     provider: LLMProvider,
 ) -> dict[str, Any]:
-    """Ask the LLM to propose a unified schema for the sample records."""
     sample_text = json.dumps(sample_records[:5], indent=2, default=str)
     prompt = (
         f"User wants to extract: {extraction_prompt}\n\n"
-        f"Sample records:\n{sample_text}\n\n"
+        f"Sample records (already flattened — nested keys use underscores):\n{sample_text}\n\n"
         "Propose a unified schema mapping."
     )
     try:
@@ -369,7 +471,12 @@ async def normalize_schema(
 
 
 def apply_schema(records: list[dict], schema: dict[str, Any]) -> list[dict]:
-    """Apply the proposed schema to all records, copying unmapped fields to metadata."""
+    """Map records to the normalised schema.
+
+    For each schema field, try each candidate source key including underscore
+    and dot variants. Leftover fields are merged into the record directly
+    (not buried under a ``metadata`` sub-dict) so no information is lost.
+    """
     if not schema:
         return records
 
@@ -383,15 +490,31 @@ def apply_schema(records: list[dict], schema: dict[str, Any]) -> list[dict]:
                 continue
             candidates = [src] if isinstance(src, str) else (src if isinstance(src, list) else [])
             for c in candidates:
+                # Direct lookup
                 if c in raw:
                     row[norm_key] = raw[c]
                     used_keys.add(c)
                     break
+                # Underscore variant (flattened "a.b" → "a_b")
+                c_us = re.sub(r"[.\-/]", "_", c)
+                if c_us in raw:
+                    row[norm_key] = raw[c_us]
+                    used_keys.add(c_us)
+                    break
+                # Case-insensitive fallback
+                c_lower = c.lower()
+                for raw_k in raw:
+                    if raw_k.lower() == c_lower:
+                        row[norm_key] = raw[raw_k]
+                        used_keys.add(raw_k)
+                        break
+                if norm_key in row:
+                    break
 
-        # Remaining raw fields → metadata
-        leftover = {k: v for k, v in raw.items() if k not in used_keys}
-        if leftover:
-            row.setdefault("metadata", leftover)
+        # Merge leftover fields at the top level so no information is lost.
+        for k, v in raw.items():
+            if k not in used_keys and k not in row:
+                row[k] = v
 
         normalised.append(row)
     return normalised
@@ -424,29 +547,36 @@ async def extract(
     """Main entrypoint.
 
     Returns (detected_type, raw_records, schema_mapping).
+    raw_records are always flat dicts (nested objects unpacked).
     """
     cfg = source_config or {}
     headers = cfg.get("headers", {})
 
-    # ── Determine detected type ───
     if source_type == "auto":
         detected = detect_source_type(source_url)
     else:
         detected = source_type
 
-    # ── Extract raw records ───────
     raw: list[dict] = []
 
     if detected == "kaggle":
-        raw = await _extract_kaggle(source_url, on_progress, max_records)
+        from app.modules.shared.kaggle import download_and_parse
+        if on_progress:
+            await on_progress(f"Downloading Kaggle dataset '{source_url}'…")
+        raw = await download_and_parse(
+            source_url.replace("kaggle://", ""), max_rows=max_records
+        )
+        raw = _flatten_records(raw)
 
     elif detected in ("api", "json", "csv", "xml"):
         detected, raw = await _extract_api(source_url, headers, on_progress, max_records)
 
     elif detected == "text":
-        # Inline text content passed as source_url
         text = source_url
-        raw = _parse_json_records(text, max_records) or _parse_csv_text(text, max_records)
+        raw = (
+            _parse_json_records(text, max_records)
+            or _parse_csv_text(text, max_records)
+        )
         if on_progress:
             await on_progress(f"Parsed {len(raw)} records from inline text.")
 
@@ -469,9 +599,10 @@ async def extract(
         return detected, [], {}
 
     if on_progress:
-        await on_progress(f"{len(raw)} raw records extracted. Running LLM schema normalisation…")
+        await on_progress(
+            f"{len(raw)} raw records extracted. Running LLM schema normalisation…"
+        )
 
-    # ── LLM schema mapping ────────
     schema: dict = {}
     if provider is not None:
         schema = await normalize_schema(raw, extraction_prompt, provider)
