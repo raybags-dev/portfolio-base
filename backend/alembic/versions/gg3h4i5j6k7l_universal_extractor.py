@@ -136,8 +136,8 @@ def upgrade() -> None:
         """))
     else:
         conn.execute(sa.text(
-            "UPDATE projects SET status = 'published', service_key = 'universal-extractor', "
-            "base_url = '/universal-extractor' WHERE slug = 'universal-data-extractor'"
+            "UPDATE projects SET status = 'published', service_key = 'universal-extractor' "
+            "WHERE slug = 'universal-data-extractor'"
         ))
 
     # ── Project card: Real-Time Stream Pipeline ───────────────────────────────
