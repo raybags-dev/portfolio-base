@@ -55,3 +55,7 @@ pymongo[srv]==3.12.3
 
 # --- S3 blob storage (UDE raw extraction blobs) ---
 boto3==1.35.90
+
+# --- PDF report generation (UDE analytics export) ---
+reportlab==4.2.5
+matplotlib==3.10.0

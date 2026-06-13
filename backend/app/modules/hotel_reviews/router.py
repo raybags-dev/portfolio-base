@@ -35,6 +35,13 @@ router = APIRouter(
 )
 
 
+class CurlImportIn(BaseModel):
+    curl_command: str
+    page_count: int = 5
+    collection_prompt: str
+    name: str | None = None
+
+
 class SessionCreate(BaseModel):
     name: str
     target_url: str
@@ -382,6 +389,56 @@ async def generate_summary(session_id: int, db: DbSession):
     session.analytics_result = analytics
     await db.commit()
     return {"summary": summary_text}
+
+
+# ── cURL Import ───────────────────────────────────────────────────────────────
+
+@router.post("/curl-import", status_code=status.HTTP_201_CREATED)
+async def curl_import(
+    payload: CurlImportIn,
+    db: DbSession,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """Parse a cURL command, fetch paginated API data, run analytics."""
+    from app.modules.hotel_reviews.curl_importer import parse_curl
+
+    try:
+        parsed = parse_curl(payload.curl_command)
+        extracted_url = parsed.get("url", "curl://unknown")
+    except Exception:
+        extracted_url = "curl://unknown"
+
+    session = HotelCrawlSession(
+        name=payload.name or "cURL Import",
+        target_url=f"curl://{extracted_url}",
+        collection_prompt=payload.collection_prompt,
+        analytics_spec={
+            "curl_command": payload.curl_command,
+            "page_count": payload.page_count,
+            "source": "curl",
+        },
+        max_pages=payload.page_count,
+        client_ip=_client_ip(request),
+        is_guest=True,
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    background_tasks.add_task(_run_curl_in_background, session.id)
+    return _session_dict(session)
+
+
+async def _run_curl_in_background(session_id: int) -> None:
+    from app.core.database import SessionLocal
+    from app.modules.hotel_reviews.service import run_curl_import
+
+    async with SessionLocal() as db:
+        try:
+            await run_curl_import(db, session_id)
+        except Exception:
+            pass
 
 
 spec = ModuleSpec(
