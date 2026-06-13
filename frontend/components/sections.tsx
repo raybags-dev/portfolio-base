@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import type { Bootstrap } from "@/lib/types";
+import { AnimatePresence, motion } from "framer-motion";
+import type { Bootstrap, Project } from "@/lib/types";
 import NewsTicker from "@/components/NewsTicker";
 
 // --- shared building blocks ---
@@ -51,6 +51,119 @@ function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-theme bg-surface shadow-card p-5 sm:p-7 border border-white/5">
       {children}
+    </div>
+  );
+}
+
+// --- Project Detail Modal ---
+function ProjectDetailModal({
+  project,
+  launchUrl,
+  onClose,
+}: {
+  project: Project;
+  launchUrl: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <motion.div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        transition={{ type: "spring", stiffness: 340, damping: 30 }}
+        className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-theme bg-surface border border-white/10 shadow-2xl"
+      >
+        {project.cover_image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={project.cover_image_url}
+            alt={project.title}
+            className="w-full h-48 object-cover rounded-t-theme"
+          />
+        )}
+        <div className="p-6 sm:p-8">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-2xl leading-none text-muted hover:text-fg transition-colors"
+            aria-label="Close"
+          >×</button>
+
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <h2 className="font-heading font-bold text-xl">{project.title}</h2>
+            {project.is_featured && (
+              <span className="text-xs rounded-full bg-accent/20 text-accent px-2 py-0.5">Featured</span>
+            )}
+            {project.status && project.status !== "hidden" && (
+              <span className="text-xs rounded-full border border-white/15 px-2 py-0.5 text-muted capitalize">
+                {project.status}
+              </span>
+            )}
+          </div>
+
+          {(project.description || project.summary) && (
+            <p className="text-sm text-muted mb-4 leading-relaxed whitespace-pre-line">
+              {project.description || project.summary}
+            </p>
+          )}
+
+          {project.tech_tags && project.tech_tags.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Built with</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {project.tech_tags.map((t) => (
+                  <span key={t} className="text-xs rounded-full border border-primary/40 text-primary px-2.5 py-0.5">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {project.github_url && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">How to run</h3>
+              <p className="text-sm text-secondary">
+                Clone the repo and follow the README instructions.{" "}
+                <a href={project.github_url} target="_blank" rel="noopener noreferrer"
+                  className="text-primary hover:underline">
+                  View on GitHub ↗
+                </a>
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-white/5">
+            {launchUrl && (
+              <a href={launchUrl} target={launchUrl.startsWith("http") ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                onClick={onClose}
+                className="rounded-theme bg-primary text-white text-sm font-medium px-4 py-2 hover:opacity-90 transition-opacity">
+                {project.service_key ? "Launch ↗" : "Live Demo ↗"}
+              </a>
+            )}
+            {project.github_url && (
+              <a href={project.github_url} target="_blank" rel="noopener noreferrer"
+                className="rounded-theme border border-white/15 text-sm px-4 py-2 hover:bg-white/5 transition-colors">
+                View Code ↗
+              </a>
+            )}
+            {project.demo_url && project.demo_url !== launchUrl && (
+              <a href={project.demo_url} target="_blank" rel="noopener noreferrer"
+                className="rounded-theme border border-white/15 text-sm px-4 py-2 hover:bg-white/5 transition-colors">
+                Demo ↗
+              </a>
+            )}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -299,12 +412,21 @@ const SERVICE_KEY_ROUTES: Record<string, string> = {
 export function Projects({ data }: { data: Bootstrap }) {
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const serviceUrlMap = useMemo(() => {
     const m: Record<string, string> = { ...SERVICE_KEY_ROUTES };
     data.microservices.forEach((s) => { if (s.key && s.base_url) m[s.key] = s.base_url; });
     return m;
   }, [data.microservices]);
+
+  // Auto-close project modal when user scrolls the page body
+  useEffect(() => {
+    if (!selectedProject) return;
+    function onScroll() { setSelectedProject(null); }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [selectedProject]);
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -362,81 +484,96 @@ export function Projects({ data }: { data: Bootstrap }) {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((p, i) => (
-          <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
-            <Card>
-              {p.cover_image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.cover_image_url}
-                  alt={p.title}
-                  className="rounded-theme w-full h-40 object-cover mb-4"
-                />
-              )}
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-heading font-semibold">{p.title}</h3>
-                {p.is_featured && (
-                  <span className="text-xs rounded-full bg-accent/20 text-accent px-2 py-0.5">
-                    Featured
-                  </span>
-                )}
-              </div>
-              {p.summary && <p className="text-sm text-muted mb-3">{p.summary}</p>}
-              {p.tech_tags && p.tech_tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {p.tech_tags.map((t) => (
-                    <span
-                      key={t}
-                      className="text-xs rounded-full border border-white/15 px-2 py-0.5 text-secondary"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="mt-auto pt-4 flex flex-col items-center gap-2">
-                {(() => {
-                  const launchUrl = p.service_key
-                    ? (serviceUrlMap[p.service_key] || null)
-                    : (p.demo_url || null);
-                  const launchLabel = p.service_key ? "Launch ↗" : "Demo ↗";
-                  const btnCls = "w-[72%] block text-center rounded-theme text-sm font-medium py-2.5 transition-opacity";
-                  if (!launchUrl) {
-                    return (
-                      <span className={`${btnCls} border border-white/10 text-muted cursor-not-allowed select-none`}>
-                        Coming soon
+        {filtered.map((p, i) => {
+          const launchUrl = p.service_key
+            ? (serviceUrlMap[p.service_key] || null)
+            : (p.demo_url || null);
+          const launchLabel = p.service_key ? "Launch ↗" : "Demo ↗";
+          const btnCls = "w-[72%] block text-center rounded-theme text-sm font-medium py-2.5 transition-opacity";
+          return (
+            <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
+              <Card>
+                {/* Clickable body — opens detail modal */}
+                <div
+                  className="cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${p.title}`}
+                  onClick={() => setSelectedProject(p)}
+                  onKeyDown={(e) => e.key === "Enter" && setSelectedProject(p)}
+                >
+                  {p.cover_image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.cover_image_url}
+                      alt={p.title}
+                      className="rounded-theme w-full h-40 object-cover mb-4"
+                    />
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-heading font-semibold">{p.title}</h3>
+                    {p.is_featured && (
+                      <span className="text-xs rounded-full bg-accent/20 text-accent px-2 py-0.5">
+                        Featured
                       </span>
-                    );
-                  }
-                  if (launchUrl.startsWith("http")) {
-                    return (
-                      <a href={launchUrl} target="_blank" rel="noopener noreferrer"
-                        className={`${btnCls} bg-primary text-white hover:opacity-90`}>
-                        {launchLabel}
-                      </a>
-                    );
-                  }
-                  return (
-                    <a href={launchUrl}
+                    )}
+                  </div>
+                  {p.summary && <p className="text-sm text-muted mb-3">{p.summary}</p>}
+                  {p.tech_tags && p.tech_tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {p.tech_tags.map((t) => (
+                        <span key={t} className="text-xs rounded-full border border-white/15 px-2 py-0.5 text-secondary">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Buttons — click does NOT open modal */}
+                <div className="mt-auto pt-4 flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  {!launchUrl ? (
+                    <span className={`${btnCls} border border-white/10 text-muted cursor-not-allowed select-none`}>
+                      Coming soon
+                    </span>
+                  ) : launchUrl.startsWith("http") ? (
+                    <a href={launchUrl} target="_blank" rel="noopener noreferrer"
                       className={`${btnCls} bg-primary text-white hover:opacity-90`}>
                       {launchLabel}
                     </a>
-                  );
-                })()}
-                {p.github_url && (
-                  <a href={p.github_url} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-muted hover:text-primary transition-colors">
-                    View code ↗
-                  </a>
-                )}
-              </div>
-            </Card>
-          </Reveal>
-        ))}
+                  ) : (
+                    <a href={launchUrl} className={`${btnCls} bg-primary text-white hover:opacity-90`}>
+                      {launchLabel}
+                    </a>
+                  )}
+                  {p.github_url && (
+                    <a href={p.github_url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-muted hover:text-primary transition-colors">
+                      View code ↗
+                    </a>
+                  )}
+                </div>
+              </Card>
+            </Reveal>
+          );
+        })}
       </div>
       {filtered.length === 0 && (
         <p className="text-muted text-sm">No projects match your search.</p>
       )}
+
+      <AnimatePresence>
+        {selectedProject && (
+          <ProjectDetailModal
+            project={selectedProject}
+            launchUrl={
+              selectedProject.service_key
+                ? (serviceUrlMap[selectedProject.service_key] || null)
+                : (selectedProject.demo_url || null)
+            }
+            onClose={() => setSelectedProject(null)}
+          />
+        )}
+      </AnimatePresence>
     </Section>
   );
 }
