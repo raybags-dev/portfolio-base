@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.models.platform import AlertFired, AlertRule, StreamEvent, StreamTopic
-from app.modules.streams.pipeline import bus, kafka
+from app.modules.streams.pipeline import bus, kafka, redis_publish
 
 log = get_logger("streams.service")
 
@@ -83,8 +83,11 @@ async def publish(
         "ts": now.isoformat(),
     }
 
-    # Fan out to SSE subscribers
+    # Fan out to SSE subscribers (in-process)
     await bus.publish(envelope)
+
+    # Cross-worker fan-out via Redis pub/sub
+    await redis_publish(envelope)
 
     # Bridge to Kafka if configured
     await kafka.produce(topic_name, envelope)
@@ -158,6 +161,26 @@ async def get_events(
             "ts": e.created_at.isoformat() if e.created_at else None,
         }
         for e in rows
+    ]
+
+
+async def get_recent_events(db: AsyncSession, limit: int = 50) -> list[dict]:
+    """Recent events across ALL topics, oldest-first (for SSE history replay)."""
+    rows = (
+        await db.scalars(
+            select(StreamEvent)
+            .order_by(StreamEvent.id.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        {
+            "id": e.id,
+            "topic": e.topic_name,
+            "payload": e.payload,
+            "ts": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in reversed(rows)
     ]
 
 
