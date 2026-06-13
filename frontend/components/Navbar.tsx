@@ -96,25 +96,26 @@ export default function Navbar({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setOpen(false);
-        setExplore(false);
-      }
+      if (e.key === "Escape") { setOpen(false); setExplore(false); }
     }
     function onClick(e: MouseEvent) {
       if (exploreRef.current && !exploreRef.current.contains(e.target as Node)) {
         setExplore(false);
       }
     }
+    function onScrollIntent() { setOpen(false); }
+
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onClick);
-    // iOS-safe scroll lock: position:fixed preserves visual position while
-    // preventing body scroll (overflow:hidden alone doesn't work on iOS Safari).
+
     if (open) {
       const y = window.scrollY;
       document.body.style.position = "fixed";
       document.body.style.width = "100%";
       document.body.style.top = `-${y}px`;
+      // Dismiss drawer when user scrolls (wheel or touch swipe)
+      window.addEventListener("wheel", onScrollIntent, { passive: true });
+      window.addEventListener("touchmove", onScrollIntent, { passive: true });
     } else {
       const top = document.body.style.top;
       document.body.style.position = "";
@@ -122,9 +123,12 @@ export default function Navbar({
       document.body.style.top = "";
       if (top) window.scrollTo(0, -parseInt(top, 10));
     }
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onClick);
+      window.removeEventListener("wheel", onScrollIntent);
+      window.removeEventListener("touchmove", onScrollIntent);
     };
   }, [open]);
 

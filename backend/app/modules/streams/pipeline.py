@@ -1,13 +1,14 @@
 """In-process event bus for real-time SSE delivery + optional Kafka bridge.
 
-The bus is the single source of truth for live events inside this process.
-When ENABLE_KAFKA is true and confluent-kafka is installed, every publish()
-call also fires to the Kafka broker — fully transparent to callers.
-
 Architecture:
-  publisher  →  EventBus.publish()  →  [SSE subscriber queues]
-                                    →  [Kafka topic]  (optional)
-                                    →  [DB persist]   (handled in service.py)
+  publisher  →  EventBus.publish()    →  [SSE subscriber queues (same process)]
+             →  redis_publish()       →  [Redis pub/sub channel (all workers)]
+             →  KafkaBridge.produce() →  [Kafka topic] (optional)
+             →  DB persist            →  (handled in service.py)
+
+When uvicorn runs with --workers N, use redis_subscribe() in SSE endpoints so
+all workers see each other's events.  Falls back to the in-process bus when
+REDIS_URL is not configured.
 """
 
 from __future__ import annotations
@@ -113,3 +114,69 @@ class _KafkaBridge:
 
 
 kafka = _KafkaBridge()
+
+
+# ── Redis pub/sub backbone ────────────────────────────────────────────────────
+# Cross-worker SSE delivery: publish via Redis so all uvicorn workers see it.
+# Falls back to the in-process bus silently when REDIS_URL is not set.
+
+REDIS_CHANNEL = "streams:events"
+_redis_client = None
+
+
+async def _get_redis():
+    """Return a shared redis.asyncio client, or None if REDIS_URL is unset."""
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+    redis_url = os.environ.get("REDIS_URL", "")
+    if not redis_url:
+        return None
+    try:
+        import redis.asyncio as aioredis  # type: ignore[import]
+        _redis_client = aioredis.from_url(redis_url, decode_responses=True)
+        log.info("streams.redis.connected", url=redis_url)
+    except Exception as exc:
+        log.warning("streams.redis.init_failed", error=str(exc))
+    return _redis_client
+
+
+async def redis_publish(envelope: dict) -> None:
+    """Publish an event envelope to the Redis channel (cross-worker fan-out)."""
+    r = await _get_redis()
+    if r is None:
+        return
+    try:
+        await r.publish(REDIS_CHANNEL, json.dumps(envelope, default=str))
+    except Exception as exc:
+        log.warning("streams.redis.publish_failed", error=str(exc))
+
+
+async def redis_subscribe(topic: str | None = None):
+    """Async generator — yields events from Redis pub/sub (visible to all workers).
+    Falls back to the in-process EventBus when Redis is unavailable."""
+    r = await _get_redis()
+    if r is None:
+        log.info("streams.redis.unavailable", reason="REDIS_URL not set — using in-process bus")
+        async for ev in bus.subscribe(topic=topic):
+            yield ev
+        return
+
+    pubsub = r.pubsub()
+    await pubsub.subscribe(REDIS_CHANNEL)
+    try:
+        async for message in pubsub.listen():
+            if message["type"] != "message":
+                continue
+            try:
+                ev = json.loads(message["data"])
+            except Exception:
+                continue
+            if topic is None or ev.get("topic") == topic:
+                yield ev
+    finally:
+        try:
+            await pubsub.unsubscribe(REDIS_CHANNEL)
+            await pubsub.aclose()
+        except Exception:
+            pass

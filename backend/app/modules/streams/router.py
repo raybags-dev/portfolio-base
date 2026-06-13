@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from app.core.deps import DbSession, require_flag
 from app.modules import ModuleSpec
 from app.modules.streams import service
-from app.modules.streams.pipeline import bus
+from app.modules.streams.pipeline import redis_subscribe
 
 FLAG = "ENABLE_STREAM_PIPELINE"
 
@@ -106,16 +106,25 @@ async def publish_event(body: PublishIn, db: DbSession) -> dict:
 
 @router.get("/sse")
 async def sse_stream(
+    db: DbSession,
     topic: str | None = Query(default=None, description="Filter to one topic. Omit for all."),
 ) -> StreamingResponse:
-    """Server-Sent Events stream.  Connect with EventSource('/api/v1/streams/sse')."""
+    """Server-Sent Events stream.  Connect with EventSource('/api/v1/streams/sse').
+
+    History is fetched from the DB (cross-worker safe) then live events come
+    via Redis pub/sub so all uvicorn workers see each other's publishes.
+    """
+    # Fetch history from DB before closing over the session (session may close
+    # once StreamingResponse is returned).
+    if topic:
+        recent = list(reversed(await service.get_events(db, topic, limit=20)))
+    else:
+        recent = await service.get_recent_events(db, limit=20)
 
     async def _generator():
-        # Send buffered recent events so the client isn't blank on connect
-        for ev in bus.history(topic=topic, limit=20):
+        for ev in recent:
             yield f"data: {json.dumps(ev, default=str)}\n\n"
-        # Then stream live events
-        async for ev in bus.subscribe(topic=topic):
+        async for ev in redis_subscribe(topic=topic):
             yield f"data: {json.dumps(ev, default=str)}\n\n"
 
     return StreamingResponse(
@@ -123,7 +132,7 @@ async def sse_stream(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # prevent nginx from buffering SSE
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
     )
