@@ -63,6 +63,9 @@ export default function HotelReviewsPage() {
   const [cookieHints, setCookieHints] = useState("");
   const [paginationType, setPaginationType] = useState<"auto" | "scroll" | "click">("auto");
   const [selectorHintsMap, setSelectorHintsMap] = useState<Record<string, string>>({});
+  const [preActions, setPreActions] = useState<Array<{ action: string; selector: string; value: string; ms: number }>>([]);
+  const [containerSelector, setContainerSelector] = useState("");
+  const [itemSelector, setItemSelector] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -121,6 +124,9 @@ export default function HotelReviewsPage() {
           cookie_hints: cookieHints.trim() || undefined,
           pagination_type: paginationType,
           selector_hints: Object.keys(cleanHints).length ? cleanHints : undefined,
+          pre_actions: preActions.length ? preActions : undefined,
+          container_selector: containerSelector.trim() || undefined,
+          item_selector: itemSelector.trim() || undefined,
         },
         max_pages: maxPages,
         session_contact: contact,
@@ -184,6 +190,7 @@ export default function HotelReviewsPage() {
     setActiveSession(null);
     setUrl(""); setName(""); setPrompt(""); setSubmitting(false); setFormError("");
     setAnalyticsTypes([]); setMaxPages(5); setRatingThreshold(7); setCookieHints("");
+    setPreActions([]); setContainerSelector(""); setItemSelector("");
     setInputMode("crawler");
   }
 
@@ -263,6 +270,9 @@ export default function HotelReviewsPage() {
             cookieHints={cookieHints} setCookieHints={setCookieHints}
             paginationType={paginationType} setPaginationType={setPaginationType}
             selectorHintsMap={selectorHintsMap} setSelectorHintsMap={setSelectorHintsMap}
+            preActions={preActions} setPreActions={setPreActions}
+            containerSelector={containerSelector} setContainerSelector={setContainerSelector}
+            itemSelector={itemSelector} setItemSelector={setItemSelector}
             formError={formError} submitting={submitting}
             handleCrawlerSubmit={handleCrawlerSubmit}
             onKaggleImportStarted={(session) => {
@@ -344,12 +354,16 @@ export default function HotelReviewsPage() {
 
 // ── Configure Step ────────────────────────────────────────────────────────────
 
+type PreAction = { action: string; selector: string; value: string; ms: number };
+
 function ConfigureStep({
   inputMode, setInputMode,
   url, setUrl, name, setName, prompt, setPrompt, maxPages, setMaxPages,
   analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold,
   cookieHints, setCookieHints, paginationType, setPaginationType,
   selectorHintsMap, setSelectorHintsMap,
+  preActions, setPreActions, containerSelector, setContainerSelector,
+  itemSelector, setItemSelector,
   formError, submitting, handleCrawlerSubmit, onKaggleImportStarted, onCurlImportStarted,
 }: {
   inputMode: InputMode; setInputMode: (m: InputMode) => void;
@@ -362,6 +376,9 @@ function ConfigureStep({
   cookieHints: string; setCookieHints: (v: string) => void;
   paginationType: "auto" | "scroll" | "click"; setPaginationType: (v: "auto" | "scroll" | "click") => void;
   selectorHintsMap: Record<string, string>; setSelectorHintsMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  preActions: PreAction[]; setPreActions: React.Dispatch<React.SetStateAction<PreAction[]>>;
+  containerSelector: string; setContainerSelector: (v: string) => void;
+  itemSelector: string; setItemSelector: (v: string) => void;
   formError: string; submitting: boolean;
   handleCrawlerSubmit: (e: React.FormEvent) => void;
   onKaggleImportStarted: (session: CrawlSession) => void;
@@ -403,6 +420,9 @@ function ConfigureStep({
           cookieHints={cookieHints} setCookieHints={setCookieHints}
           paginationType={paginationType} setPaginationType={setPaginationType}
           selectorHintsMap={selectorHintsMap} setSelectorHintsMap={setSelectorHintsMap}
+          preActions={preActions} setPreActions={setPreActions}
+          containerSelector={containerSelector} setContainerSelector={setContainerSelector}
+          itemSelector={itemSelector} setItemSelector={setItemSelector}
           formError={formError} submitting={submitting}
           handleCrawlerSubmit={handleCrawlerSubmit}
           showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
@@ -428,6 +448,8 @@ function CrawlerForm({
   analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold,
   cookieHints, setCookieHints, paginationType, setPaginationType,
   selectorHintsMap, setSelectorHintsMap,
+  preActions, setPreActions, containerSelector, setContainerSelector,
+  itemSelector, setItemSelector,
   formError, submitting, handleCrawlerSubmit, showAdvanced, setShowAdvanced,
 }: {
   url: string; setUrl: (v: string) => void;
@@ -439,6 +461,9 @@ function CrawlerForm({
   cookieHints: string; setCookieHints: (v: string) => void;
   paginationType: "auto" | "scroll" | "click"; setPaginationType: (v: "auto" | "scroll" | "click") => void;
   selectorHintsMap: Record<string, string>; setSelectorHintsMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  preActions: PreAction[]; setPreActions: React.Dispatch<React.SetStateAction<PreAction[]>>;
+  containerSelector: string; setContainerSelector: (v: string) => void;
+  itemSelector: string; setItemSelector: (v: string) => void;
   formError: string; submitting: boolean;
   handleCrawlerSubmit: (e: React.FormEvent) => void;
   showAdvanced: boolean; setShowAdvanced: (v: boolean) => void;
@@ -552,6 +577,76 @@ function CrawlerForm({
                 </div>
               </div>
             )}
+
+            {/* ── Directive mode ── */}
+            <div className="border-t border-white/10 pt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-0.5">Directive mode <span className="text-muted text-xs">(optional — for complex pages)</span></label>
+                <p className="text-xs text-muted mb-3">
+                  Specify a container + item selector to bypass AI-plan extraction.
+                  Optionally add pre-actions (click dropdowns, select values) that run before extraction.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Container selector</label>
+                    <input value={containerSelector} onChange={e => setContainerSelector(e.target.value)}
+                      placeholder=".reviews-list, [data-id='reviews-container']"
+                      className="w-full rounded bg-bg border border-white/15 px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-primary/60" />
+                    <p className="text-xs text-muted/60 mt-0.5">The parent element wrapping all items</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted mb-1">Item selector</label>
+                    <input value={itemSelector} onChange={e => setItemSelector(e.target.value)}
+                      placeholder=".review-card, > div, [data-review]"
+                      className="w-full rounded bg-bg border border-white/15 px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-primary/60" />
+                    <p className="text-xs text-muted/60 mt-0.5">Each individual item inside the container</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-muted mb-2">Pre-actions <span className="text-muted/60">(executed in order before extraction)</span></label>
+                <div className="space-y-1.5">
+                  {preActions.map((a, i) => (
+                    <div key={i} className="flex items-center gap-1.5 flex-wrap">
+                      <select value={a.action}
+                        onChange={e => setPreActions(prev => prev.map((p, pi) => pi === i ? { ...p, action: e.target.value } : p))}
+                        className="rounded bg-bg border border-white/15 px-2 py-1.5 text-xs focus:outline-none focus:border-primary/60">
+                        <option value="click">click</option>
+                        <option value="select">select value</option>
+                        <option value="type">type text</option>
+                        <option value="wait">wait (ms)</option>
+                        <option value="hover">hover</option>
+                        <option value="scroll_to">scroll to</option>
+                      </select>
+                      {a.action !== "wait" && (
+                        <input value={a.selector}
+                          onChange={e => setPreActions(prev => prev.map((p, pi) => pi === i ? { ...p, selector: e.target.value } : p))}
+                          placeholder="CSS selector"
+                          className="flex-1 min-w-0 rounded bg-bg border border-white/15 px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-primary/60" />
+                      )}
+                      {(a.action === "select" || a.action === "type") && (
+                        <input value={a.value}
+                          onChange={e => setPreActions(prev => prev.map((p, pi) => pi === i ? { ...p, value: e.target.value } : p))}
+                          placeholder={a.action === "select" ? "option value" : "text to type"}
+                          className="w-28 rounded bg-bg border border-white/15 px-2 py-1.5 text-xs focus:outline-none focus:border-primary/60" />
+                      )}
+                      <input type="number" value={a.ms} min={0} max={30000}
+                        onChange={e => setPreActions(prev => prev.map((p, pi) => pi === i ? { ...p, ms: Number(e.target.value) } : p))}
+                        className="w-16 rounded bg-bg border border-white/15 px-2 py-1.5 text-xs text-center focus:outline-none focus:border-primary/60"
+                        title="Delay after action (ms)" />
+                      <button type="button" onClick={() => setPreActions(prev => prev.filter((_, pi) => pi !== i))}
+                        className="text-muted hover:text-red-400 text-xs px-1.5 py-1 rounded hover:bg-red-400/10 transition-colors">×</button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button"
+                  onClick={() => setPreActions(prev => [...prev, { action: "click", selector: "", value: "", ms: 800 }])}
+                  className="mt-2 text-xs text-primary/80 hover:text-primary border border-dashed border-primary/30 hover:border-primary/60 rounded px-3 py-1.5 transition-colors">
+                  + Add action
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
