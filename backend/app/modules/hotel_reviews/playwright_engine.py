@@ -329,6 +329,10 @@ class CrawlEngine:
         selector_hints: dict[str, str] | None = None,
         pagination_type: str = "auto",
         max_items_per_page: int = 150,
+        pre_actions: list[dict[str, Any]] | None = None,
+        container_selector: str | None = None,
+        item_selector: str | None = None,
+        field_map: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run the crawl. Returns list of extracted records."""
         try:
@@ -378,6 +382,70 @@ class CrawlEngine:
                     await on_progress(
                         "WARNING: Could not dismiss cookie banner automatically."
                     )
+
+                # Execute user-specified pre-actions before any extraction
+                if pre_actions:
+                    await self._execute_pre_actions(page, pre_actions, on_progress)
+
+                # When the user specifies a container + item selector, skip the LLM
+                # plan entirely and go straight to deterministic DOM extraction.
+                if container_selector and item_selector:
+                    if on_progress:
+                        await on_progress(
+                            f"Directive mode: container={container_selector!r} "
+                            f"item={item_selector!r}"
+                        )
+                    for page_num in range(self.max_pages):
+                        url = page.url
+                        if on_progress:
+                            await on_progress(f"Extracting page {page_num + 1}: {url}")
+
+                        page_records = await self._extract_with_container(
+                            page, container_selector, item_selector,
+                            field_map or {}, url, max_items=max_items_per_page,
+                        )
+                        if on_progress:
+                            await on_progress(
+                                f"Container extraction: {len(page_records)} items"
+                            )
+
+                        new_count = 0
+                        for rec in page_records:
+                            key = _record_key(rec)
+                            if key in seen_keys:
+                                continue
+                            seen_keys.add(key)
+                            records.append(rec)
+                            new_count += 1
+                            if on_record:
+                                await on_record(rec, url)
+
+                        if on_progress:
+                            await on_progress(
+                                f"Page {page_num + 1}: {new_count} new records "
+                                f"(total: {len(records)})"
+                            )
+
+                        if not page_records:
+                            if on_progress:
+                                await on_progress("No records found in container — stopping.")
+                            break
+
+                        if page_num < self.max_pages - 1:
+                            html = await page.content()
+                            # Reuse LLM next-page navigation for pagination
+                            tmp_plan = {"next_page_selector": None, "pagination_hint": pagination_type}
+                            navigated = await self._go_next(
+                                page, html, tmp_plan, pagination_type=pagination_type
+                            )
+                            if not navigated:
+                                if on_progress:
+                                    await on_progress("No next page — directive crawl complete")
+                                break
+                            await asyncio.sleep(2)
+
+                    # Skip the rest of the standard crawl loop below
+                    return records  # type: ignore[return-value]
 
                 plan = await self._get_extraction_plan(
                     await page.content(), start_url, collection_prompt
@@ -463,6 +531,177 @@ class CrawlEngine:
                 await browser.close()
 
         return records
+
+    async def _execute_pre_actions(
+        self,
+        page: Any,
+        actions: list[dict[str, Any]],
+        on_progress: Any = None,
+    ) -> None:
+        """Execute a list of user-specified page interaction steps before extraction."""
+        for idx, action in enumerate(actions):
+            act      = str(action.get("action", "")).lower().strip()
+            selector = str(action.get("selector", "")).strip()
+            value    = str(action.get("value", "")).strip()
+            delay_ms = max(100, int(action.get("ms", 800)))
+            label    = action.get("label") or f"{act} {selector or ''}".strip()
+
+            if on_progress:
+                await on_progress(f"Pre-action {idx + 1}: {label}")
+
+            try:
+                if act == "click" and selector:
+                    await page.click(selector, timeout=12000)
+                    await asyncio.sleep(delay_ms / 1000)
+
+                elif act == "select" and selector:
+                    await page.select_option(selector, value=value, timeout=12000)
+                    await asyncio.sleep(delay_ms / 1000)
+
+                elif act == "type" and selector:
+                    await page.fill(selector, value, timeout=12000)
+                    await asyncio.sleep(delay_ms / 1000)
+
+                elif act == "hover" and selector:
+                    await page.hover(selector, timeout=12000)
+                    await asyncio.sleep(delay_ms / 1000)
+
+                elif act == "scroll_to" and selector:
+                    loc = page.locator(selector).first
+                    await loc.scroll_into_view_if_needed(timeout=8000)
+                    await asyncio.sleep(delay_ms / 1000)
+
+                elif act == "wait":
+                    await asyncio.sleep(delay_ms / 1000)
+
+                else:
+                    if on_progress:
+                        await on_progress(f"  WARNING: unknown action type '{act}' — skipping")
+
+            except Exception as exc:
+                if on_progress:
+                    await on_progress(f"  WARNING: pre-action '{label}' failed: {exc}")
+
+    async def _extract_with_container(
+        self,
+        page: Any,
+        container_selector: str,
+        item_selector: str,
+        field_map: dict[str, str],
+        source_url: str,
+        *,
+        max_items: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Deterministic DOM extraction from a specific container.
+
+        When field_map is provided, extracts each named field from child selectors.
+        When field_map is empty, auto-extracts all labelled child elements.
+        """
+        js = """
+        ({ container_selector, item_selector, field_map, source_url, max_items }) => {
+            const container = document.querySelector(container_selector);
+            if (!container) {
+                console.warn('Container not found:', container_selector);
+                return [];
+            }
+
+            const items = Array.from(
+                container.querySelectorAll(item_selector)
+            ).slice(0, max_items);
+
+            function getText(el) {
+                if (!el) return null;
+                const tag = el.tagName.toUpperCase();
+                if (tag === 'IMG') {
+                    return el.getAttribute('alt') || el.getAttribute('src') || null;
+                }
+                if (tag === 'A') {
+                    const t = (el.innerText || '').trim();
+                    return t || el.getAttribute('href') || null;
+                }
+                const t = (el.innerText || el.textContent || '').trim();
+                if (t) return t;
+                return el.getAttribute('aria-label') ||
+                       el.getAttribute('title') ||
+                       el.getAttribute('content') ||
+                       el.getAttribute('data-value') || null;
+            }
+
+            function autoExtract(item) {
+                const rec = {};
+                // Named children by data-testid, id, aria-label
+                const named = item.querySelectorAll(
+                    '[data-testid],[id],[aria-label],[data-value],[data-rating],[data-score]'
+                );
+                const seen = new Set();
+                named.forEach(el => {
+                    const key = (el.getAttribute('data-testid') ||
+                                 el.getAttribute('aria-label') ||
+                                 el.getAttribute('id') || '').replace(/\\s+/g, '_');
+                    if (!key || seen.has(key)) return;
+                    seen.add(key);
+                    const val = getText(el);
+                    if (val && val.length < 800) rec[key] = val;
+                });
+                // All visible text lines of the item
+                const fullText = (item.innerText || '').trim().slice(0, 3000);
+                if (fullText) rec['full_text'] = fullText;
+                return rec;
+            }
+
+            const hasMappings = Object.keys(field_map).length > 0;
+
+            return items.map((item, idx) => {
+                const rec = { source_url, _item_index: idx };
+
+                if (hasMappings) {
+                    for (const [fieldName, sel] of Object.entries(field_map)) {
+                        try {
+                            const el = item.querySelector(sel);
+                            rec[fieldName] = getText(el);
+                        } catch (e) {
+                            rec[fieldName] = null;
+                        }
+                    }
+                } else {
+                    Object.assign(rec, autoExtract(item));
+                }
+
+                // Always capture the primary anchor href
+                const anchor = item.querySelector('a[href]');
+                if (anchor) {
+                    const href = anchor.getAttribute('href');
+                    if (href && !href.startsWith('javascript')) {
+                        rec['item_url'] = href.startsWith('http')
+                            ? href
+                            : (location.origin + href);
+                    }
+                }
+
+                return rec;
+            }).filter(r => {
+                // Drop near-empty records (only source_url + _item_index)
+                const vals = Object.values(r).filter(v =>
+                    v !== null && v !== undefined && v !== source_url && v !== r._item_index
+                );
+                return vals.some(v => String(v).trim().length > 0);
+            });
+        }
+        """.strip()
+
+        try:
+            raw = await page.evaluate(js, {
+                "container_selector": container_selector,
+                "item_selector":      item_selector,
+                "field_map":          field_map,
+                "source_url":         source_url,
+                "max_items":          max_items,
+            })
+            return raw if isinstance(raw, list) else []
+        except Exception as exc:
+            log.warning("container_extract.failed",
+                        container=container_selector, error=str(exc))
+            return []
 
     async def _dismiss_cookie_banner(
         self, page: Any, *, cookie_hints: str | None = None

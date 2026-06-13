@@ -181,11 +181,13 @@ def generate_pdf(
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import cm, inch
     from reportlab.platypus import (
         HRFlowable,
+        Image,
         KeepTogether,
+        PageBreak,
         Paragraph,
         SimpleDocTemplate,
         Spacer,
@@ -197,187 +199,255 @@ def generate_pdf(
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=1.8 * cm,
-        rightMargin=1.8 * cm,
-        topMargin=2 * cm,
-        bottomMargin=2 * cm,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2.2 * cm,
+        bottomMargin=2.2 * cm,
         title="UDE Extraction Report",
     )
 
-    W, _ = A4
-    content_w = W - 3.6 * cm
+    W, H = A4
+    CONTENT_W = W - 4 * cm      # usable width in points
+    CHART_W_HALF = CONTENT_W / 2 - 6  # half-width for pie pairs
 
-    getSampleStyleSheet()  # ensure styles are registered
-    BLUE_RL = colors.HexColor(_BLUE)
-    DARK_RL = colors.HexColor(_DARK)
-    MID_RL  = colors.HexColor(_MID)
-    LIGHT_RL= colors.HexColor(_LIGHT)
-    SURF_RL = colors.HexColor(_SURFACE)
+    BLUE_RL  = colors.HexColor(_BLUE)
+    DARK_RL  = colors.HexColor(_DARK)
+    MID_RL   = colors.HexColor(_MID)
+    LIGHT_RL = colors.HexColor(_LIGHT)
+    SURF_RL  = colors.HexColor(_SURFACE)
+    BORDER_RL= colors.HexColor(_BORDER)
 
-    h1 = ParagraphStyle("h1", fontSize=22, textColor=DARK_RL, spaceAfter=4,
-                        fontName="Helvetica-Bold", leading=28)
-    h2 = ParagraphStyle("h2", fontSize=13, textColor=DARK_RL, spaceBefore=14, spaceAfter=6,
-                        fontName="Helvetica-Bold", leading=18)
-    body = ParagraphStyle("body", fontSize=9, textColor=DARK_RL, leading=14)
-    muted = ParagraphStyle("muted", fontSize=8, textColor=LIGHT_RL, leading=12)
+    def _h1(**kw):
+        return ParagraphStyle("h1", fontSize=20, textColor=DARK_RL, spaceAfter=6,
+                               spaceBefore=0, fontName="Helvetica-Bold", leading=26, **kw)
 
-    story = []
+    def _h2(**kw):
+        return ParagraphStyle("h2", fontSize=12, textColor=DARK_RL, spaceBefore=20,
+                               spaceAfter=8, fontName="Helvetica-Bold", leading=16, **kw)
 
-    # ── Header bar ────────────────────────────────────────────────────────────
-    header_data = [[
-        Paragraph('<font color="#2563eb"><b>UDE</b></font> Extraction Report', h1),
-        Paragraph(
-            f'<font color="{_LIGHT}">Generated {_today()}</font>',
-            ParagraphStyle("right", fontSize=8, textColor=LIGHT_RL, alignment=TA_RIGHT),
-        ),
+    body  = ParagraphStyle("body",  fontSize=9,  textColor=DARK_RL, leading=14)
+    muted = ParagraphStyle("muted", fontSize=8,  textColor=LIGHT_RL, leading=12)
+    right_small = ParagraphStyle("rs", fontSize=8, textColor=LIGHT_RL,
+                                  alignment=TA_RIGHT, leading=11)
+
+    story: list = []
+
+    # ── Cover header ──────────────────────────────────────────────────────────
+    hdr_data = [[
+        Paragraph('<font color="#2563eb"><b>UDE</b></font> Extraction Report', _h1()),
+        Paragraph(f'Generated {_today()}', right_small),
     ]]
-    header_tbl = Table(header_data, colWidths=[content_w * 0.72, content_w * 0.28])
-    header_tbl.setStyle(TableStyle([
+    hdr = Table(hdr_data, colWidths=[CONTENT_W * 0.70, CONTENT_W * 0.30])
+    hdr.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    story.append(header_tbl)
-    story.append(HRFlowable(width="100%", thickness=2, color=BLUE_RL, spaceAfter=14))
+    story.append(hdr)
+    story.append(HRFlowable(width="100%", thickness=2, color=BLUE_RL, spaceAfter=18))
 
-    # ── Session info ──────────────────────────────────────────────────────────
+    # ── Session metadata ──────────────────────────────────────────────────────
     session_name = session_data.get("name", "Extraction Session")
     source_url   = session_data.get("source_url", "")
-    source_type  = session_data.get("source_type_detected", session_data.get("source_type", ""))
+    source_type  = session_data.get("source_type_detected",
+                                    session_data.get("source_type", ""))
 
-    story.append(Paragraph(session_name, h1))
-    info_rows = []
+    story.append(Paragraph(session_name, _h1()))
+    story.append(Spacer(1, 6))
+
+    meta_rows = []
     if source_url:
-        info_rows.append(["Source", source_url[:90]])
+        meta_rows.append(["Source", source_url[:100]])
     if source_type:
-        info_rows.append(["Type", source_type])
-    if info_rows:
-        it = Table(info_rows, colWidths=[1.2 * inch, content_w - 1.2 * inch])
-        it.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("TEXTCOLOR", (0, 0), (0, -1), BLUE_RL),
-            ("TEXTCOLOR", (1, 0), (1, -1), MID_RL),
+        meta_rows.append(["Type", source_type])
+    if meta_rows:
+        mt = Table(meta_rows, colWidths=[1.1 * inch, CONTENT_W - 1.1 * inch])
+        mt.setStyle(TableStyle([
+            ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("TEXTCOLOR",     (0, 0), (0, -1), BLUE_RL),
+            ("TEXTCOLOR",     (1, 0), (1, -1), MID_RL),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
-        story.append(it)
-    story.append(Spacer(1, 10))
+        story.append(mt)
+    story.append(Spacer(1, 20))
 
     # ── Key metrics strip ─────────────────────────────────────────────────────
-    total_records  = analytics.get("total_records", 0)
-    fields_found   = analytics.get("fields_found", [])
-    numeric_fields = analytics.get("numeric_fields", [])
-    category_fields= analytics.get("category_fields", [])
-    charts         = analytics.get("charts", [])
-    summary_stats  = analytics.get("summary_stats", {})
+    total_records   = analytics.get("total_records", 0)
+    fields_found    = analytics.get("fields_found", [])
+    numeric_fields  = analytics.get("numeric_fields", [])
+    category_fields = analytics.get("category_fields", [])
+    charts          = analytics.get("charts", [])
+    summary_stats   = analytics.get("summary_stats", {})
 
     metrics = [
-        ("Total Records",    f"{total_records:,}"),
-        ("Fields Detected",  str(len(fields_found))),
-        ("Numeric Fields",   str(len(numeric_fields))),
-        ("Category Fields",  str(len(category_fields))),
-        ("Charts Generated", str(len(charts))),
+        ("Records",    f"{total_records:,}"),
+        ("Fields",     str(len(fields_found))),
+        ("Numeric",    str(len(numeric_fields))),
+        ("Categories", str(len(category_fields))),
+        ("Charts",     str(len(charts))),
     ]
-    def _metric_cell(title: str, val: str):
+
+    def _metric_cell(title: str, val: str) -> list:
         return [
             Paragraph(f'<font color="{_BLUE}"><b>{val}</b></font>',
-                      ParagraphStyle("mv", fontSize=18, fontName="Helvetica-Bold",
-                                     textColor=BLUE_RL, alignment=TA_CENTER)),
+                      ParagraphStyle("mv", fontSize=16, fontName="Helvetica-Bold",
+                                     textColor=BLUE_RL, alignment=TA_CENTER, leading=20)),
             Paragraph(title, ParagraphStyle("ml", fontSize=7, textColor=LIGHT_RL,
-                                            alignment=TA_CENTER)),
+                                            alignment=TA_CENTER, leading=10)),
         ]
 
-    metric_data = [[_metric_cell(t, v) for t, v in metrics]]
-    metric_col_w = content_w / len(metrics)
-    mt = Table(metric_data, colWidths=[metric_col_w] * len(metrics))
-    mt.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), SURF_RL),
-        ("ROWBACKGROUNDS", (0, 0), (-1, -1), [SURF_RL]),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(_BORDER)),
-        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor(_BORDER)),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    metric_col_w = CONTENT_W / len(metrics)
+    metric_tbl = Table(
+        [[_metric_cell(t, v) for t, v in metrics]],
+        colWidths=[metric_col_w] * len(metrics),
+    )
+    metric_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), SURF_RL),
+        ("BOX",           (0, 0), (-1, -1), 0.5, BORDER_RL),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.4, BORDER_RL),
+        ("TOPPADDING",    (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    story.append(mt)
-    story.append(Spacer(1, 16))
+    story.append(metric_tbl)
+    story.append(Spacer(1, 28))
 
-    # ── Statistical summary ───────────────────────────────────────────────────
+    # ── AI Summary (if present) ───────────────────────────────────────────────
+    summary_text = analytics.get("summary", "")
+    if summary_text:
+        story.append(Paragraph("AI Insights Summary", _h2()))
+        story.append(Paragraph(summary_text, body))
+        story.append(Spacer(1, 20))
+
+    # ── Statistical summary table ─────────────────────────────────────────────
     if summary_stats:
-        story.append(Paragraph("Statistical Summary", h2))
+        story.append(Paragraph("Statistical Summary", _h2()))
         stat_header = [
-            Paragraph("<b>Field</b>", muted),
-            Paragraph("<b>Min</b>",   muted),
-            Paragraph("<b>Max</b>",   muted),
-            Paragraph("<b>Avg</b>",   muted),
-            Paragraph("<b>Count</b>", muted),
+            Paragraph("<b>Field</b>",   muted),
+            Paragraph("<b>Min</b>",     muted),
+            Paragraph("<b>Max</b>",     muted),
+            Paragraph("<b>Avg</b>",     muted),
+            Paragraph("<b>Count</b>",   muted),
         ]
-        stat_rows = [stat_header]
-        for field, s in list(summary_stats.items())[:12]:
+        stat_rows: list = [stat_header]
+        for field, s in list(summary_stats.items())[:14]:
             stat_rows.append([
                 Paragraph(field.replace("_", " ").title(), body),
-                Paragraph(str(s.get("min", "")), body),
-                Paragraph(str(s.get("max", "")), body),
-                Paragraph(str(s.get("avg", "")), body),
+                Paragraph(str(s.get("min", "")),  body),
+                Paragraph(str(s.get("max", "")),  body),
+                Paragraph(str(s.get("avg", "")),  body),
                 Paragraph(f"{s.get('count', 0):,}", body),
             ])
-        cw = content_w / 5
-        st = Table(stat_rows, colWidths=[cw * 2, cw * 0.75, cw * 0.75, cw * 0.75, cw * 0.75])
+        cw = CONTENT_W / 5
+        st = Table(stat_rows, colWidths=[cw * 2.0, cw * 0.75, cw * 0.75, cw * 0.75, cw * 0.75])
         st.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(_SURFACE)),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_WHITE, colors.HexColor("#f9fafb")]),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor(_BORDER)),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("BACKGROUND",    (0, 0), (-1, 0),   SURF_RL),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1),  [_WHITE, colors.HexColor("#f9fafb")]),
+            ("GRID",          (0, 0), (-1, -1),   0.4, BORDER_RL),
+            ("FONTSIZE",      (0, 0), (-1, -1),   8),
+            ("TOPPADDING",    (0, 0), (-1, -1),   5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1),   5),
+            ("VALIGN",        (0, 0), (-1, -1),  "MIDDLE"),
         ]))
         story.append(st)
-        story.append(Spacer(1, 16))
+        story.append(Spacer(1, 28))
 
-    # ── Charts ────────────────────────────────────────────────────────────────
+    # ── Charts — each on its own fresh area, page-break before section ────────
     if charts:
-        story.append(Paragraph("Analytics Charts", h2))
-        story.append(Spacer(1, 4))
+        story.append(PageBreak())
+        story.append(Paragraph("Analytics Charts", _h2()))
+        story.append(Spacer(1, 8))
 
         pie_charts  = [c for c in charts if c.get("type") == "pie"]
         bar_charts  = [c for c in charts if c.get("type") == "bar"]
         line_charts = [c for c in charts if c.get("type") == "line"]
 
-        # Pie charts: 2 per row
+        # Pie charts — render as matching-width images (avoid platypus inline)
         for i in range(0, len(pie_charts), 2):
-            pair = pie_charts[i:i + 2]
-            imgs = []
+            pair = pie_charts[i: i + 2]
+            img_bytes = []
             for c in pair:
-                img = _chart_to_image(c)
-                if img:
-                    imgs.append(img)
-            if len(imgs) == 2:
-                tbl = Table([[imgs[0], imgs[1]]], colWidths=[content_w / 2, content_w / 2])
-                tbl.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
-                                          ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                                          ("RIGHTPADDING", (0, 0), (-1, -1), 4)]))
-                story.append(KeepTogether([tbl, Spacer(1, 10)]))
-            elif imgs:
-                story.append(KeepTogether([imgs[0], Spacer(1, 10)]))
+                try:
+                    png = _render_pie(c,
+                                      width=int(CHART_W_HALF * 1.4),
+                                      height=int(CHART_W_HALF * 1.2))
+                    img_bytes.append(png)
+                except Exception:
+                    img_bytes.append(None)
 
-        # Bar & line charts: full width
-        for c in bar_charts + line_charts:
-            img = _chart_to_image(c)
-            if img:
-                story.append(KeepTogether([img, Spacer(1, 10)]))
+            cells = []
+            for png in img_bytes:
+                if png:
+                    img = Image(io.BytesIO(png), width=CHART_W_HALF, height=CHART_W_HALF * 0.85)
+                    cells.append(img)
+                else:
+                    cells.append(Paragraph("(chart unavailable)", muted))
 
-    # ── Fields list ───────────────────────────────────────────────────────────
+            if len(cells) == 2:
+                tbl = Table([cells],
+                            colWidths=[CONTENT_W / 2, CONTENT_W / 2])
+                tbl.setStyle(TableStyle([
+                    ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+                    ("TOPPADDING",    (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]))
+                story.append(tbl)
+            elif cells:
+                story.append(cells[0])
+            story.append(Spacer(1, 20))
+
+        # Bar charts — full width, one per block with title above
+        for c in bar_charts:
+            title = c.get("title", "")
+            try:
+                chart_h = CONTENT_W * 0.42
+                png = _render_bar(c,
+                                  width=int(CONTENT_W * 1.35),
+                                  height=int(chart_h * 1.35))
+                img = Image(io.BytesIO(png), width=CONTENT_W, height=chart_h)
+                block: list = []
+                if title:
+                    block.append(Paragraph(title, _h2()))
+                block.append(img)
+                story.append(KeepTogether(block))
+                story.append(Spacer(1, 20))
+            except Exception:
+                pass
+
+        # Line charts — full width
+        for c in line_charts:
+            title = c.get("title", "")
+            try:
+                chart_h = CONTENT_W * 0.36
+                png = _render_line(c,
+                                   width=int(CONTENT_W * 1.35),
+                                   height=int(chart_h * 1.35))
+                img = Image(io.BytesIO(png), width=CONTENT_W, height=chart_h)
+                block = []
+                if title:
+                    block.append(Paragraph(title, _h2()))
+                block.append(img)
+                story.append(KeepTogether(block))
+                story.append(Spacer(1, 20))
+            except Exception:
+                pass
+
+    # ── Fields detected ───────────────────────────────────────────────────────
     if fields_found:
-        story.append(Paragraph("Fields Detected", h2))
-        field_text = "  ·  ".join(fields_found[:60])
-        story.append(Paragraph(field_text, muted))
-        if len(fields_found) > 60:
-            story.append(Paragraph(f"… and {len(fields_found) - 60} more fields.", muted))
-        story.append(Spacer(1, 12))
+        story.append(Paragraph("Fields Detected", _h2()))
+        story.append(Paragraph("  ·  ".join(fields_found[:80]), muted))
+        if len(fields_found) > 80:
+            story.append(Paragraph(f"… and {len(fields_found) - 80} more fields.", muted))
+        story.append(Spacer(1, 20))
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor(_BORDER), spaceBefore=10))
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER_RL, spaceBefore=4))
     story.append(Paragraph(
-        "Generated by <b>Universal Data Extractor</b> · Playwright · Groq AI · FastAPI · S3 · MongoDB",
+        "Generated by <b>Universal Data Extractor</b> · Playwright · Groq AI · FastAPI · S3",
         ParagraphStyle("footer", fontSize=7, textColor=LIGHT_RL, alignment=TA_CENTER),
     ))
 
