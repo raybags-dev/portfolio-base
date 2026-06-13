@@ -547,6 +547,17 @@ export const importKaggleHotel = (sessionId: number, dataset_ref: string, name?:
 export const generateHotelSummary = (sessionId: number) =>
   request<{ summary: string }>(`/hotel-reviews/sessions/${sessionId}/generate-summary`, { method: "POST" });
 
+export const importCurlHotel = (body: {
+  curl_command: string;
+  page_count: number;
+  collection_prompt: string;
+  name?: string;
+}) =>
+  request<CrawlSession>("/hotel-reviews/curl-import", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
 export const searchKaggleJobs = (q: string, page = 1) =>
   request<KaggleDataset[]>(`/job-analytics/kaggle/search?q=${encodeURIComponent(q)}&page=${page}`);
 
