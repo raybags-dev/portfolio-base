@@ -18,6 +18,7 @@ import {
   exportCrawlRecordsUrl,
   searchKaggleHotel,
   importKaggleHotel,
+  importCurlHotel,
   generateHotelSummary,
   type CrawlSession,
   type ChartData,
@@ -42,7 +43,7 @@ const ANALYTICS_OPTIONS = [
 const CHART_COLORS = ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe", "#f5f3ff", "#4f46e5"];
 
 type Step = "configure" | "running" | "results";
-type InputMode = "crawler" | "kaggle";
+type InputMode = "crawler" | "kaggle" | "curl";
 
 export default function HotelReviewsPage() {
   const [step, setStep] = useState<Step>("configure");
@@ -269,6 +270,11 @@ export default function HotelReviewsPage() {
               setStep("running");
               startPolling(session.id);
             }}
+            onCurlImportStarted={(session) => {
+              setActiveSession(session);
+              setStep("running");
+              startPolling(session.id);
+            }}
           />
         )}
         {step === "running" && activeSession && <RunningStep session={activeSession} />}
@@ -344,7 +350,7 @@ function ConfigureStep({
   analyticsTypes, setAnalyticsTypes, ratingThreshold, setRatingThreshold,
   cookieHints, setCookieHints, paginationType, setPaginationType,
   selectorHintsMap, setSelectorHintsMap,
-  formError, submitting, handleCrawlerSubmit, onKaggleImportStarted,
+  formError, submitting, handleCrawlerSubmit, onKaggleImportStarted, onCurlImportStarted,
 }: {
   inputMode: InputMode; setInputMode: (m: InputMode) => void;
   url: string; setUrl: (v: string) => void;
@@ -359,24 +365,31 @@ function ConfigureStep({
   formError: string; submitting: boolean;
   handleCrawlerSubmit: (e: React.FormEvent) => void;
   onKaggleImportStarted: (session: CrawlSession) => void;
+  onCurlImportStarted: (session: CrawlSession) => void;
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const MODES: { key: InputMode; label: string }[] = [
+    { key: "crawler", label: "🔍 Live Crawler" },
+    { key: "kaggle",  label: "📦 Kaggle Dataset" },
+    { key: "curl",    label: "🔌 cURL Import" },
+  ];
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6 text-center">
         <h2 className="font-heading font-bold text-2xl mb-2">Configure Your Analysis</h2>
-        <p className="text-muted text-sm">Crawl a live website or import a ready dataset from Kaggle.</p>
+        <p className="text-muted text-sm">Crawl a live website, import from Kaggle, or paste a cURL command from any API.</p>
       </div>
 
       {/* Input mode tabs */}
       <div className="flex rounded-theme border border-white/10 overflow-hidden mb-6">
-        {(["crawler", "kaggle"] as InputMode[]).map((mode) => (
-          <button key={mode} onClick={() => setInputMode(mode)}
+        {MODES.map((m) => (
+          <button key={m.key} onClick={() => setInputMode(m.key)}
             className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-              inputMode === mode ? "bg-primary text-white" : "hover:bg-white/5 text-muted"
+              inputMode === m.key ? "bg-primary text-white" : "hover:bg-white/5 text-muted"
             }`}>
-            {mode === "crawler" ? "🔍 Live Crawler" : "📦 Kaggle Dataset"}
+            {m.label}
           </button>
         ))}
       </div>
@@ -394,13 +407,15 @@ function ConfigureStep({
           handleCrawlerSubmit={handleCrawlerSubmit}
           showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
         />
-      ) : (
+      ) : inputMode === "kaggle" ? (
         <KaggleSearch
           module="hotel-reviews"
           sessionName={name}
           analyticsSpec={{ types: analyticsTypes, rating_threshold: ratingThreshold }}
           onImportStarted={onKaggleImportStarted}
         />
+      ) : (
+        <CurlImportForm onImportStarted={onCurlImportStarted} />
       )}
     </div>
   );
@@ -684,6 +699,98 @@ function KaggleSearch({
   );
 }
 
+// ── cURL Import Form ──────────────────────────────────────────────────────────
+
+function CurlImportForm({ onImportStarted }: { onImportStarted: (s: CrawlSession) => void }) {
+  const [curlCmd, setCurlCmd] = useState("");
+  const [pageCount, setPageCount] = useState(5);
+  const [prompt, setPrompt] = useState("Extract all review or listing records with fields like name, rating, price, date, and description.");
+  const [sessionName, setSessionName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const toast = useToast();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!curlCmd.trim()) { setError("Paste a cURL command first."); return; }
+    if (!prompt.trim()) { setError("Describe what to collect."); return; }
+    setError(""); setLoading(true);
+    try {
+      const session = await importCurlHotel({
+        curl_command: curlCmd.trim(),
+        page_count: pageCount,
+        collection_prompt: prompt.trim(),
+        name: sessionName.trim() || undefined,
+      });
+      toast.success("cURL import started", `Fetching ${pageCount} page(s) in the background…`);
+      onImportStarted(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Import failed");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="rounded-theme bg-surface border border-white/10 p-4 text-sm text-muted leading-relaxed">
+        Paste any <code className="text-primary">curl</code> command copied from browser DevTools (Network tab → Copy as cURL).
+        The AI will auto-detect the pagination field (e.g. <code className="text-primary">pageIndex</code>),
+        build paginated requests, extract records, and run full analytics.
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1.5">cURL command <span className="text-red-400">*</span></label>
+        <textarea
+          value={curlCmd}
+          onChange={e => setCurlCmd(e.target.value)}
+          rows={8}
+          spellCheck={false}
+          placeholder={"curl 'https://api.example.com/reviews' \\\n  -H 'content-type: application/json' \\\n  --data-raw '{\"pageIndex\":1,\"pageSize\":20}'"}
+          className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-xs font-mono focus:outline-none focus:border-primary/60 resize-y"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Pages to fetch</label>
+          <input
+            type="number" min={1} max={50} value={pageCount}
+            onChange={e => setPageCount(Math.max(1, Number(e.target.value)))}
+            className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60"
+          />
+          <p className="text-xs text-muted mt-1">Pagination key is auto-detected from the request body.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Session name <span className="text-muted">(optional)</span></label>
+          <input
+            value={sessionName}
+            onChange={e => setSessionName(e.target.value)}
+            placeholder="My API Import"
+            className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1.5">What to collect <span className="text-red-400">*</span></label>
+        <input
+          value={prompt}
+          onChange={e => setPrompt(e.target.value)}
+          placeholder="Extract all review records with name, rating, price, date…"
+          className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60"
+        />
+        <p className="text-xs text-muted mt-1">The AI uses this to find the right data array in each response.</p>
+      </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      <button type="submit" disabled={loading || !curlCmd.trim()}
+        className="w-full rounded-theme bg-primary text-white font-medium py-2.5 text-sm hover:opacity-90 disabled:opacity-50 transition-opacity">
+        {loading ? "Starting import…" : "Import & Analyse →"}
+      </button>
+    </form>
+  );
+}
+
 // ── Running Step ─────────────────────────────────────────────────────────────
 
 function RunningStep({ session }: { session: CrawlSession }) {
@@ -691,6 +798,7 @@ function RunningStep({ session }: { session: CrawlSession }) {
   const log = progress.log || [];
   const logRef = useRef<HTMLDivElement>(null);
   const isKaggle = session.target_url?.startsWith("kaggle://");
+  const isCurl = session.target_url?.startsWith("curl://");
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -701,7 +809,9 @@ function RunningStep({ session }: { session: CrawlSession }) {
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 text-yellow-400 mb-2">
           <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-          <span className="font-medium">{isKaggle ? "Importing Kaggle Dataset…" : "Crawling in Progress"}</span>
+          <span className="font-medium">
+            {isKaggle ? "Importing Kaggle Dataset…" : isCurl ? "cURL Import in Progress…" : "Crawling in Progress"}
+          </span>
         </div>
         <h2 className="font-heading font-bold text-2xl">{session.name}</h2>
         <p className="text-muted text-sm mt-1 break-all">{session.target_url}</p>

@@ -161,3 +161,71 @@ async def run_kaggle_import(db: AsyncSession, session_id: int, dataset_ref: str)
         await db.commit()
         log.error("hotel_reviews.kaggle.failed", session_id=session_id, error=str(exc))
         raise
+
+
+async def run_curl_import(db: AsyncSession, session_id: int) -> dict[str, Any]:
+    """Parse stored cURL command, fetch paginated data, run analytics."""
+    from app.modules.hotel_reviews.curl_importer import fetch_curl_pages, parse_curl
+
+    session = await db.get(HotelCrawlSession, session_id)
+    if session is None:
+        raise ValueError(f"session {session_id} not found")
+
+    spec = session.analytics_spec or {}
+    curl_command = spec.get("curl_command", "")
+    page_count = int(spec.get("page_count", 5))
+
+    session.status = "running"
+    session.progress = {"log": [], "records_collected": 0, "source": "curl"}
+    await db.commit()
+
+    async def _progress(msg: str) -> None:
+        progress = dict(session.progress or {})
+        progress.setdefault("log", [])
+        progress["log"] = (progress["log"] + [msg])[-50:]
+        progress["last_message"] = msg
+        session.progress = progress
+        await db.commit()
+
+    try:
+        await _progress("Parsing cURL command…")
+        parsed = parse_curl(curl_command)
+
+        await _progress(
+            f"Detected: {parsed['method']} {parsed['url'][:80]} — "
+            f"fetching {page_count} page(s)…"
+        )
+
+        records = await fetch_curl_pages(
+            parsed, page_count, session.collection_prompt, on_progress=_progress
+        )
+
+        await _progress(f"{len(records)} records collected. Storing…")
+        for rec in records:
+            db.add(HotelCrawlRecord(
+                session_id=session.id,
+                source_url=parsed["url"],
+                data=rec,
+                is_valid=True,
+            ))
+        await db.commit()
+
+        await _progress(f"Running analytics on {len(records)} records…")
+        analytics = compute_analytics(records, spec)
+        session.analytics_result = analytics
+        session.status = "done"
+        progress = dict(session.progress or {})
+        progress["records_collected"] = len(records)
+        progress["charts_computed"] = len(analytics.get("charts", []))
+        session.progress = progress
+        await db.commit()
+
+        await _progress(f"Done. {len(analytics.get('charts', []))} charts generated.")
+        return {"session_id": session.id, "records": len(records), "analytics": analytics}
+
+    except Exception as exc:
+        session.status = "failed"
+        session.error = str(exc)
+        await db.commit()
+        log.error("hotel_reviews.curl.failed", session_id=session_id, error=str(exc))
+        raise
