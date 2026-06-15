@@ -160,12 +160,32 @@ async def _seed_socials(db) -> None:
 async def _seed_sample_content(db) -> None:
     if not await db.scalar(select(Skill.id)):
         db.add_all([
-            Skill(name="Python", category="Languages", proficiency=95, order=1),
-            Skill(name="FastAPI", category="Backend", proficiency=92, order=2),
-            Skill(name="PostgreSQL", category="Data", proficiency=88, order=3),
-            Skill(name="Kafka", category="Streaming", proficiency=80, order=4),
-            Skill(name="DBT", category="Data", proficiency=82, order=5),
-            Skill(name="Next.js", category="Frontend", proficiency=85, order=6),
+            # Core Data Engineering & Warehousing
+            Skill(name="Google BigQuery",           category="Core Data Engineering",   proficiency=90, order=1),
+            Skill(name="DBT",                       category="Core Data Engineering",   proficiency=90, order=2),
+            Skill(name="PostgreSQL",                category="Core Data Engineering",   proficiency=90, order=3),
+            Skill(name="MySQL",                     category="Core Data Engineering",   proficiency=90, order=4),
+            Skill(name="MongoDB",                   category="Core Data Engineering",   proficiency=90, order=5),
+            Skill(name="ETL / ELT Development",     category="Core Data Engineering",   proficiency=90, order=6),
+            Skill(name="Data Integration",          category="Core Data Engineering",   proficiency=90, order=7),
+            # Data Streaming & Event-Driven Architecture
+            Skill(name="Apache Kafka",              category="Streaming & Events",      proficiency=90, order=1),
+            Skill(name="RabbitMQ",                  category="Streaming & Events",      proficiency=90, order=2),
+            Skill(name="Event-Driven Architectures",category="Streaming & Events",      proficiency=90, order=3),
+            Skill(name="API Integration",           category="Streaming & Events",      proficiency=90, order=4),
+            # Languages & Backend Frameworks
+            Skill(name="Python",                    category="Languages & Backend",     proficiency=90, order=1),
+            Skill(name="JavaScript",                category="Languages & Backend",     proficiency=90, order=2),
+            Skill(name="C# (.NET)",                 category="Languages & Backend",     proficiency=90, order=3),
+            Skill(name="FastAPI",                   category="Languages & Backend",     proficiency=90, order=4),
+            Skill(name="Node.js (Express)",         category="Languages & Backend",     proficiency=90, order=5),
+            # Specialized Engineering
+            Skill(name="PLC Programming",           category="Specialized Engineering", proficiency=90, order=1),
+            # Frontend & Design
+            Skill(name="React.js",                  category="Frontend & Design",       proficiency=90, order=1),
+            Skill(name="HTML5 / CSS3",              category="Frontend & Design",       proficiency=90, order=2),
+            Skill(name="jQuery",                    category="Frontend & Design",       proficiency=90, order=3),
+            Skill(name="Figma",                     category="Frontend & Design",       proficiency=90, order=4),
         ])
     if not await db.scalar(select(Project.id)):
         db.add(Project(
