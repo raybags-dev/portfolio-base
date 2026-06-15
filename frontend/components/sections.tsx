@@ -356,49 +356,74 @@ export function About({ data }: { data: Bootstrap }) {
 }
 
 // --- Skills ---
+
+const SKILL_CATEGORY_META: Record<string, { icon: string; accent: string }> = {
+  "Core Data Engineering":   { icon: "◈", accent: "text-blue-400 border-blue-400/30 bg-blue-400/5" },
+  "Streaming & Events":      { icon: "⟳", accent: "text-emerald-400 border-emerald-400/30 bg-emerald-400/5" },
+  "Languages & Backend":     { icon: "{ }", accent: "text-violet-400 border-violet-400/30 bg-violet-400/5" },
+  "Specialized Engineering": { icon: "⚙", accent: "text-amber-400 border-amber-400/30 bg-amber-400/5" },
+  "Frontend & Design":       { icon: "◻", accent: "text-rose-400 border-rose-400/30 bg-rose-400/5" },
+};
+
+const CATEGORY_ORDER = [
+  "Core Data Engineering",
+  "Streaming & Events",
+  "Languages & Backend",
+  "Specialized Engineering",
+  "Frontend & Design",
+];
+
 export function Skills({ data }: { data: Bootstrap }) {
   if (data.skills.length === 0) return null;
+
   const groups = data.skills.reduce<Record<string, typeof data.skills>>((acc, s) => {
     const k = s.category || "General";
     (acc[k] ||= []).push(s);
     return acc;
   }, {});
+
+  const orderedEntries = [
+    ...CATEGORY_ORDER.filter((c) => groups[c]).map((c) => [c, groups[c]] as const),
+    ...Object.entries(groups).filter(([c]) => !CATEGORY_ORDER.includes(c)),
+  ];
+
   return (
     <Section id="skills" title="Skills">
-      {(() => {
-        const entries = Object.entries(groups);
-        const left = entries.filter((_, i) => i % 2 === 0);
-        const right = entries.filter((_, i) => i % 2 === 1);
-        const renderGroup = ([cat, skills]: [string, typeof data.skills]) => (
-          <div key={cat}>
-            <h3 className="font-heading font-semibold mb-3 text-secondary">{cat}</h3>
-            <div className="space-y-3">
-              {skills.map((s) => (
-                <div key={s.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>{s.name}</span>
-                    <span className="text-muted">{s.proficiency}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.max(0, Math.min(100, s.proficiency))}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+      <div className="grid gap-6 sm:grid-cols-2">
+        {orderedEntries.map(([cat, skills]) => {
+          const meta = SKILL_CATEGORY_META[cat] ?? {
+            icon: "·",
+            accent: "text-primary border-primary/30 bg-primary/5",
+          };
+          return (
+            <div
+              key={cat}
+              className="rounded-xl border border-white/8 bg-white/[0.025] p-4"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className={`text-xs font-mono font-bold w-6 h-6 flex items-center justify-center rounded border ${meta.accent}`}
+                >
+                  {meta.icon}
+                </span>
+                <h3 className="font-heading font-semibold text-sm text-secondary tracking-wide">
+                  {cat}
+                </h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {skills.map((s) => (
+                  <span
+                    key={s.id}
+                    className="text-xs font-medium px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-white/20 hover:bg-white/8 transition-colors"
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        );
-        return (
-          <div className="flex gap-x-10">
-            <div className="flex-1 flex flex-col gap-y-6">{left.map(renderGroup)}</div>
-            {right.length > 0 && (
-              <div className="flex-1 flex flex-col gap-y-6">{right.map(renderGroup)}</div>
-            )}
-          </div>
-        );
-      })()}
+          );
+        })}
+      </div>
     </Section>
   );
 }
