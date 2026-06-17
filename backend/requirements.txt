@@ -23,7 +23,7 @@ aiosqlite==0.20.0        # SQLite (local dev, zero-setup)
 greenlet==3.1.1
 
 # --- auth / security ---
-PyJWT==2.10.1            # maintained JWT lib (replaced python-jose / its CVEs)
+PyJWT==2.13.0            # maintained JWT lib (replaced python-jose / its CVEs)
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1            # pinned: passlib 1.7.4 mis-detects bcrypt>=4.1 version
 
