@@ -2,29 +2,33 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Bootstrap, Project } from "@/lib/types";
+import type { Bootstrap, Project, Skill } from "@/lib/types";
 import NewsTicker from "@/components/NewsTicker";
+import { useUI } from "@/lib/store";
 
 // --- shared building blocks ---
 function Reveal({
   children,
   enabled,
   delay = 0,
+  as = "div",
 }: {
   children: React.ReactNode;
   enabled: boolean;
   delay?: number;
+  as?: "div" | "li" | "span";
 }) {
   if (!enabled) return <>{children}</>;
+  const Tag = motion[as] as typeof motion.div;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
+    <Tag
+      initial={{ opacity: 0, y: 32 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.5, delay }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
-    </motion.div>
+    </Tag>
   );
 }
 
@@ -47,9 +51,9 @@ export function Section({
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-theme bg-surface shadow-card p-5 sm:p-7 border border-white/5">
+    <div className={`rounded-theme bg-surface shadow-card p-5 sm:p-7 border border-white/5 ${className}`}>
       {children}
     </div>
   );
@@ -172,6 +176,8 @@ function ProjectDetailModal({
 export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
+  const uiMode = useUI((s) => s.mode);
+  const isDark = (uiMode ?? t.default_mode ?? "dark") === "dark";
   const [scrolled, setScrolled] = useState(false);
   const [scrollPct, setScrollPct] = useState(0);
 
@@ -224,7 +230,7 @@ export function Hero({ data }: { data: Bootstrap }) {
               backgroundImage: `url("${h.background_image_url}")`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "grayscale(1) blur(3px)",
+              filter: `grayscale(1) blur(3px) invert(${isDark ? 0 : 1})`,
               transform: `scale(${1 + scrollPct * 0.12})`,
               transformOrigin: "center center",
               willChange: "transform",
@@ -319,51 +325,48 @@ export function Hero({ data }: { data: Bootstrap }) {
 // --- About ---
 export function About({ data }: { data: Bootstrap }) {
   const a = data.about;
+  const animated = data.theme.animations_enabled;
   if (!a.is_visible || (!a.biography && !a.description)) return null;
   return (
     <Section id="about" title={a.heading || "About"}>
       <div className="grid md:grid-cols-3 gap-8 items-start">
         {a.image_url && (
-          <div
-            className="rounded-theme p-[3px]"
-            style={{ boxShadow: "0 0 0 1px rgba(128,128,128,0.25), 0 0 0 5px rgba(128,128,128,0.07)" }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={a.image_url}
-              alt={a.heading || "About"}
-              className="rounded-theme w-full object-cover shadow-card"
-            />
-          </div>
+          <Reveal enabled={animated}>
+            <div
+              className="rounded-theme p-[3px]"
+              style={{ boxShadow: "0 0 0 1px rgba(128,128,128,0.25), 0 0 0 5px rgba(128,128,128,0.07)" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.image_url}
+                alt={a.heading || "About"}
+                className="rounded-theme w-full object-cover shadow-card"
+              />
+            </div>
+          </Reveal>
         )}
-        <div className={a.image_url ? "md:col-span-2" : "md:col-span-3"}>
-          {a.biography && <p className="text-lg mb-4">{a.biography}</p>}
-          {a.description && <p className="text-muted">{a.description}</p>}
-          {a.highlights && a.highlights.length > 0 && (
-            <ul className="mt-5 grid sm:grid-cols-2 gap-2">
-              {a.highlights.map((hl, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-primary">▹</span>
-                  <span>{hl}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Reveal enabled={animated} delay={0.1}>
+          <div className={a.image_url ? "md:col-span-2" : "md:col-span-3"}>
+            {a.biography && <p className="text-lg mb-4">{a.biography}</p>}
+            {a.description && <p className="text-muted">{a.description}</p>}
+            {a.highlights && a.highlights.length > 0 && (
+              <ul className="mt-5 grid sm:grid-cols-2 gap-2">
+                {a.highlights.map((hl, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-primary">▹</span>
+                    <span>{hl}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Reveal>
       </div>
     </Section>
   );
 }
 
 // --- Skills ---
-
-const SKILL_CATEGORY_META: Record<string, { icon: string; accent: string }> = {
-  "Core Data Engineering":   { icon: "◈", accent: "text-blue-400 border-blue-400/30 bg-blue-400/5" },
-  "Streaming & Events":      { icon: "⟳", accent: "text-emerald-400 border-emerald-400/30 bg-emerald-400/5" },
-  "Languages & Backend":     { icon: "{ }", accent: "text-violet-400 border-violet-400/30 bg-violet-400/5" },
-  "Specialized Engineering": { icon: "⚙", accent: "text-amber-400 border-amber-400/30 bg-amber-400/5" },
-  "Frontend & Design":       { icon: "◻", accent: "text-rose-400 border-rose-400/30 bg-rose-400/5" },
-};
 
 const CATEGORY_ORDER = [
   "Core Data Engineering",
@@ -373,10 +376,85 @@ const CATEGORY_ORDER = [
   "Frontend & Design",
 ];
 
+function GitHubIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
+    </svg>
+  );
+}
+
+function SkillDetailModal({
+  cat,
+  skills,
+  onClose,
+}: {
+  cat: string;
+  skills: Skill[];
+  onClose: () => void;
+}) {
+  const first = skills[0];
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <motion.div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        transition={{ type: "spring", stiffness: 340, damping: 30 }}
+        className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-theme bg-surface border border-white/10 shadow-2xl p-6 sm:p-8"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-2xl leading-none text-muted hover:text-fg transition-colors"
+          aria-label="Close"
+        >×</button>
+        <h2 className="font-heading font-bold text-xl mb-1">{cat}</h2>
+        {first?.subheading && (
+          <p className="text-sm text-secondary mb-3">{first.subheading}</p>
+        )}
+        {first?.description && (
+          <p className="text-muted text-sm leading-relaxed mb-5">{first.description}</p>
+        )}
+        <div className="mb-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Technologies</h3>
+          <div className="flex flex-wrap gap-2">
+            {skills.map((s) => (
+              <span key={s.id} className="text-xs font-medium px-2.5 py-1 rounded-full border border-primary/40 text-primary bg-primary/5">
+                {s.name}
+              </span>
+            ))}
+          </div>
+        </div>
+        {first?.github_url && (
+          <a
+            href={first.github_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+          >
+            <GitHubIcon />
+            View on GitHub ↗
+          </a>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 export function Skills({ data }: { data: Bootstrap }) {
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  const animated = data.theme.animations_enabled;
+
   if (data.skills.length === 0) return null;
 
-  const groups = data.skills.reduce<Record<string, typeof data.skills>>((acc, s) => {
+  const groups = data.skills.reduce<Record<string, Skill[]>>((acc, s) => {
     const k = s.category || "General";
     (acc[k] ||= []).push(s);
     return acc;
@@ -387,43 +465,68 @@ export function Skills({ data }: { data: Bootstrap }) {
     ...Object.entries(groups).filter(([c]) => !CATEGORY_ORDER.includes(c)),
   ];
 
+  const selectedSkills = selectedCat ? (groups[selectedCat] ?? []) : [];
+
   return (
     <Section id="skills" title="Skills">
       <div className="grid gap-6 sm:grid-cols-2">
-        {orderedEntries.map(([cat, skills]) => {
-          const meta = SKILL_CATEGORY_META[cat] ?? {
-            icon: "·",
-            accent: "text-primary border-primary/30 bg-primary/5",
-          };
+        {orderedEntries.map(([cat, skills], i) => {
+          const first = skills[0];
           return (
-            <div
-              key={cat}
-              className="rounded-xl border border-white/8 bg-white/[0.025] p-4"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <span
-                  className={`text-xs font-mono font-bold w-6 h-6 flex items-center justify-center rounded border ${meta.accent}`}
+            <Reveal key={cat} enabled={animated} delay={i * 0.06}>
+              <div className="rounded-theme border border-white/10 bg-surface shadow-card p-5 flex flex-col gap-3 h-full">
+                {/* heading + github */}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-heading font-bold text-base">{cat}</h3>
+                  {first?.github_url && (
+                    <a
+                      href={first.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`GitHub repo for ${cat}`}
+                      className="text-muted hover:text-primary transition-colors shrink-0 mt-0.5"
+                    >
+                      <GitHubIcon />
+                    </a>
+                  )}
+                </div>
+                {/* subheading */}
+                {first?.subheading && (
+                  <p className="text-xs text-secondary leading-snug">{first.subheading}</p>
+                )}
+                {/* tech badges */}
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {skills.map((s) => (
+                    <span
+                      key={s.id}
+                      className="text-xs font-medium px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-primary/40 hover:text-primary transition-colors"
+                    >
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+                {/* details button */}
+                <button
+                  onClick={() => setSelectedCat(cat)}
+                  className="self-start text-xs text-primary border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/10 transition-colors mt-1"
                 >
-                  {meta.icon}
-                </span>
-                <h3 className="font-heading font-semibold text-sm text-secondary tracking-wide">
-                  {cat}
-                </h3>
+                  Details →
+                </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {skills.map((s) => (
-                  <span
-                    key={s.id}
-                    className="text-xs font-medium px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-white/20 hover:bg-white/8 transition-colors"
-                  >
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </div>
+            </Reveal>
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {selectedCat && (
+          <SkillDetailModal
+            cat={selectedCat}
+            skills={selectedSkills}
+            onClose={() => setSelectedCat(null)}
+          />
+        )}
+      </AnimatePresence>
     </Section>
   );
 }
@@ -605,33 +708,38 @@ export function Projects({ data }: { data: Bootstrap }) {
 
 // --- Data Platform / microservices ---
 export function Services({ data }: { data: Bootstrap }) {
+  const animated = data.theme.animations_enabled;
   if (data.microservices.length === 0) return null;
   return (
     <Section id="platform" title="Data Platform">
-      <p className="text-muted mb-6 max-w-2xl">
-        Live data-engineering modules — each toggled at runtime via feature flags.
-      </p>
+      <Reveal enabled={animated}>
+        <p className="text-muted mb-6 max-w-2xl">
+          Live data-engineering modules — each toggled at runtime via feature flags.
+        </p>
+      </Reveal>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {data.microservices.map((m) => (
-          <Card key={m.id}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-heading font-semibold">{m.name}</h3>
-              <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5">
-                {m.status}
-              </span>
-            </div>
-            {m.description && <p className="text-sm text-muted">{m.description}</p>}
-            {m.base_url && (
-              <a
-                href={m.base_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                Launch ↗
-              </a>
-            )}
-          </Card>
+        {data.microservices.map((m, i) => (
+          <Reveal key={m.id} enabled={animated} delay={i * 0.06}>
+            <Card>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-heading font-semibold">{m.name}</h3>
+                <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5">
+                  {m.status}
+                </span>
+              </div>
+              {m.description && <p className="text-sm text-muted">{m.description}</p>}
+              {m.base_url && (
+                <a
+                  href={m.base_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Launch ↗
+                </a>
+              )}
+            </Card>
+          </Reveal>
         ))}
       </div>
     </Section>
@@ -640,29 +748,32 @@ export function Services({ data }: { data: Bootstrap }) {
 
 // --- Experience ---
 export function Experience({ data }: { data: Bootstrap }) {
+  const animated = data.theme.animations_enabled;
   if (data.experiences.length === 0) return null;
   return (
     <Section id="experience" title="Experience">
       <div className="space-y-6">
-        {data.experiences.map((e) => (
-          <Card key={e.id}>
-            <div className="flex flex-wrap justify-between gap-2">
-              <h3 className="font-heading font-semibold">
-                {e.role} {e.company && <span className="text-muted">· {e.company}</span>}
-              </h3>
-              <span className="text-sm text-muted">
-                {[e.start_date, e.is_current ? "Present" : e.end_date].filter(Boolean).join(" — ")}
-              </span>
-            </div>
-            {e.description && <p className="text-sm text-muted mt-2">{e.description}</p>}
-            {e.highlights && e.highlights.length > 0 && (
-              <ul className="mt-2 text-sm list-disc list-inside text-muted">
-                {e.highlights.map((h, i) => (
-                  <li key={i}>{h}</li>
-                ))}
-              </ul>
-            )}
-          </Card>
+        {data.experiences.map((e, i) => (
+          <Reveal key={e.id} enabled={animated} delay={i * 0.06}>
+            <Card>
+              <div className="flex flex-wrap justify-between gap-2">
+                <h3 className="font-heading font-semibold">
+                  {e.role} {e.company && <span className="text-muted">· {e.company}</span>}
+                </h3>
+                <span className="text-sm text-muted">
+                  {[e.start_date, e.is_current ? "Present" : e.end_date].filter(Boolean).join(" — ")}
+                </span>
+              </div>
+              {e.description && <p className="text-sm text-muted mt-2">{e.description}</p>}
+              {e.highlights && e.highlights.length > 0 && (
+                <ul className="mt-2 text-sm list-disc list-inside text-muted">
+                  {e.highlights.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </Reveal>
         ))}
       </div>
     </Section>
@@ -671,25 +782,28 @@ export function Experience({ data }: { data: Bootstrap }) {
 
 // --- Education ---
 export function Education({ data }: { data: Bootstrap }) {
+  const animated = data.theme.animations_enabled;
   if (data.education.length === 0) return null;
   return (
     <Section id="education" title="Education">
       <div className="space-y-6">
-        {data.education.map((ed) => (
-          <Card key={ed.id}>
-            <div className="flex flex-wrap justify-between gap-2">
-              <h3 className="font-heading font-semibold">
-                {ed.degree} {ed.institution && <span className="text-muted">· {ed.institution}</span>}
-              </h3>
-              <span className="text-sm text-muted">
-                {[ed.start_date, ed.end_date].filter(Boolean).join(" — ")}
-              </span>
-            </div>
-            {ed.field_of_study && (
-              <p className="text-sm text-secondary mt-1">{ed.field_of_study}</p>
-            )}
-            {ed.description && <p className="text-sm text-muted mt-2">{ed.description}</p>}
-          </Card>
+        {data.education.map((ed, i) => (
+          <Reveal key={ed.id} enabled={animated} delay={i * 0.06}>
+            <Card>
+              <div className="flex flex-wrap justify-between gap-2">
+                <h3 className="font-heading font-semibold">
+                  {ed.degree} {ed.institution && <span className="text-muted">· {ed.institution}</span>}
+                </h3>
+                <span className="text-sm text-muted">
+                  {[ed.start_date, ed.end_date].filter(Boolean).join(" — ")}
+                </span>
+              </div>
+              {ed.field_of_study && (
+                <p className="text-sm text-secondary mt-1">{ed.field_of_study}</p>
+              )}
+              {ed.description && <p className="text-sm text-muted mt-2">{ed.description}</p>}
+            </Card>
+          </Reveal>
         ))}
       </div>
     </Section>
@@ -698,29 +812,32 @@ export function Education({ data }: { data: Bootstrap }) {
 
 // --- Certifications ---
 export function Certifications({ data }: { data: Bootstrap }) {
+  const animated = data.theme.animations_enabled;
   if (data.certifications.length === 0) return null;
   return (
     <Section id="certifications" title="Certifications">
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {data.certifications.map((c) => (
-          <Card key={c.id}>
-            <div className="flex items-center gap-3">
-              {c.image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.image_url} alt={c.name} className="h-12 w-12 object-contain rounded" />
-              )}
-              <div>
-                <h3 className="font-heading font-semibold">{c.name}</h3>
-                {c.issuer && <p className="text-sm text-muted">{c.issuer}</p>}
-                {c.issue_date && <p className="text-xs text-muted">{c.issue_date}</p>}
+        {data.certifications.map((c, i) => (
+          <Reveal key={c.id} enabled={animated} delay={i * 0.05}>
+            <Card>
+              <div className="flex items-center gap-3">
+                {c.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.image_url} alt={c.name} className="h-12 w-12 object-contain rounded" />
+                )}
+                <div>
+                  <h3 className="font-heading font-semibold">{c.name}</h3>
+                  {c.issuer && <p className="text-sm text-muted">{c.issuer}</p>}
+                  {c.issue_date && <p className="text-xs text-muted">{c.issue_date}</p>}
+                </div>
               </div>
-            </div>
-            {c.credential_url && (
-              <a href={c.credential_url} className="mt-3 inline-block text-primary hover:underline text-sm">
-                View credential →
-              </a>
-            )}
-          </Card>
+              {c.credential_url && (
+                <a href={c.credential_url} className="mt-3 inline-block text-primary hover:underline text-sm">
+                  View credential →
+                </a>
+              )}
+            </Card>
+          </Reveal>
         ))}
       </div>
     </Section>

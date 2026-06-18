@@ -6,13 +6,14 @@ import { useAuth } from "@/lib/store";
 import type { Hero } from "@/lib/types";
 import { ImageInput } from "@/components/ui/ImageInput";
 import { ResetConfirm } from "@/components/admin/ResetConfirm";
+import { useToast } from "@/components/ui/Toast";
 
 export default function HeroPage() {
   const token = useAuth((s) => s.token)!;
   const qc = useQueryClient();
+  const toast = useToast();
   const { data } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
   const [form, setForm] = useState<Partial<Hero>>({});
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (data?.hero) setForm(data.hero);
@@ -21,10 +22,10 @@ export default function HeroPage() {
   const save = useMutation({
     mutationFn: () => updateHero(token, form),
     onSuccess: () => {
-      setSaved(true);
+      toast.success("Hero saved");
       qc.invalidateQueries({ queryKey: ["bootstrap"] });
-      setTimeout(() => setSaved(false), 2000);
     },
+    onError: (err) => toast.error("Failed to save hero", err),
   });
 
   const set = (k: keyof Hero, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
@@ -103,7 +104,7 @@ export default function HeroPage() {
         disabled={save.isPending}
         className="rounded-theme bg-primary text-white px-5 py-2.5 font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {save.isPending ? "Saving…" : saved ? "Saved ✓" : "Save hero"}
+        {save.isPending ? "Saving…" : "Save hero"}
       </button>
     </div>
   );
