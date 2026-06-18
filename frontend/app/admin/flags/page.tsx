@@ -5,10 +5,12 @@ import { useAuth } from "@/lib/store";
 import type { FeatureFlag } from "@/lib/types";
 import { Toggle } from "@/components/ui/Toggle";
 import { ResetConfirm } from "@/components/admin/ResetConfirm";
+import { useToast } from "@/components/ui/Toast";
 
 export default function FlagsPage() {
   const token = useAuth((s) => s.token)!;
   const qc = useQueryClient();
+  const toast = useToast();
   const { data: flags = [] } = useQuery({
     queryKey: ["flags"],
     queryFn: () => listFlags(token),
@@ -17,10 +19,12 @@ export default function FlagsPage() {
 
   const mutate = useMutation({
     mutationFn: (key: string) => toggleFlag(token, key),
-    onSuccess: () => {
+    onSuccess: (flag) => {
+      toast.success(`${flag.label || flag.key} ${flag.enabled ? "enabled" : "disabled"}`);
       qc.invalidateQueries({ queryKey: ["flags"] });
       qc.invalidateQueries({ queryKey: ["bootstrap"] });
     },
+    onError: (err) => toast.error("Failed to toggle flag", err),
   });
 
   const groups = flags.reduce<Record<string, FeatureFlag[]>>((acc, f) => {

@@ -12,7 +12,7 @@
   --color-fg: #e5e7eb;
   --color-muted: rgba(229, 231, 235, 0.6);
   --radius: 0.75rem;
-  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --card-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
   --font-family: Inter, system-ui, sans-serif;
   --heading-font-family: Inter, system-ui, sans-serif;
   --base-font-size: 16px;

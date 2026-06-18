@@ -131,7 +131,7 @@ export default function RecommendationsCarousel({
                 type="button"
                 onClick={() => setSelected(rec)}
                 className={`relative flex-none w-[88%] snap-center text-left rounded-2xl bg-surface border shadow-card
-                  p-6 sm:p-10 lg:p-14 min-h-[55vh] flex flex-col hover:border-primary/50 hover:shadow-lg transition-all
+                  p-6 sm:p-10 flex flex-col hover:border-primary/50 hover:shadow-lg transition-all
                   ${i === index ? "border-white/20 opacity-100" : "border-white/5 opacity-50 scale-[0.98]"}`}
               >
                 <div className="absolute top-5 right-5">

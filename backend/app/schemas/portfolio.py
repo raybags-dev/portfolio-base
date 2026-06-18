@@ -117,6 +117,9 @@ class SkillBase(BaseModel):
     proficiency: int = 80
     order: int = 0
     is_visible: bool = True
+    subheading: str | None = None
+    description: str | None = None
+    github_url: str | None = None
 
 
 class SkillCreate(SkillBase):
@@ -130,6 +133,9 @@ class SkillUpdate(BaseModel):
     proficiency: int | None = None
     order: int | None = None
     is_visible: bool | None = None
+    subheading: str | None = None
+    description: str | None = None
+    github_url: str | None = None
 
 
 class SkillRead(TimestampedRead, SkillBase):

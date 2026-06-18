@@ -131,6 +131,9 @@ export interface Skill {
   proficiency: number;
   order: number;
   is_visible: boolean;
+  subheading?: string | null;
+  description?: string | null;
+  github_url?: string | null;
 }
 
 export interface Recommendation {
