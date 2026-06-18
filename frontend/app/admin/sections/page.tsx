@@ -5,10 +5,12 @@ import { useAuth } from "@/lib/store";
 import type { Section } from "@/lib/types";
 import { Toggle } from "@/components/ui/Toggle";
 import { ResetConfirm } from "@/components/admin/ResetConfirm";
+import { useToast } from "@/components/ui/Toast";
 
 export default function SectionsAdmin() {
   const token = useAuth((s) => s.token)!;
   const qc = useQueryClient();
+  const toast = useToast();
   const { data: sections = [] } = useQuery({ queryKey: ["sections"], queryFn: listSections });
 
   const refresh = () => {
@@ -18,7 +20,8 @@ export default function SectionsAdmin() {
   const mut = useMutation({
     mutationFn: ({ key, body }: { key: string; body: Record<string, unknown> }) =>
       updateSection(token, key, body),
-    onSuccess: refresh,
+    onSuccess: () => { toast.success("Section updated"); refresh(); },
+    onError: (err) => toast.error("Failed to update section", err),
   });
 
   const sorted = [...sections].sort((a, b) => a.order - b.order);

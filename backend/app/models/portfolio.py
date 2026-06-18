@@ -78,6 +78,9 @@ class Skill(PKMixin, TimestampMixin, Base):
     proficiency: Mapped[int] = mapped_column(Integer, default=80)  # 0-100
     order: Mapped[int] = mapped_column(Integer, default=0)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
+    subheading: Mapped[str | None] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text)
+    github_url: Mapped[str | None] = mapped_column(String(512))
 
 
 class TimelineEntry(PKMixin, TimestampMixin, Base):
