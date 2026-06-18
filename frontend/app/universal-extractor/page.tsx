@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -19,6 +20,7 @@ import {
   exportUDERecordsUrl,
   getUDEReportPdfUrl,
   getUDERecords,
+  getBootstrap,
   type UDESession,
   type AnalyticsResult,
   type ChartData,
@@ -27,6 +29,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
+import { Footer } from "@/components/sections";
 
 const DISCLAIMER_KEY = "run_disclaimer_ude_v1";
 
@@ -49,6 +52,7 @@ const INPUT_CLS = "w-full bg-bg border border-white/15 rounded-theme px-3 py-2.5
 type Step = "configure" | "running" | "results";
 
 export default function UniversalExtractorPage() {
+  const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
   const [step, setStep] = useState<Step>("configure");
   const [sessions, setSessions] = useState<UDESession[]>([]);
   const [activeSession, setActiveSession] = useState<UDESession | null>(null);
@@ -209,6 +213,7 @@ export default function UniversalExtractorPage() {
   }
 
   return (
+    <>
     <main className="min-h-screen" style={{ background: "var(--color-bg)", color: "var(--color-fg)" }}>
       <div className="max-w-5xl mx-auto px-4 py-10">
 
@@ -338,6 +343,8 @@ export default function UniversalExtractorPage() {
         {step === "configure" && <HowItWorks />}
       </div>
     </main>
+    {bootstrap && <Footer data={bootstrap} />}
+    </>
   );
 }
 

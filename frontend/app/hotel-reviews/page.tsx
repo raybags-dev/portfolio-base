@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell,
   LineChart, Line,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 import {
   createCrawlSession,
   getCrawlSession,
@@ -20,6 +21,7 @@ import {
   importKaggleHotel,
   importCurlHotel,
   generateHotelSummary,
+  getBootstrap,
   type CrawlSession,
   type ChartData,
   type KaggleDataset,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
+import { Footer } from "@/components/sections";
 
 const DISCLAIMER_KEY = "run_disclaimer_ack_v1";
 
@@ -46,6 +49,7 @@ type Step = "configure" | "running" | "results";
 type InputMode = "crawler" | "kaggle" | "curl";
 
 export default function HotelReviewsPage() {
+  const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
   const [step, setStep] = useState<Step>("configure");
   const [inputMode, setInputMode] = useState<InputMode>("crawler");
   const [sessions, setSessions] = useState<CrawlSession[]>([]);
@@ -348,6 +352,7 @@ export default function HotelReviewsPage() {
           </div>
         </div>
       )}
+      {bootstrap && <Footer data={bootstrap} />}
     </div>
   );
 }

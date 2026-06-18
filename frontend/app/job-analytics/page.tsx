@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -18,6 +19,7 @@ import {
   searchKaggleJobs,
   importKaggleJobs,
   generateJobSummary,
+  getBootstrap,
   type JobSession,
   type AnalyticsResult,
   type ChartData,
@@ -27,6 +29,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
+import { Footer } from "@/components/sections";
 
 const DISCLAIMER_KEY = "run_disclaimer_ack_v1";
 
@@ -51,6 +54,7 @@ type Step = "configure" | "running" | "results";
 type InputMode = "crawler" | "kaggle";
 
 export default function JobAnalyticsPage() {
+  const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
   const [step, setStep] = useState<Step>("configure");
   const [inputMode, setInputMode] = useState<InputMode>("crawler");
   const [sessions, setSessions] = useState<JobSession[]>([]);
@@ -332,6 +336,7 @@ export default function JobAnalyticsPage() {
           </div>
         </div>
       )}
+      {bootstrap && <Footer data={bootstrap} />}
     </div>
   );
 }
