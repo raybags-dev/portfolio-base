@@ -12,16 +12,19 @@ function Reveal({
   enabled,
   delay = 0,
   as = "div",
+  className,
 }: {
   children: React.ReactNode;
   enabled: boolean;
   delay?: number;
   as?: "div" | "li" | "span";
+  className?: string;
 }) {
-  if (!enabled) return <>{children}</>;
+  if (!enabled) return className ? <div className={className}>{children}</div> : <>{children}</>;
   const Tag = motion[as] as typeof motion.div;
   return (
     <Tag
+      className={className}
       initial={{ opacity: 0, y: 32 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
@@ -345,8 +348,12 @@ export function About({ data }: { data: Bootstrap }) {
             </div>
           </Reveal>
         )}
-        <Reveal enabled={animated} delay={0.1}>
-          <div className={a.image_url ? "md:col-span-2" : "md:col-span-3"}>
+        <Reveal
+          enabled={animated}
+          delay={0.1}
+          className={a.image_url ? "md:col-span-2" : "md:col-span-3"}
+        >
+          <div>
             {a.biography && <p className="text-lg mb-4">{a.biography}</p>}
             {a.description && <p className="text-muted">{a.description}</p>}
             {a.highlights && a.highlights.length > 0 && (

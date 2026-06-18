@@ -1,14 +1,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   getStreamStats,
   listStreamTopics,
   getStreamSseUrl,
+  getBootstrap,
   type StreamStats,
   type StreamTopic,
   type StreamEvent,
 } from "@/lib/api";
+import { Footer } from "@/components/sections";
 
 // Extract a one-line summary from an event payload
 function briefSummary(payload: Record<string, unknown>): string {
@@ -20,6 +23,7 @@ function briefSummary(payload: Record<string, unknown>): string {
 }
 
 export default function StreamsPage() {
+  const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
   const [stats, setStats] = useState<StreamStats | null>(null);
   const [topics, setTopics] = useState<StreamTopic[]>([]);
   const [events, setEvents] = useState<StreamEvent[]>([]);
@@ -69,6 +73,7 @@ export default function StreamsPage() {
     : [];
 
   return (
+    <>
     <main
       className="min-h-screen flex flex-col"
       style={{ background: "var(--color-bg)", color: "var(--color-fg)" }}
@@ -260,5 +265,7 @@ export default function StreamsPage() {
         </div>
       </div>
     </main>
+    {bootstrap && <Footer data={bootstrap} />}
+    </>
   );
 }

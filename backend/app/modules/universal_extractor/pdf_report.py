@@ -79,8 +79,11 @@ def _render_pie(chart: dict[str, Any], width: int = 320, height: int = 280) -> b
 
     colors = (_CHART_COLORS * (len(labels) // len(_CHART_COLORS) + 1))[:len(labels)]
 
-    fig, ax = plt.subplots(figsize=(width / 100, height / 100), dpi=100)
+    # Force a square figure so the pie renders as a perfect circle.
+    sq = min(width, height) / 100
+    fig, ax = plt.subplots(figsize=(sq, sq), dpi=100)
     fig.patch.set_facecolor(_WHITE)
+    ax.set_aspect("equal")
 
     wedges, texts, autotexts = ax.pie(
         values,
@@ -159,7 +162,7 @@ def _chart_to_image(chart: dict[str, Any]):
     try:
         if ctype == "pie":
             png = _render_pie(chart)
-            return Image(io.BytesIO(png), width=3.2 * inch, height=2.8 * inch)
+            return Image(io.BytesIO(png), width=3 * inch, height=3 * inch)
         elif ctype == "line":
             png = _render_line(chart)
             return Image(io.BytesIO(png), width=6 * inch, height=2.4 * inch)
@@ -369,9 +372,8 @@ def generate_pdf(
             img_bytes = []
             for c in pair:
                 try:
-                    png = _render_pie(c,
-                                      width=int(CHART_W_HALF * 1.4),
-                                      height=int(CHART_W_HALF * 1.2))
+                    sq = int(CHART_W_HALF * 1.3)
+                    png = _render_pie(c, width=sq, height=sq)
                     img_bytes.append(png)
                 except Exception:
                     img_bytes.append(None)
@@ -379,7 +381,7 @@ def generate_pdf(
             cells = []
             for png in img_bytes:
                 if png:
-                    img = Image(io.BytesIO(png), width=CHART_W_HALF, height=CHART_W_HALF * 0.85)
+                    img = Image(io.BytesIO(png), width=CHART_W_HALF, height=CHART_W_HALF)
                     cells.append(img)
                 else:
                     cells.append(Paragraph("(chart unavailable)", muted))
