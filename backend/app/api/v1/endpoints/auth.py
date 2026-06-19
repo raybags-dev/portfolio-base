@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
@@ -19,13 +20,16 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.models.platform import PasswordResetToken
 from app.models.user import User
 from app.schemas.auth import (
     EmergencyReset,
+    ForgotPassword,
     LoginRequest,
     PasswordChange,
     ProfileUpdate,
     RefreshRequest,
+    ResetPassword,
     Token,
 )
 from app.schemas.user import CurrentUser as CurrentUserSchema
@@ -149,3 +153,65 @@ async def emergency_reset(payload: EmergencyReset, db: DbSession) -> dict:
     target.hashed_password = hash_password(payload.new_password)
     await db.commit()
     return {"ok": True, "detail": "Password reset for " + target.email}
+
+
+_ADMIN_WHATSAPP = "31636329324"  # +31 636 329 324
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPassword, request: Request, db: DbSession) -> dict:
+    """Generate a one-time password-reset link.
+
+    Only works if the email belongs to an existing account.
+    Returns the reset URL plus a WhatsApp deep-link for self-delivery.
+    """
+    user = await db.scalar(select(User).where(User.email == payload.email))
+    if not user:
+        # Don't reveal whether the account exists; just return nothing useful.
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No account with that email")
+
+    # Expire any old unused tokens for this email.
+    old_tokens = (
+        await db.scalars(
+            select(PasswordResetToken).where(
+                PasswordResetToken.email == payload.email,
+                PasswordResetToken.is_used.is_(False),
+            )
+        )
+    ).all()
+    for t in old_tokens:
+        t.is_used = True
+
+    token_value = secrets.token_urlsafe(32)
+    expires = datetime.now(UTC) + timedelta(hours=1)
+    db.add(PasswordResetToken(token=token_value, email=payload.email, expires_at=expires))
+    await db.commit()
+
+    # Build the reset URL from the incoming request origin.
+    origin = str(request.base_url).rstrip("/")
+    reset_url = f"{origin}/admin/reset-password?token={token_value}"
+    wa_text = quote_plus(f"Your password reset link (valid 1 hour):\n{reset_url}")
+    wa_url = f"https://wa.me/{_ADMIN_WHATSAPP}?text={wa_text}"
+
+    return {"reset_url": reset_url, "wa_url": wa_url, "expires_minutes": 60}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPassword, db: DbSession) -> dict:
+    """Consume a reset token and set a new password."""
+    record = await db.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.token == payload.token)
+    )
+    if not record or record.is_used:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or already-used reset token")
+    if datetime.now(UTC) > record.expires_at.replace(tzinfo=UTC):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reset token has expired")
+
+    user = await db.scalar(select(User).where(User.email == record.email))
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    user.hashed_password = hash_password(payload.new_password)
+    record.is_used = True
+    await db.commit()
+    return {"ok": True, "detail": "Password updated. You can now log in."}

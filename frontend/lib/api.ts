@@ -814,3 +814,12 @@ export const updateCrawlerProfile = (
 
 export const deleteCrawlerProfile = (token: string, id: number): Promise<void> =>
   request<void>(`/crawlers/profiles/${id}`, { method: "DELETE", token });
+
+
+// ── Password reset ────────────────────────────────────────────────────────────
+
+export const forgotPassword = (email: string): Promise<{ reset_url: string; wa_url: string; expires_minutes: number }> =>
+  request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+
+export const resetPassword = (token: string, new_password: string, confirm_password: string): Promise<{ ok: boolean; detail: string }> =>
+  request("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, new_password, confirm_password }) });
