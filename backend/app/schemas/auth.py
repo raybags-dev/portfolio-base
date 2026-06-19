@@ -39,6 +39,22 @@ class ProfileUpdate(BaseModel):
     email: EmailStr | None = None
 
 
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+    confirm_password: str
+
+    @model_validator(mode="after")
+    def _match(self) -> ResetPassword:
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
 class EmergencyReset(BaseModel):
     """Out-of-band credential reset using CUSTOM_AUTH_TOKEN."""
 

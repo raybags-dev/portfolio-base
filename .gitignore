@@ -42,3 +42,7 @@ prometheus-data/
 
 # directives kept local, not shipped
 directives.txt
+.vscode/launch.json
+.claude-directives.txt
+.claude-directives.md
+.claude
