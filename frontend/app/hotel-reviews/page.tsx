@@ -22,12 +22,14 @@ import {
   importCurlHotel,
   generateHotelSummary,
   getBootstrap,
+  listCrawlerProfiles,
   type CrawlSession,
   type ChartData,
   type KaggleDataset,
   type RunContactInfo,
   ApiError,
 } from "@/lib/api";
+import type { CrawlerProfile } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
 import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
 import { Footer } from "@/components/sections";
@@ -50,6 +52,11 @@ type InputMode = "crawler" | "kaggle" | "curl";
 
 export default function HotelReviewsPage() {
   const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
+  const { data: crawlerProfiles = [] } = useQuery({
+    queryKey: ["crawler-profiles", "hotel_reviews"],
+    queryFn: () => listCrawlerProfiles("hotel_reviews"),
+  });
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("configure");
   const [inputMode, setInputMode] = useState<InputMode>("crawler");
   const [sessions, setSessions] = useState<CrawlSession[]>([]);
@@ -131,6 +138,7 @@ export default function HotelReviewsPage() {
           pre_actions: preActions.length ? preActions : undefined,
           container_selector: containerSelector.trim() || undefined,
           item_selector: itemSelector.trim() || undefined,
+          profile_id: selectedProfileId ?? undefined,
         },
         max_pages: maxPages,
         session_contact: contact,
@@ -279,6 +287,9 @@ export default function HotelReviewsPage() {
             itemSelector={itemSelector} setItemSelector={setItemSelector}
             formError={formError} submitting={submitting}
             handleCrawlerSubmit={handleCrawlerSubmit}
+            crawlerProfiles={crawlerProfiles}
+            selectedProfileId={selectedProfileId}
+            setSelectedProfileId={setSelectedProfileId}
             onKaggleImportStarted={(session) => {
               setActiveSession(session);
               setStep("running");
@@ -370,6 +381,7 @@ function ConfigureStep({
   preActions, setPreActions, containerSelector, setContainerSelector,
   itemSelector, setItemSelector,
   formError, submitting, handleCrawlerSubmit, onKaggleImportStarted, onCurlImportStarted,
+  crawlerProfiles, selectedProfileId, setSelectedProfileId,
 }: {
   inputMode: InputMode; setInputMode: (m: InputMode) => void;
   url: string; setUrl: (v: string) => void;
@@ -388,6 +400,9 @@ function ConfigureStep({
   handleCrawlerSubmit: (e: React.FormEvent) => void;
   onKaggleImportStarted: (session: CrawlSession) => void;
   onCurlImportStarted: (session: CrawlSession) => void;
+  crawlerProfiles: CrawlerProfile[];
+  selectedProfileId: number | null;
+  setSelectedProfileId: (id: number | null) => void;
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -431,6 +446,9 @@ function ConfigureStep({
           formError={formError} submitting={submitting}
           handleCrawlerSubmit={handleCrawlerSubmit}
           showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+          crawlerProfiles={crawlerProfiles}
+          selectedProfileId={selectedProfileId}
+          setSelectedProfileId={setSelectedProfileId}
         />
       ) : inputMode === "kaggle" ? (
         <KaggleSearch
@@ -456,6 +474,7 @@ function CrawlerForm({
   preActions, setPreActions, containerSelector, setContainerSelector,
   itemSelector, setItemSelector,
   formError, submitting, handleCrawlerSubmit, showAdvanced, setShowAdvanced,
+  crawlerProfiles, selectedProfileId, setSelectedProfileId,
 }: {
   url: string; setUrl: (v: string) => void;
   name: string; setName: (v: string) => void;
@@ -472,6 +491,9 @@ function CrawlerForm({
   formError: string; submitting: boolean;
   handleCrawlerSubmit: (e: React.FormEvent) => void;
   showAdvanced: boolean; setShowAdvanced: (v: boolean) => void;
+  crawlerProfiles: CrawlerProfile[];
+  selectedProfileId: number | null;
+  setSelectedProfileId: (id: number | null) => void;
 }) {
   const promptFields = prompt.split(/[,;\n]/)
     .map(s => s.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
@@ -548,6 +570,19 @@ function CrawlerForm({
         </button>
         {showAdvanced && (
           <div className="px-5 pb-5 space-y-5 border-t border-white/10 pt-4">
+            {crawlerProfiles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Crawler profile <span className="text-muted">(optional)</span></label>
+                <select value={selectedProfileId ?? ""} onChange={e => setSelectedProfileId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60">
+                  <option value="">None — use AI-generated selectors</option>
+                  {crawlerProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` — ${p.description}` : ""}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted/60 mt-1">A saved profile pre-fills selectors and field mappings for this crawler.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-2">Pagination mode</label>
               <div className="flex gap-2 flex-wrap">

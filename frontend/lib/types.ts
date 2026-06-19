@@ -321,3 +321,35 @@ export interface AuditLogEntry {
   detail: Record<string, unknown> | null;
   ip_address: string | null;
 }
+
+export interface CrawlerProfileField {
+  selector_type: "css" | "regexp";
+  selector: string;
+  hint_regex?: string | null;
+  hint_contains?: string | null;
+  hint_min_len?: number | null;
+  required: boolean;
+}
+
+export interface CrawlerProfileLoopConfig {
+  enabled: boolean;
+  container_selector: string;
+  item_selector: string;
+}
+
+export interface CrawlerProfileFieldsConfig {
+  fields: Record<string, CrawlerProfileField>;
+  loop: CrawlerProfileLoopConfig;
+}
+
+export interface CrawlerProfile {
+  id: number;
+  name: string;
+  description?: string | null;
+  applies_to: string;
+  target_url_pattern?: string | null;
+  fields_config: CrawlerProfileFieldsConfig;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

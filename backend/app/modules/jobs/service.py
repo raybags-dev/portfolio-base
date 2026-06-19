@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.models.platform import JobCrawlRecord, JobCrawlSession
+from app.models.platform import CrawlerProfile, JobCrawlRecord, JobCrawlSession
 from app.modules.agents.llm import get_provider
 from app.modules.hotel_reviews.playwright_engine import CrawlEngine
 from app.modules.jobs.analytics import compute_analytics
@@ -67,6 +67,39 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         cookie_hints = spec.get("cookie_hints")
         selector_hints = spec.get("selector_hints") or None
         pagination_type = spec.get("pagination_type") or "auto"
+        container_selector = spec.get("container_selector") or None
+        item_selector = spec.get("item_selector") or None
+        field_map = spec.get("field_map") or None
+
+        profile_id = spec.get("profile_id")
+        if profile_id:
+            profile = await db.get(CrawlerProfile, int(profile_id))
+            if profile and profile.fields_config:
+                fc = profile.fields_config
+                loop_cfg = fc.get("loop") or {}
+                fields = fc.get("fields") or {}
+                if loop_cfg.get("enabled"):
+                    container_selector = container_selector or loop_cfg.get("container_selector") or None
+                    item_selector = item_selector or loop_cfg.get("item_selector") or None
+                if fields and not field_map:
+                    css_map = {
+                        fn: fd["selector"]
+                        for fn, fd in fields.items()
+                        if fd.get("selector_type") == "css" and fd.get("selector")
+                    }
+                    if css_map:
+                        field_map = css_map
+                        selector_hints = selector_hints or css_map
+                    regexp_hints = {
+                        fn: fd["selector"]
+                        for fn, fd in fields.items()
+                        if fd.get("selector_type") == "regexp" and fd.get("selector")
+                    }
+                    if regexp_hints:
+                        selector_hints = {**(selector_hints or {}), **regexp_hints}
+                await on_progress(
+                    f"Applying crawler profile '{profile.name}' — {len(fields)} configured field(s)."
+                )
 
         records = await engine.run(
             session.target_url,
@@ -76,6 +109,9 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
             cookie_hints=cookie_hints,
             selector_hints=selector_hints,
             pagination_type=pagination_type,
+            container_selector=container_selector,
+            item_selector=item_selector,
+            field_map=field_map,
         )
 
         await on_progress(
