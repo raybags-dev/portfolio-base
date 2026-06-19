@@ -20,6 +20,7 @@ import {
   importKaggleJobs,
   generateJobSummary,
   getBootstrap,
+  listCrawlerProfiles,
   type JobSession,
   type AnalyticsResult,
   type ChartData,
@@ -27,6 +28,7 @@ import {
   type RunContactInfo,
   ApiError,
 } from "@/lib/api";
+import type { CrawlerProfile } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
 import RunProjectDisclaimer from "@/components/RunProjectDisclaimer";
 import { Footer } from "@/components/sections";
@@ -55,6 +57,8 @@ type InputMode = "crawler" | "kaggle";
 
 export default function JobAnalyticsPage() {
   const { data: bootstrap } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap, staleTime: Infinity });
+  const { data: crawlerProfiles = [] } = useQuery({ queryKey: ["crawlerProfiles", "job_analytics"], queryFn: () => listCrawlerProfiles("job_analytics"), staleTime: Infinity });
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("configure");
   const [inputMode, setInputMode] = useState<InputMode>("crawler");
   const [sessions, setSessions] = useState<JobSession[]>([]);
@@ -126,6 +130,7 @@ export default function JobAnalyticsPage() {
           cookie_hints: cookieHints.trim() || undefined,
           pagination_type: paginationType,
           selector_hints: Object.keys(cleanHints).length ? cleanHints : undefined,
+          profile_id: selectedProfileId ?? undefined,
         },
         max_pages: maxPages,
         session_contact: contact,
@@ -268,6 +273,9 @@ export default function JobAnalyticsPage() {
             selectorHintsMap={selectorHintsMap} setSelectorHintsMap={setSelectorHintsMap}
             formError={formError} submitting={submitting}
             handleSubmit={handleSubmit}
+            crawlerProfiles={crawlerProfiles}
+            selectedProfileId={selectedProfileId}
+            setSelectedProfileId={setSelectedProfileId}
             onKaggleImportStarted={(session) => {
               setActiveSession(session);
               setStep("running");
@@ -350,6 +358,7 @@ function ConfigureStep({
   cookieHints, setCookieHints, paginationType, setPaginationType,
   selectorHintsMap, setSelectorHintsMap,
   formError, submitting, handleSubmit, onKaggleImportStarted,
+  crawlerProfiles, selectedProfileId, setSelectedProfileId,
 }: {
   inputMode: InputMode; setInputMode: (m: InputMode) => void;
   url: string; setUrl: (v: string) => void;
@@ -363,6 +372,9 @@ function ConfigureStep({
   formError: string; submitting: boolean;
   handleSubmit: (e: React.FormEvent) => void;
   onKaggleImportStarted: (session: JobSession) => void;
+  crawlerProfiles: CrawlerProfile[];
+  selectedProfileId: number | null;
+  setSelectedProfileId: (id: number | null) => void;
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -395,6 +407,9 @@ function ConfigureStep({
           selectorHintsMap={selectorHintsMap} setSelectorHintsMap={setSelectorHintsMap}
           formError={formError} submitting={submitting} handleSubmit={handleSubmit}
           showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+          crawlerProfiles={crawlerProfiles}
+          selectedProfileId={selectedProfileId}
+          setSelectedProfileId={setSelectedProfileId}
         />
       ) : (
         <KaggleSearch
@@ -415,6 +430,7 @@ function CrawlerForm({
   cookieHints, setCookieHints, paginationType, setPaginationType,
   selectorHintsMap, setSelectorHintsMap,
   formError, submitting, handleSubmit, showAdvanced, setShowAdvanced,
+  crawlerProfiles, selectedProfileId, setSelectedProfileId,
 }: {
   url: string; setUrl: (v: string) => void;
   name: string; setName: (v: string) => void;
@@ -427,6 +443,9 @@ function CrawlerForm({
   formError: string; submitting: boolean;
   handleSubmit: (e: React.FormEvent) => void;
   showAdvanced: boolean; setShowAdvanced: (v: boolean) => void;
+  crawlerProfiles: CrawlerProfile[];
+  selectedProfileId: number | null;
+  setSelectedProfileId: (id: number | null) => void;
 }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -496,6 +515,19 @@ function CrawlerForm({
         </button>
         {showAdvanced && (
           <div className="px-5 pb-5 space-y-5 border-t border-white/10 pt-4">
+            {crawlerProfiles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Crawler profile <span className="text-muted">(optional)</span></label>
+                <select value={selectedProfileId ?? ""} onChange={e => setSelectedProfileId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60">
+                  <option value="">None — use AI-generated selectors</option>
+                  {crawlerProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` — ${p.description}` : ""}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted/60 mt-1">A saved profile pre-fills selectors and field mappings for this crawler.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-2">Pagination mode</label>
               <div className="flex gap-2 flex-wrap">

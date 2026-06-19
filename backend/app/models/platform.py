@@ -389,6 +389,18 @@ class IpUsageLog(PKMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("ip", "app_name", name="uq_ip_app_usage"),)
 
 
+class CrawlerProfile(PKMixin, TimestampMixin, Base):
+    """Named reusable extraction config for a specific site or data pattern."""
+    __tablename__ = "crawler_profiles"
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    applies_to: Mapped[str] = mapped_column(String(64), default="all")
+    target_url_pattern: Mapped[str | None] = mapped_column(String(512))
+    fields_config: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 # ── Stream Pipeline ───────────────────────────────────────────────────────────
 
 class StreamTopic(PKMixin, TimestampMixin, Base):
