@@ -23,6 +23,7 @@ const NAV = [
   { href: "/admin/tokens", label: "Access Tokens" },
   { href: "/admin/logs", label: "Logs" },
   { href: "/admin/crawlers", label: "Crawlers" },
+  { href: "/admin/crawler-profiles", label: "Crawler Profiles" },
   { href: "/admin/agents", label: "AI Agents" },
   { href: "/admin/scheduler", label: "Scheduler" },
   { href: "/admin/streams", label: "Stream Pipeline" },

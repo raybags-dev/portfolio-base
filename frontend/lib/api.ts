@@ -2,6 +2,7 @@
 import type {
   About,
   Bootstrap,
+  CrawlerProfile,
   FeatureFlag,
   Skill,
   Theme,
@@ -788,3 +789,28 @@ export const listFiredAlerts = (limit = 50) =>
   request<AlertFired[]>(`/streams/alerts/fired?limit=${limit}`);
 export const getStreamSseUrl = (topic?: string) =>
   `${V1}/streams/sse${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`;
+
+// ── Crawler Profiles ──────────────────────────────────────────────────────────
+
+export const listCrawlerProfiles = (applies_to?: string): Promise<CrawlerProfile[]> =>
+  request<CrawlerProfile[]>(`/crawlers/profiles${applies_to ? `?applies_to=${applies_to}` : ""}`);
+
+export const createCrawlerProfile = (
+  token: string,
+  payload: Omit<CrawlerProfile, "id" | "created_at" | "updated_at">,
+): Promise<CrawlerProfile> =>
+  request<CrawlerProfile>("/crawlers/profiles", {
+    method: "POST", token, body: JSON.stringify(payload),
+  });
+
+export const updateCrawlerProfile = (
+  token: string,
+  id: number,
+  payload: Omit<CrawlerProfile, "id" | "created_at" | "updated_at">,
+): Promise<CrawlerProfile> =>
+  request<CrawlerProfile>(`/crawlers/profiles/${id}`, {
+    method: "PUT", token, body: JSON.stringify(payload),
+  });
+
+export const deleteCrawlerProfile = (token: string, id: number): Promise<void> =>
+  request<void>(`/crawlers/profiles/${id}`, { method: "DELETE", token });

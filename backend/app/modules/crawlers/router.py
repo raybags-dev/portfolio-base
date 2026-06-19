@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.core.deps import DbSession, require_admin, require_flag
-from app.models.platform import CrawlerJob, CrawlerLog, CrawlerResult
+from app.models.platform import CrawlerJob, CrawlerLog, CrawlerProfile, CrawlerResult
 from app.modules import ModuleSpec
 from app.modules.crawlers import service
 
@@ -98,6 +98,66 @@ async def job_results(job_id: int, db: DbSession, limit: int = Query(100, ge=1, 
         )
     ).all()
     return [{"id": r.id, "payload": r.payload, "row_count": r.row_count} for r in rows]
+
+
+class ProfileCreate(BaseModel):
+    name: str
+    description: str | None = None
+    applies_to: str = "all"
+    target_url_pattern: str | None = None
+    fields_config: dict[str, Any] = {}
+    is_active: bool = True
+
+
+def _profile_dict(p: CrawlerProfile) -> dict[str, Any]:
+    return {
+        "id": p.id, "name": p.name, "description": p.description,
+        "applies_to": p.applies_to, "target_url_pattern": p.target_url_pattern,
+        "fields_config": p.fields_config, "is_active": p.is_active,
+        "created_at": p.created_at, "updated_at": p.updated_at,
+    }
+
+
+@router.get("/profiles")
+async def list_profiles(db: DbSession, applies_to: str | None = None):
+    from sqlalchemy import or_
+    q = select(CrawlerProfile).where(CrawlerProfile.is_active == True)  # noqa: E712
+    if applies_to:
+        q = q.where(or_(CrawlerProfile.applies_to == applies_to, CrawlerProfile.applies_to == "all"))
+    rows = (await db.scalars(q.order_by(CrawlerProfile.id))).all()
+    return [_profile_dict(p) for p in rows]
+
+
+@router.post("/profiles", status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_admin())])
+async def create_profile(payload: ProfileCreate, db: DbSession):
+    profile = CrawlerProfile(**payload.model_dump())
+    db.add(profile)
+    await db.commit()
+    await db.refresh(profile)
+    return _profile_dict(profile)
+
+
+@router.put("/profiles/{profile_id}", dependencies=[Depends(require_admin())])
+async def update_profile(profile_id: int, payload: ProfileCreate, db: DbSession):
+    profile = await db.get(CrawlerProfile, profile_id)
+    if not profile:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Profile not found")
+    for k, v in payload.model_dump().items():
+        setattr(profile, k, v)
+    await db.commit()
+    await db.refresh(profile)
+    return _profile_dict(profile)
+
+
+@router.delete("/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_admin())])
+async def delete_profile(profile_id: int, db: DbSession):
+    profile = await db.get(CrawlerProfile, profile_id)
+    if not profile:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Profile not found")
+    await db.delete(profile)
+    await db.commit()
 
 
 spec = ModuleSpec(key="crawlers", flag=FLAG, router=router, prefix="", tags=["crawlers"])
