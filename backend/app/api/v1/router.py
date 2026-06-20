@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     contact,
     feature_flags,
     media,
+    news,
     public,
     sections,
     singletons,
@@ -45,6 +46,9 @@ api_router.include_router(blog.router)
 # control plane
 api_router.include_router(feature_flags.router)
 api_router.include_router(access_tokens.router)
+
+# news feed
+api_router.include_router(news.router)
 
 # pluggable modules (always mounted; each route gated by its feature flag)
 from app.modules import discover_modules  # noqa: E402
