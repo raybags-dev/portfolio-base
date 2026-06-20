@@ -305,9 +305,7 @@ export function Hero({ data }: { data: Bootstrap }) {
             )}
 
             {/* Text */}
-            <div
-              className={`flex-1 ${showAvatar ? "text-center lg:text-left" : "text-center"}`}
-            >
+            <div className="flex-1 text-center md:text-left">
               {h.name && (
                 <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/[0.08] text-primary text-sm font-medium">
                   <span className="font-mono text-xs">◈</span>
@@ -322,11 +320,7 @@ export function Hero({ data }: { data: Bootstrap }) {
               )}
 
               {/* Accent bar */}
-              <div
-                className={`flex items-center gap-3 mb-6 ${
-                  showAvatar ? "justify-center lg:justify-start" : "justify-center"
-                }`}
-              >
+              <div className="flex items-center gap-3 mb-6 justify-center md:justify-start">
                 <div className="h-0.5 w-10 bg-primary rounded-full" />
                 <div className="h-0.5 w-5 bg-primary/40 rounded-full" />
                 <div className="h-0.5 w-2 bg-primary/20 rounded-full" />

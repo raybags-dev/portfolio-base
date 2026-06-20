@@ -45,26 +45,32 @@ async function request<T>(
 
   // Auto-refresh on 401 — only once, only in browser
   if (res.status === 401 && !_retried && typeof window !== "undefined") {
-    const { refresh_token, email, setAuth, logout } = useAuth.getState();
-    if (refresh_token) {
-      try {
-        const rr = await fetch(`${V1}/auth/refresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token }),
-          cache: "no-store",
-        });
-        if (rr.ok) {
-          const tokens = (await rr.json()) as {
-            access_token: string;
-            refresh_token: string;
-          };
-          setAuth(tokens.access_token, email ?? "", tokens.refresh_token);
-          return request<T>(path, { ...opts, token: tokens.access_token }, true);
+    const { refresh_token, token: currentToken, email, setAuth, logout } =
+      useAuth.getState();
+    // Only intercept when the user has (or had) an authenticated session
+    if (currentToken || refresh_token) {
+      if (refresh_token) {
+        try {
+          const rr = await fetch(`${V1}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token }),
+            cache: "no-store",
+          });
+          if (rr.ok) {
+            const tokens = (await rr.json()) as {
+              access_token: string;
+              refresh_token: string;
+            };
+            setAuth(tokens.access_token, email ?? "", tokens.refresh_token);
+            return request<T>(path, { ...opts, token: tokens.access_token }, true);
+          }
+        } catch {
+          /* fall through to logout */
         }
-      } catch {
-        /* fall through */
       }
+      // No refresh token, or refresh failed — clear expired session so admin
+      // layout redirects to login automatically.
       logout();
       throw new ApiError(401, "Session expired — please log in again");
     }
