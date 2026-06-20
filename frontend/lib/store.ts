@@ -26,8 +26,9 @@ export const useUI = create<UIState>()(
 
 interface AuthState {
   token: string | null;
+  refresh_token: string | null;
   email: string | null;
-  setAuth: (token: string, email: string) => void;
+  setAuth: (token: string, email: string, refreshToken?: string | null) => void;
   logout: () => void;
 }
 
@@ -35,9 +36,11 @@ export const useAuth = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
+      refresh_token: null,
       email: null,
-      setAuth: (token, email) => set({ token, email }),
-      logout: () => set({ token: null, email: null }),
+      setAuth: (token, email, refreshToken) =>
+        set({ token, email, refresh_token: refreshToken ?? null }),
+      logout: () => set({ token: null, email: null, refresh_token: null }),
     }),
     { name: "raybags-auth" },
   ),

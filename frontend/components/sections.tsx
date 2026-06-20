@@ -4,7 +4,6 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Bootstrap, Project, Skill } from "@/lib/types";
 import NewsTicker from "@/components/NewsTicker";
-import { useUI } from "@/lib/store";
 
 // --- shared building blocks ---
 function Reveal({
@@ -175,12 +174,10 @@ function ProjectDetailModal({
   );
 }
 
-// --- Hero (fixed background logic + profile avatar) ---
+// --- Hero ---
 export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
-  const uiMode = useUI((s) => s.mode);
-  const isDark = (uiMode ?? t.default_mode ?? "dark") === "dark";
   const [scrolled, setScrolled] = useState(false);
   const [scrollPct, setScrollPct] = useState(0);
 
@@ -197,13 +194,20 @@ export function Hero({ data }: { data: Bootstrap }) {
   if (!h.is_visible) return null;
 
   const hasImage = h.background_mode === "image" && !!h.background_image_url;
+  const opacity = h.background_opacity ?? 0.2;
+  const grayscale = h.img_grayscale ?? 0;
+  const invert = h.img_invert ?? false;
+  const imgFilter =
+    [grayscale > 0 && `grayscale(${grayscale})`, invert && "invert(1)"]
+      .filter(Boolean)
+      .join(" ") || "none";
 
-  let background: React.CSSProperties | undefined;
+  let bgStyle: React.CSSProperties | undefined;
   if (!hasImage) {
     if (h.background_mode === "color" && h.background_color) {
-      background = { backgroundColor: h.background_color };
+      bgStyle = { backgroundColor: h.background_color };
     } else {
-      background = {
+      bgStyle = {
         backgroundImage:
           "radial-gradient(1200px 500px at 20% -10%, var(--color-primary), transparent), radial-gradient(900px 500px at 90% 10%, var(--color-secondary), transparent)",
       };
@@ -217,79 +221,142 @@ export function Hero({ data }: { data: Bootstrap }) {
         ? "rounded-full"
         : "";
   const showAvatar = h.avatar_url && h.avatar_shape !== "none";
-  const textShadow = hasImage ? "0 2px 6px rgba(0,0,0,0.8)" : undefined;
 
   return (
     <section
       className="min-h-screen flex items-center relative overflow-hidden"
-      style={!hasImage ? background : undefined}
+      style={!hasImage ? bgStyle : undefined}
     >
+      {/* Background image — opacity-only, no destructive colour filters */}
       {hasImage && (
-        <>
-          {/* Parallax zoom — image scales up slowly as user scrolls */}
-          <div
-            className="absolute inset-[-8%]"
-            style={{
-              backgroundImage: `url("${h.background_image_url}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              filter: `grayscale(1) blur(3px) invert(${isDark ? 0 : 1})`,
-              transform: `scale(${1 + scrollPct * 0.12})`,
-              transformOrigin: "center center",
-              willChange: "transform",
-            }}
-          />
-          {/* Gradient overlay for text legibility */}
-          <div
-            className="absolute inset-0"
-            style={{ background: "linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.55))" }}
-          />
-        </>
+        <div
+          className="absolute inset-[-6%]"
+          style={{
+            backgroundImage: `url("${h.background_image_url}")`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity,
+            filter: imgFilter,
+            transform: `scale(${1 + scrollPct * 0.08})`,
+            transformOrigin: "center center",
+            willChange: "transform",
+          }}
+        />
       )}
-      {/* Themed scroll veil — pale themed colour grows from bottom as user scrolls */}
+
+      {/* Depth overlay — ensures text legibility without destroying photo */}
+      {hasImage && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--color-bg) 0%, rgba(0,0,0,0.4) 50%, var(--color-bg) 100%)",
+            opacity: 0.8,
+          }}
+        />
+      )}
+
+      {/* Scroll veil — bg colour rises from bottom as user scrolls */}
       <div
         className="absolute inset-0 pointer-events-none z-[1]"
         style={{
-          background: "linear-gradient(to top, var(--color-bg) 0%, transparent 65%)",
-          opacity: scrollPct * 0.85,
+          background: "linear-gradient(to top, var(--color-bg) 0%, transparent 60%)",
+          opacity: scrollPct * 0.9,
         }}
       />
-      <div className="container-x relative z-10">
+
+      {/* Subtle dot grid — data-pipeline aesthetic */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, var(--color-primary) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          opacity: 0.04,
+        }}
+      />
+
+      {/* Content */}
+      <div className="container-x relative z-10 py-24">
         <Reveal enabled={t.animations_enabled}>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+          <div className="flex flex-col lg:flex-row items-center gap-14">
+            {/* Avatar */}
             {showAvatar && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={h.avatar_url as string}
-                alt={h.name || "Profile"}
-                className={`h-32 w-32 sm:h-40 sm:w-40 object-cover ring-2 ring-white/30 shadow-[0_0_0_5px_rgba(255,255,255,0.08)] ${shapeClass}`}
-              />
+              <div className="shrink-0 relative">
+                <div
+                  className="absolute rounded-full border border-primary/15 pointer-events-none"
+                  style={{ inset: "-14px" }}
+                />
+                <div
+                  className="absolute rounded-full border border-primary/[0.08] pointer-events-none"
+                  style={{ inset: "-28px" }}
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={h.avatar_url as string}
+                  alt={h.name || "Profile"}
+                  className={`relative z-10 h-44 w-44 lg:h-52 lg:w-52 object-cover ring-2 ring-primary/30 shadow-2xl shadow-primary/10 ${shapeClass}`}
+                />
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface border border-white/10 backdrop-blur-sm text-xs font-medium whitespace-nowrap z-20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="text-muted">Available for hire</span>
+                </div>
+              </div>
             )}
-            <div style={{ textShadow }}>
+
+            {/* Text */}
+            <div
+              className={`flex-1 ${showAvatar ? "text-center lg:text-left" : "text-center"}`}
+            >
               {h.name && (
-                <p className={`font-medium mb-3 ${hasImage ? "text-primary" : "text-primary"}`}>
+                <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/[0.08] text-primary text-sm font-medium">
+                  <span className="font-mono text-xs">◈</span>
                   {h.name}
-                </p>
+                </div>
               )}
+
               {h.title && (
-                <h1
-                  className="text-4xl sm:text-6xl font-heading font-extrabold max-w-3xl leading-tight"
-                  style={hasImage ? { color: "white" } : undefined}
-                >
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold leading-[1.1] mb-4 tracking-tight">
                   {h.title}
                 </h1>
               )}
+
+              {/* Accent bar */}
+              <div
+                className={`flex items-center gap-3 mb-6 ${
+                  showAvatar ? "justify-center lg:justify-start" : "justify-center"
+                }`}
+              >
+                <div className="h-0.5 w-10 bg-primary rounded-full" />
+                <div className="h-0.5 w-5 bg-primary/40 rounded-full" />
+                <div className="h-0.5 w-2 bg-primary/20 rounded-full" />
+              </div>
+
               {h.subtitle && (
-                <p className={`mt-5 text-lg max-w-2xl ${hasImage ? "text-white/80" : "text-muted"}`}>
+                <p className="text-base sm:text-lg text-muted max-w-xl leading-relaxed mb-9">
                   {h.subtitle}
                 </p>
               )}
+
               {h.cta_text && h.cta_url && (
                 <a
                   href={h.cta_url}
-                  className="mt-8 block sm:inline-block w-full sm:w-auto text-center rounded-theme bg-primary text-white font-medium px-6 py-3 hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 rounded-theme bg-primary text-white font-medium px-7 py-3 hover:opacity-90 transition-opacity"
                 >
                   {h.cta_text}
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
                 </a>
               )}
             </div>
@@ -297,7 +364,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         </Reveal>
       </div>
 
-      {/* Scroll indicator — fades out after scrolling 60px */}
+      {/* Scroll indicator */}
       <div
         className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none transition-opacity duration-500"
         style={{ opacity: scrolled ? 0 : 1 }}
@@ -318,8 +385,6 @@ export function Hero({ data }: { data: Bootstrap }) {
         </svg>
       </div>
 
-      {/* NewsTicker mounts here so it's only active on the home page,
-          but it renders with position:fixed so it sticks to viewport bottom */}
       <NewsTicker />
     </section>
   );
@@ -502,7 +567,7 @@ export function Skills({ data }: { data: Bootstrap }) {
                   <p className="text-xs text-secondary leading-snug">{first.subheading}</p>
                 )}
                 {/* tech badges */}
-                <div className="flex flex-wrap gap-1.5 flex-1">
+                <div className="flex flex-wrap gap-1.5 flex-1 justify-center">
                   {skills.map((s) => (
                     <span
                       key={s.id}

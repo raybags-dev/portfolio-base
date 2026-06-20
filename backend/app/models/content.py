@@ -128,6 +128,11 @@ class HeroSection(PKMixin, TimestampMixin, Base):
     avatar_url: Mapped[str | None] = mapped_column(String(1024))
     avatar_shape: Mapped[str] = mapped_column(String(16), default="circle")  # circle|rounded|none
 
+    # Image display controls (opacity/filter applied client-side)
+    background_opacity: Mapped[float] = mapped_column(Float, default=0.2)
+    img_grayscale: Mapped[float] = mapped_column(Float, default=0.0)
+    img_invert: Mapped[bool] = mapped_column(Boolean, default=False)
+
 
 class AboutMe(PKMixin, TimestampMixin, Base):
     """About section. Singleton id=1."""

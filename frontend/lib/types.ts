@@ -57,6 +57,9 @@ export interface Hero {
   is_visible: boolean;
   avatar_url?: string | null;
   avatar_shape?: "circle" | "rounded" | "none";
+  background_opacity?: number;
+  img_grayscale?: number;
+  img_invert?: boolean;
 }
 
 export interface Section {
