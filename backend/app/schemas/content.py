@@ -183,6 +183,9 @@ class HeroRead(ORMModel):
     is_visible: bool = True
     avatar_url: str | None = None
     avatar_shape: str = "circle"
+    background_opacity: float = 0.2
+    img_grayscale: float = 0.0
+    img_invert: bool = False
 
 
 class HeroUpdate(BaseModel):
@@ -200,6 +203,9 @@ class HeroUpdate(BaseModel):
     is_visible: bool | None = None
     avatar_url: str | None = None
     avatar_shape: str | None = None
+    background_opacity: float | None = None
+    img_grayscale: float | None = None
+    img_invert: bool | None = None
 
 
 # ---- about (singleton) ----

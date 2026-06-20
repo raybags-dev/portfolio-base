@@ -30,7 +30,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await login(email, password);
-      setAuth(res.access_token, email);
+      setAuth(res.access_token, email, res.refresh_token);
       router.replace("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
