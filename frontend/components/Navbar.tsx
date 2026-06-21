@@ -140,7 +140,7 @@ export default function Navbar({
         <Link href="/" className="flex items-center gap-2 font-heading font-bold text-lg shrink-0">
           {site.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={site.logo_url} alt={site.site_name} className="h-8 w-auto" />
+            <img src={site.logo_url} alt={site.site_name} className="h-12 w-auto" style={{ borderRadius: "50%" }} />
           ) : (
             <span className="text-primary">{site.site_name}</span>
           )}
