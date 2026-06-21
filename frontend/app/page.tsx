@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getBootstrap } from "@/lib/api";
 import type { Bootstrap } from "@/lib/types";
+import { useUI } from "@/lib/store";
 import ThemeProvider from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
 import BackToTop from "@/components/BackToTop";
@@ -19,6 +20,18 @@ import {
   Skills,
 } from "@/components/sections";
 
+function RecommendationsSection({ data: d }: { data: Bootstrap }) {
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? d.theme.default_mode) === "dark";
+  const sec = d.sections.find((s) => s.key === "recommendations");
+  if (d.recommendations.length === 0) return null;
+  return (
+    <Section id="recommendations" title="Testimonials" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
+      <RecommendationsCarousel items={d.recommendations} animated={d.theme.animations_enabled} />
+    </Section>
+  );
+}
+
 // Maps a section key to its renderer. The homepage renders only the sections
 // that are enabled (and not "contact", which has its own page), in order.
 const RENDERERS: Record<string, (d: Bootstrap) => React.ReactNode> = {
@@ -27,15 +40,7 @@ const RENDERERS: Record<string, (d: Bootstrap) => React.ReactNode> = {
   skills: (d) => <Skills data={d} />,
   projects: (d) => <Projects data={d} />,
   platform: (d) => <Services data={d} />,
-  recommendations: (d) =>
-    d.recommendations.length > 0 ? (
-      <Section id="recommendations" title="Testimonials">
-        <RecommendationsCarousel
-          items={d.recommendations}
-          animated={d.theme.animations_enabled}
-        />
-      </Section>
-    ) : null,
+  recommendations: (d) => <RecommendationsSection data={d} />,
   experience: (d) => <Experience data={d} />,
   education: (d) => <Education data={d} />,
   certifications: (d) => <Certifications data={d} />,

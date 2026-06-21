@@ -11,13 +11,11 @@ interface NewsItem {
   source: string;
 }
 
-/**
- * Fixed news ticker strip — always glued to the bottom of the viewport,
- * below the navbar. Hides itself if no news items are available.
- */
 export default function NewsTicker() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [paused, setPaused] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -34,16 +32,23 @@ export default function NewsTicker() {
     return () => { alive = false; clearInterval(interval); };
   }, []);
 
+  useEffect(() => {
+    function onScroll() {
+      const atTop = window.scrollY < 120;
+      setVisible(atTop);
+      if (!atTop) setOpen(false);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   if (items.length === 0) return null;
 
-  // Duplicate so the scroll loops seamlessly
   const doubled = [...items, ...items];
-  // ~0.7s per item — 3.5× the previous broadcast speed
   const duration = Math.max(5, items.length * 0.7);
 
   return (
     <div
-      className="w-full overflow-hidden flex items-center select-none"
       style={{
         position: "fixed",
         bottom: 0,
@@ -54,19 +59,34 @@ export default function NewsTicker() {
         background: "rgba(0,0,0,0.72)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
         backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        opacity: visible ? 1 : 0.01,
+        transition: "opacity 0.4s ease",
+        pointerEvents: visible ? "auto" : "none",
       }}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
     >
-      {/* Label chip */}
-      <div
-        className="shrink-0 flex items-center gap-1.5 px-3 h-full"
+      {/* LIVE chip — always visible, click to toggle */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Collapse news" : "Expand news"}
         style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          paddingInline: 12,
+          height: "100%",
+          background: "none",
+          border: "none",
           borderRight: "1px solid rgba(255,255,255,0.1)",
+          cursor: "pointer",
           color: "#ef4444",
-          fontSize: "10px",
+          fontSize: 10,
           fontWeight: 800,
           letterSpacing: "0.15em",
+          userSelect: "none",
+          whiteSpace: "nowrap",
         }}
       >
         <span
@@ -77,13 +97,34 @@ export default function NewsTicker() {
             borderRadius: "50%",
             background: "#ef4444",
             animation: "nt-pulse 1.4s ease-in-out infinite",
+            flexShrink: 0,
           }}
         />
         LIVE
-      </div>
+        <span
+          style={{
+            display: "inline-block",
+            marginLeft: 4,
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            animation: open ? "none" : "nt-arrow 1.2s ease-in-out infinite",
+          }}
+        >
+          {open ? "×" : "→"}
+        </span>
+      </button>
 
-      {/* Scrolling track */}
-      <div className="flex-1 overflow-hidden relative">
+      {/* Scrolling track — slides in/out */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          maxWidth: open ? "100vw" : "0px",
+          transition: "max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
         <div
           style={{
             display: "flex",
@@ -101,7 +142,7 @@ export default function NewsTicker() {
                 <span
                   style={{
                     color: "#3b82f6",
-                    fontSize: "9px",
+                    fontSize: 9,
                     fontWeight: 700,
                     marginRight: 5,
                     marginLeft: 22,
@@ -118,24 +159,16 @@ export default function NewsTicker() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    color: "rgba(255,255,255,0.85)",
-                    fontSize: "12px",
-                    textDecoration: "none",
-                  }}
+                  style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, textDecoration: "none" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "#60a5fa")}
                   onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.85)")}
                 >
                   {item.title}
                 </a>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px" }}>
-                  {item.title}
-                </span>
+                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>{item.title}</span>
               )}
-              <span style={{ margin: "0 10px", color: "rgba(255,255,255,0.18)", fontSize: 10 }}>
-                ◆
-              </span>
+              <span style={{ margin: "0 10px", color: "rgba(255,255,255,0.18)", fontSize: 10 }}>◆</span>
             </span>
           ))}
         </div>
@@ -149,6 +182,10 @@ export default function NewsTicker() {
         @keyframes nt-pulse {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.25; }
+        }
+        @keyframes nt-arrow {
+          0%, 100% { transform: translateX(0); opacity: 0.6; }
+          50%       { transform: translateX(5px); opacity: 1; }
         }
       `}</style>
     </div>
