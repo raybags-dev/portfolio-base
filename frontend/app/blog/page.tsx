@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import BackToTop from "@/components/BackToTop";
 import { Footer } from "@/components/sections";
 import { useToast } from "@/components/ui/Toast";
+import { useUI } from "@/lib/store";
 
 // Static fallback routes for known service keys (when microservice.base_url isn't set in DB yet)
 const SERVICE_KEY_ROUTES: Record<string, string> = {
@@ -176,11 +177,39 @@ export default function BlogListPage() {
   const total = posts?.total ?? 0;
   const featuredItems = !search ? (featured?.items ?? []) : [];
 
+  const uiMode = useUI((s) => s.mode);
+  const isDark = (uiMode ?? boot?.theme?.default_mode ?? "dark") === "dark";
+  const blogSec = boot?.sections?.find((s) => s.key === "blog");
+  const activeBlogBg = isDark ? blogSec?.background_image_url_dark : blogSec?.background_image_url_light;
+
   return (
     <>
       {boot && <ThemeProvider theme={boot.theme} />}
       {boot && <Navbar site={boot.site_configuration} theme={boot.theme} sections={boot.sections} />}
-      <main className="container-x py-14">
+      <main className="relative min-h-[80vh]">
+        {activeBlogBg && (
+          <>
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `url("${activeBlogBg}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundAttachment: "fixed",
+                opacity: isDark ? 0.14 : 0.10,
+              }}
+            />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: isDark
+                  ? "linear-gradient(to bottom, var(--color-bg) 0%, transparent 15%, transparent 85%, var(--color-bg) 100%)"
+                  : "linear-gradient(to bottom, var(--color-bg) 0%, rgba(255,255,255,0.6) 15%, rgba(255,255,255,0.6) 85%, var(--color-bg) 100%)",
+              }}
+            />
+          </>
+        )}
+        <div className={`container-x py-14 ${activeBlogBg ? "relative z-10" : ""}`}>
         <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-2">Blog</h1>
         <p className="text-muted mb-8 max-w-2xl">Technical articles and engineering notes.</p>
 
@@ -237,6 +266,7 @@ export default function BlogListPage() {
             )}
           </>
         )}
+        </div>
       </main>
       {boot && <Footer data={boot} />}
       <BackToTop />

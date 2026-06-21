@@ -285,6 +285,8 @@ class SectionBase(BaseModel):
     order: int = 0
     is_removable: bool = True
     in_nav: bool = True
+    background_image_url_dark: str | None = None
+    background_image_url_light: str | None = None
 
 
 class SectionCreate(SectionBase):
@@ -296,6 +298,8 @@ class SectionUpdate(BaseModel):
     enabled: bool | None = None
     order: int | None = None
     in_nav: bool | None = None
+    background_image_url_dark: str | None = None
+    background_image_url_light: str | None = None
 
 
 class SectionRead(TimestampedRead, SectionBase):

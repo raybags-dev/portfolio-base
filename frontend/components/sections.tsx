@@ -39,17 +39,53 @@ export function Section({
   id,
   title,
   children,
+  bgImageDark,
+  bgImageLight,
+  isDark,
 }: {
   id?: string;
   title?: string;
   children: React.ReactNode;
+  bgImageDark?: string | null;
+  bgImageLight?: string | null;
+  isDark?: boolean;
 }) {
+  const activeImage = isDark ? bgImageDark : bgImageLight;
+  const hasImage = !!activeImage;
+
   return (
-    <section id={id} className="container-x py-20 lg:py-32 border-t border-white/5 scroll-mt-20 min-h-[60vh] flex flex-col justify-center">
-      {title && (
-        <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">{title}</h2>
+    <section
+      id={id}
+      className="relative border-t border-white/5 scroll-mt-20 min-h-[60vh] flex flex-col justify-center"
+    >
+      {hasImage && (
+        <>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `url("${activeImage}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+              opacity: isDark ? 0.14 : 0.10,
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: isDark
+                ? "linear-gradient(to bottom, var(--color-bg) 0%, transparent 22%, transparent 78%, var(--color-bg) 100%)"
+                : "linear-gradient(to bottom, var(--color-bg) 0%, rgba(255,255,255,0.6) 22%, rgba(255,255,255,0.6) 78%, var(--color-bg) 100%)",
+            }}
+          />
+        </>
       )}
-      {children}
+      <div className={`container-x py-20 lg:py-32 ${hasImage ? "relative z-10" : ""}`}>
+        {title && (
+          <h2 className="text-2xl sm:text-3xl font-heading font-bold mb-8">{title}</h2>
+        )}
+        {children}
+      </div>
     </section>
   );
 }
@@ -335,7 +371,7 @@ export function Hero({ data }: { data: Bootstrap }) {
             )}
 
             {/* Text */}
-            <div className="flex-1 text-center md:text-left">
+            <div className="flex-1 text-left">
               {h.name && (
                 <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/[0.08] text-primary text-sm font-medium">
                   <span className="font-mono text-xs">◈</span>
@@ -350,7 +386,7 @@ export function Hero({ data }: { data: Bootstrap }) {
               )}
 
               {/* Accent bar */}
-              <div className="flex items-center gap-3 mb-6 justify-center md:justify-start">
+              <div className="flex items-center gap-3 mb-6 justify-start">
                 <div className="h-0.5 w-10 bg-primary rounded-full" />
                 <div className="h-0.5 w-5 bg-primary/40 rounded-full" />
                 <div className="h-0.5 w-2 bg-primary/20 rounded-full" />
@@ -547,6 +583,9 @@ function SkillDetailModal({
 export function Skills({ data }: { data: Bootstrap }) {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "skills");
 
   if (data.skills.length === 0) return null;
 
@@ -564,7 +603,7 @@ export function Skills({ data }: { data: Bootstrap }) {
   const selectedSkills = selectedCat ? (groups[selectedCat] ?? []) : [];
 
   return (
-    <Section id="skills" title="Skills">
+    <Section id="skills" title="Skills" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {orderedEntries.map(([cat, skills], i) => {
           const first = skills[0];
@@ -848,9 +887,12 @@ export function Services({ data }: { data: Bootstrap }) {
 // --- Experience ---
 export function Experience({ data }: { data: Bootstrap }) {
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "experience");
   if (data.experiences.length === 0) return null;
   return (
-    <Section id="experience" title="Experience">
+    <Section id="experience" title="Experience" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="space-y-6">
         {data.experiences.map((e, i) => (
           <Reveal key={e.id} enabled={animated} delay={i * 0.06}>
