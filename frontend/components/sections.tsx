@@ -535,15 +535,20 @@ export function Skills({ data }: { data: Bootstrap }) {
 
   return (
     <Section id="skills" title="Skills">
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {orderedEntries.map(([cat, skills], i) => {
           const first = skills[0];
           return (
             <Reveal key={cat} enabled={animated} delay={i * 0.06}>
-              <div className="rounded-theme border border-white/10 bg-surface shadow-card p-5 flex flex-col gap-3 h-full">
-                {/* heading + github */}
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-heading font-bold text-base">{cat}</h3>
+              <Card className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-heading font-bold text-base leading-snug">{cat}</h3>
+                    {first?.subheading && (
+                      <p className="text-xs text-secondary mt-1 leading-snug">{first.subheading}</p>
+                    )}
+                  </div>
                   {first?.github_url && (
                     <a
                       href={first.github_url}
@@ -556,29 +561,27 @@ export function Skills({ data }: { data: Bootstrap }) {
                     </a>
                   )}
                 </div>
-                {/* subheading */}
-                {first?.subheading && (
-                  <p className="text-xs text-secondary leading-snug">{first.subheading}</p>
-                )}
-                {/* tech badges */}
-                <div className="flex flex-wrap gap-1.5 flex-1 justify-center">
+                {/* Tech badges */}
+                <div className="flex flex-wrap gap-2 flex-1 content-start mb-4">
                   {skills.map((s) => (
                     <span
                       key={s.id}
-                      className="text-xs font-medium px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-primary/40 hover:text-primary transition-colors"
+                      className="inline-flex items-center justify-center text-xs font-medium px-3 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-primary/40 hover:text-primary transition-colors"
                     >
                       {s.name}
                     </span>
                   ))}
                 </div>
-                {/* details button */}
-                <button
-                  onClick={() => setSelectedCat(cat)}
-                  className="self-start text-xs text-primary border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/10 transition-colors mt-1"
-                >
-                  Details →
-                </button>
-              </div>
+                {/* Details button — same weight as project CTA */}
+                <div className="mt-auto flex flex-col items-center pt-2">
+                  <button
+                    onClick={() => setSelectedCat(cat)}
+                    className="w-[72%] rounded-theme border border-primary/40 text-primary text-sm font-medium py-2.5 hover:bg-primary hover:text-white transition-colors"
+                  >
+                    Details →
+                  </button>
+                </div>
+              </Card>
             </Reveal>
           );
         })}
