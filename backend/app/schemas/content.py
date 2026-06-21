@@ -218,6 +218,8 @@ class AboutRead(ORMModel):
     biography: str | None = None
     description: str | None = None
     image_url: str | None = None
+    image_url_dark: str | None = None
+    image_url_light: str | None = None
     images: list[Any] | None = None
     highlights: list[Any] | None = None
     is_visible: bool = True
@@ -228,6 +230,8 @@ class AboutUpdate(BaseModel):
     biography: str | None = None
     description: str | None = None
     image_url: str | None = None
+    image_url_dark: str | None = None
+    image_url_light: str | None = None
     images: list[Any] | None = None
     highlights: list[Any] | None = None
     is_visible: bool | None = None

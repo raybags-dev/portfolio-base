@@ -20,6 +20,8 @@ export default function AboutAdmin() {
     biography: "",
     description: "",
     image_url: "",
+    image_url_dark: "",
+    image_url_light: "",
     highlights: "",
     is_visible: true,
   });
@@ -32,6 +34,8 @@ export default function AboutAdmin() {
         biography: a.biography || "",
         description: a.description || "",
         image_url: a.image_url || "",
+        image_url_dark: a.image_url_dark || "",
+        image_url_light: a.image_url_light || "",
         highlights: (a.highlights || []).join("\n"),
         is_visible: a.is_visible,
       });
@@ -45,6 +49,8 @@ export default function AboutAdmin() {
         biography: form.biography,
         description: form.description,
         image_url: form.image_url,
+        image_url_dark: form.image_url_dark || null,
+        image_url_light: form.image_url_light || null,
         highlights: form.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
         is_visible: form.is_visible,
       }),
@@ -63,6 +69,8 @@ export default function AboutAdmin() {
       biography: a?.biography || "",
       description: a?.description || "",
       image_url: a?.image_url || "",
+      image_url_dark: a?.image_url_dark || "",
+      image_url_light: a?.image_url_light || "",
       highlights: (a?.highlights || []).join("\n"),
       is_visible: a?.is_visible ?? true,
     };
@@ -90,7 +98,25 @@ export default function AboutAdmin() {
         <span className="text-sm">Description</span>
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className={cls} />
       </label>
-      <ImageInput label="Image" value={form.image_url} onChange={(v) => setForm({ ...form, image_url: v })} />
+      <div className="rounded-theme border border-white/10 bg-surface p-4 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted">Profile photo</h2>
+        <ImageInput
+          label="Dark theme photo"
+          value={form.image_url_dark}
+          onChange={(v) => setForm({ ...form, image_url_dark: v })}
+        />
+        <ImageInput
+          label="Light theme photo"
+          value={form.image_url_light}
+          onChange={(v) => setForm({ ...form, image_url_light: v })}
+        />
+        <p className="text-xs text-muted">Leave a themed photo blank to fall back to the default below.</p>
+        <ImageInput
+          label="Fallback photo (used when no themed photo is set)"
+          value={form.image_url}
+          onChange={(v) => setForm({ ...form, image_url: v })}
+        />
+      </div>
       <label className="block">
         <span className="text-sm">Highlights (one per line)</span>
         <textarea value={form.highlights} onChange={(e) => setForm({ ...form, highlights: e.target.value })} rows={4} className={cls} />

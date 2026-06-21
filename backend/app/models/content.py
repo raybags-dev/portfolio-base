@@ -148,6 +148,8 @@ class AboutMe(PKMixin, TimestampMixin, Base):
     biography: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     image_url: Mapped[str | None] = mapped_column(String(1024))
+    image_url_dark: Mapped[str | None] = mapped_column(String(1024))
+    image_url_light: Mapped[str | None] = mapped_column(String(1024))
     images: Mapped[list | None] = mapped_column(JSON, default=list)
     highlights: Mapped[list | None] = mapped_column(JSON, default=list)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
