@@ -50,6 +50,8 @@ export interface Hero {
   cta_url?: string | null;
   hero_image_url?: string | null;
   background_image_url?: string | null;
+  background_image_url_dark?: string | null;
+  background_image_url_light?: string | null;
   background_color?: string | null;
   background_mode: "image" | "color" | "gradient";
   animation?: string | null;
