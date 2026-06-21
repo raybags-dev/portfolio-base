@@ -221,3 +221,5 @@ class Section(PKMixin, TimestampMixin, Base):
     # Core sections (hero/contact) shouldn't be deletable; others can be removed.
     is_removable: Mapped[bool] = mapped_column(Boolean, default=True)
     in_nav: Mapped[bool] = mapped_column(Boolean, default=True)
+    background_image_url_dark: Mapped[str | None] = mapped_column(String(1024))
+    background_image_url_light: Mapped[str | None] = mapped_column(String(1024))

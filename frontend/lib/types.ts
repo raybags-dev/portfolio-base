@@ -72,6 +72,8 @@ export interface Section {
   order: number;
   is_removable: boolean;
   in_nav: boolean;
+  background_image_url_dark?: string | null;
+  background_image_url_light?: string | null;
 }
 
 export interface About {
