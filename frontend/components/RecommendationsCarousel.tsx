@@ -94,6 +94,39 @@ export default function RecommendationsCarousel({
     return () => clearInterval(t);
   }, [paused, selected, items.length, next]);
 
+  // Sync indicator dots when user swipes manually
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    function updateFromScroll() {
+      const el = scrollRef.current;
+      if (!el) return;
+      const viewCenter = el.scrollLeft + el.clientWidth / 2;
+      let closest = 0;
+      let minDist = Infinity;
+      Array.from(el.children).forEach((child, i) => {
+        const c = child as HTMLElement;
+        const cardCenter = c.offsetLeft + c.offsetWidth / 2;
+        const dist = Math.abs(viewCenter - cardCenter);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      setIndex(closest);
+    }
+
+    function onScroll() {
+      clearTimeout(timer);
+      timer = setTimeout(updateFromScroll, 80);
+    }
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearTimeout(timer);
+    };
+  }, [items.length]);
+
   if (items.length === 0) return null;
 
   return (

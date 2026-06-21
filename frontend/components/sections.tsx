@@ -67,15 +67,13 @@ export function Section({
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: "fixed",
-              opacity: isDark ? 0.14 : 0.10,
+              opacity: isDark ? 0.14 : 0.18,
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: isDark
-                ? "linear-gradient(to bottom, var(--color-bg) 0%, transparent 22%, transparent 78%, var(--color-bg) 100%)"
-                : "linear-gradient(to bottom, var(--color-bg) 0%, rgba(255,255,255,0.6) 22%, rgba(255,255,255,0.6) 78%, var(--color-bg) 100%)",
+              background: "linear-gradient(to bottom, var(--color-bg) 0%, transparent 20%, transparent 80%, var(--color-bg) 100%)",
             }}
           />
         </>
@@ -454,9 +452,12 @@ export function Hero({ data }: { data: Bootstrap }) {
 export function About({ data }: { data: Bootstrap }) {
   const a = data.about;
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "about");
   if (!a.is_visible || (!a.biography && !a.description)) return null;
   return (
-    <Section id="about" title={a.heading || "About"}>
+    <Section id="about" title={a.heading || "About"} bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="grid md:grid-cols-3 gap-8 items-start">
         {a.image_url && (
           <Reveal enabled={animated}>
@@ -676,6 +677,9 @@ const SERVICE_KEY_ROUTES: Record<string, string> = {
 
 // --- Projects (with search + tag filter) ---
 export function Projects({ data }: { data: Bootstrap }) {
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "projects");
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -718,7 +722,7 @@ export function Projects({ data }: { data: Bootstrap }) {
   if (data.projects.length === 0) return null;
 
   return (
-    <Section id="projects" title="Projects">
+    <Section id="projects" title="Projects" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
           value={query}
@@ -847,9 +851,12 @@ export function Projects({ data }: { data: Bootstrap }) {
 // --- Data Platform / microservices ---
 export function Services({ data }: { data: Bootstrap }) {
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "platform");
   if (data.microservices.length === 0) return null;
   return (
-    <Section id="platform" title="Data Platform">
+    <Section id="platform" title="Data Platform" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <Reveal enabled={animated}>
         <p className="text-muted mb-6 max-w-2xl">
           Live data-engineering modules — each toggled at runtime via feature flags.
@@ -924,9 +931,12 @@ export function Experience({ data }: { data: Bootstrap }) {
 // --- Education ---
 export function Education({ data }: { data: Bootstrap }) {
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "education");
   if (data.education.length === 0) return null;
   return (
-    <Section id="education" title="Education">
+    <Section id="education" title="Education" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="space-y-6">
         {data.education.map((ed, i) => (
           <Reveal key={ed.id} enabled={animated} delay={i * 0.06}>
@@ -954,9 +964,12 @@ export function Education({ data }: { data: Bootstrap }) {
 // --- Certifications ---
 export function Certifications({ data }: { data: Bootstrap }) {
   const animated = data.theme.animations_enabled;
+  const storeMode = useUI((s) => s.mode);
+  const isDark = (storeMode ?? data.theme.default_mode) === "dark";
+  const sec = data.sections.find((s) => s.key === "certifications");
   if (data.certifications.length === 0) return null;
   return (
-    <Section id="certifications" title="Certifications">
+    <Section id="certifications" title="Certifications" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {data.certifications.map((c, i) => (
           <Reveal key={c.id} enabled={animated} delay={i * 0.05}>
