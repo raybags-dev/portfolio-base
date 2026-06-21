@@ -455,11 +455,15 @@ export function About({ data }: { data: Bootstrap }) {
   const storeMode = useUI((s) => s.mode);
   const isDark = (storeMode ?? data.theme.default_mode) === "dark";
   const sec = data.sections.find((s) => s.key === "about");
+  const activePhoto = isDark
+    ? (a.image_url_dark || a.image_url || null)
+    : (a.image_url_light || a.image_url || null);
+
   if (!a.is_visible || (!a.biography && !a.description)) return null;
   return (
     <Section id="about" title={a.heading || "About"} bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <div className="grid md:grid-cols-3 gap-8 items-start">
-        {a.image_url && (
+        {activePhoto && (
           <Reveal enabled={animated}>
             <div
               className="rounded-theme p-[3px]"
@@ -467,7 +471,7 @@ export function About({ data }: { data: Bootstrap }) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={a.image_url}
+                src={activePhoto}
                 alt={a.heading || "About"}
                 className="rounded-theme w-full object-cover shadow-card"
               />
@@ -477,7 +481,7 @@ export function About({ data }: { data: Bootstrap }) {
         <Reveal
           enabled={animated}
           delay={0.1}
-          className={a.image_url ? "md:col-span-2" : "md:col-span-3"}
+          className={activePhoto ? "md:col-span-2" : "md:col-span-3"}
         >
           <div>
             {a.biography && <p className="text-lg mb-4">{a.biography}</p>}
