@@ -274,8 +274,8 @@ export function Hero({ data }: { data: Bootstrap }) {
         />
       )}
 
-      {/* Depth overlay — ensures text legibility without destroying photo */}
-      {hasImage && (
+      {/* Depth overlay — only in dark mode; light mode has white bg so this gradient just muddies it */}
+      {hasImage && isDark && (
         <div
           className="absolute inset-0"
           style={{
