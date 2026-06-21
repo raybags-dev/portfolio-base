@@ -11,6 +11,8 @@ export default function ContactPage() {
   const { data } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
   const uiMode = useUI((s) => s.mode);
   const isDark = (uiMode ?? data?.theme?.default_mode ?? "dark") === "dark";
+  const contactSec = data?.sections?.find((s) => s.key === "contact");
+  const activeContactBg = isDark ? contactSec?.background_image_url_dark : contactSec?.background_image_url_light;
 
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website: "" });
   const [challenge, setChallenge] = useState<{ token: string; question: string } | null>(null);
@@ -74,7 +76,30 @@ export default function ContactPage() {
     <>
       <ThemeProvider theme={data.theme} />
       <Navbar site={site} theme={data.theme} sections={data.sections} />
-      <main className="container-x py-14 min-h-[80vh]">
+      <main className="relative min-h-[80vh]">
+        {activeContactBg && (
+          <>
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `url("${activeContactBg}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundAttachment: "fixed",
+                opacity: isDark ? 0.14 : 0.10,
+              }}
+            />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: isDark
+                  ? "linear-gradient(to bottom, var(--color-bg) 0%, transparent 15%, transparent 85%, var(--color-bg) 100%)"
+                  : "linear-gradient(to bottom, var(--color-bg) 0%, rgba(255,255,255,0.6) 15%, rgba(255,255,255,0.6) 85%, var(--color-bg) 100%)",
+              }}
+            />
+          </>
+        )}
+        <div className={`container-x py-14 ${activeContactBg ? "relative z-10" : ""}`}>
         <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3">Contact</h1>
         <p className="text-muted mb-8 max-w-2xl">
           Have a project or opportunity? Send a message — I&apos;ll get back to you.
@@ -189,6 +214,7 @@ export default function ContactPage() {
               {busy ? "Sending…" : "Send message"}
             </button>
           </form>
+        </div>
         </div>
       </main>
       <Footer data={data} />
