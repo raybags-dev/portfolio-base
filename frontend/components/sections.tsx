@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Bootstrap, Project, Skill } from "@/lib/types";
+import { useUI } from "@/lib/store";
 import NewsTicker from "@/components/NewsTicker";
 
 // --- shared building blocks ---
@@ -178,6 +179,10 @@ function ProjectDetailModal({
 export function Hero({ data }: { data: Bootstrap }) {
   const h = data.hero;
   const t = data.theme;
+  const storeMode = useUI((s) => s.mode);
+  const mode = storeMode ?? t.default_mode;
+  const isDark = mode === "dark";
+
   const [scrolled, setScrolled] = useState(false);
   const [scrollPct, setScrollPct] = useState(0);
 
@@ -191,9 +196,24 @@ export function Hero({ data }: { data: Bootstrap }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Preload both theme images on mount so theme switches are instant.
+  useEffect(() => {
+    [h.background_image_url_dark, h.background_image_url_light, h.background_image_url]
+      .filter(Boolean)
+      .forEach((src) => {
+        const img = new window.Image();
+        img.src = src as string;
+      });
+  }, [h.background_image_url_dark, h.background_image_url_light, h.background_image_url]);
+
   if (!h.is_visible) return null;
 
-  const hasImage = h.background_mode === "image" && !!h.background_image_url;
+  // Per-theme image: dark-specific → light-specific → generic fallback.
+  const activeImageUrl = isDark
+    ? (h.background_image_url_dark || h.background_image_url || null)
+    : (h.background_image_url_light || h.background_image_url || null);
+
+  const hasImage = h.background_mode === "image" && !!activeImageUrl;
   const opacity = h.background_opacity ?? 0.2;
   const grayscale = h.img_grayscale ?? 0;
   const invert = h.img_invert ?? false;
@@ -206,10 +226,20 @@ export function Hero({ data }: { data: Bootstrap }) {
   if (!hasImage) {
     if (h.background_mode === "color" && h.background_color) {
       bgStyle = { backgroundColor: h.background_color };
-    } else {
+    } else if (isDark) {
       bgStyle = {
         backgroundImage:
           "radial-gradient(1200px 500px at 20% -10%, var(--color-primary), transparent), radial-gradient(900px 500px at 90% 10%, var(--color-secondary), transparent)",
+      };
+    } else {
+      // Light mode: clean white base with barely-there brand-color blush.
+      // #ffffffcc = rgba(255,255,255,0.8) — used as the dominant stop so dark
+      // text reads perfectly against the near-white surface.
+      bgStyle = {
+        backgroundImage:
+          "radial-gradient(ellipse 1400px 700px at 15% -5%, rgba(var(--primary-rgb, 204 2 2) / 0.07), transparent 65%), " +
+          "radial-gradient(ellipse 1000px 600px at 92% 8%, rgba(var(--primary-rgb, 204 2 2) / 0.05), transparent 65%), " +
+          "linear-gradient(175deg, #ffffff 0%, #ffffffcc 40%, #f8f8fb 100%)",
       };
     }
   }
@@ -232,7 +262,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         <div
           className="absolute inset-[-6%]"
           style={{
-            backgroundImage: `url("${h.background_image_url}")`,
+            backgroundImage: `url("${activeImageUrl}")`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             opacity,

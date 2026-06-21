@@ -176,6 +176,8 @@ class HeroRead(ORMModel):
     cta_url: str | None = None
     hero_image_url: str | None = None
     background_image_url: str | None = None
+    background_image_url_dark: str | None = None
+    background_image_url_light: str | None = None
     background_color: str | None = None
     background_mode: str = "image"
     animation: str | None = None
@@ -196,6 +198,8 @@ class HeroUpdate(BaseModel):
     cta_url: str | None = None
     hero_image_url: str | None = None
     background_image_url: str | None = None
+    background_image_url_dark: str | None = None
+    background_image_url_light: str | None = None
     background_color: str | None = None
     background_mode: str | None = None
     animation: str | None = None

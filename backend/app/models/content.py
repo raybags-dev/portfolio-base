@@ -128,6 +128,11 @@ class HeroSection(PKMixin, TimestampMixin, Base):
     avatar_url: Mapped[str | None] = mapped_column(String(1024))
     avatar_shape: Mapped[str] = mapped_column(String(16), default="circle")  # circle|rounded|none
 
+    # Per-theme background images (dark / light). Preloaded by the client to
+    # avoid a visible swap when the user toggles the colour scheme.
+    background_image_url_dark: Mapped[str | None] = mapped_column(String(1024))
+    background_image_url_light: Mapped[str | None] = mapped_column(String(1024))
+
     # Image display controls (opacity/filter applied client-side)
     background_opacity: Mapped[float] = mapped_column(Float, default=0.2)
     img_grayscale: Mapped[float] = mapped_column(Float, default=0.0)
