@@ -81,6 +81,8 @@ export interface About {
   biography?: string | null;
   description?: string | null;
   image_url?: string | null;
+  image_url_dark?: string | null;
+  image_url_light?: string | null;
   images?: string[] | null;
   highlights?: string[] | null;
   is_visible: boolean;
