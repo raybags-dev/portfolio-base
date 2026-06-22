@@ -63,6 +63,8 @@ class SiteConfigurationRead(ORMModel):
     site_name: str
     tagline: str | None = None
     logo_url: str | None = None
+    logo_url_dark: str | None = None
+    logo_url_light: str | None = None
     favicon_url: str | None = None
     meta_title: str | None = None
     meta_description: str | None = None
@@ -96,6 +98,8 @@ class SiteConfigurationUpdate(_MapSanitizerMixin):
     site_name: str | None = None
     tagline: str | None = None
     logo_url: str | None = None
+    logo_url_dark: str | None = None
+    logo_url_light: str | None = None
     favicon_url: str | None = None
     meta_title: str | None = None
     meta_description: str | None = None

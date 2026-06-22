@@ -81,6 +81,7 @@ export default function Navbar({
   sections: Section[];
 }) {
   const pathname = usePathname();
+  const mode = useUI((s) => s.mode) ?? theme.default_mode;
   const [open, setOpen] = useState(false); // mobile drawer
   const [explore, setExplore] = useState(false); // desktop dropdown
   const exploreRef = useRef<HTMLDivElement>(null);
@@ -138,12 +139,16 @@ export default function Navbar({
     <header className="sticky top-0 z-40 backdrop-blur border-b border-white/10 bg-bg/80">
       <nav className="container-x flex items-center justify-between h-16 gap-4">
         <Link href="/" className="flex items-center gap-2 font-heading font-bold text-lg shrink-0">
-          {site.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={site.logo_url} alt={site.site_name} className="h-12 w-auto" style={{ borderRadius: "50%" }} />
-          ) : (
-            <span className="text-primary">{site.site_name}</span>
-          )}
+          {(() => {
+            const themedLogo = mode === "dark" ? site.logo_url_dark : site.logo_url_light;
+            const logoSrc = themedLogo || site.logo_url;
+            return logoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoSrc} alt={site.site_name} className="h-12 w-auto" style={{ borderRadius: "50%" }} />
+            ) : (
+              <span className="text-primary">{site.site_name}</span>
+            );
+          })()}
         </Link>
 
         {/* desktop */}
@@ -208,7 +213,7 @@ export default function Navbar({
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-[80] md:hidden"
+            className="fixed inset-0 z-[150] md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

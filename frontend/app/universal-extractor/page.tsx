@@ -262,7 +262,7 @@ export default function UniversalExtractorPage() {
 
         {/* Token modal */}
         {tokenModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200]">
             <form onSubmit={handleTokenSubmit} className="bg-surface border border-white/15 rounded-theme p-6 w-full max-w-sm shadow-2xl">
               <h2 className="font-semibold text-fg mb-1">Access Token Required</h2>
               <p className="text-sm text-muted mb-4">Enter your one-time token to run this extraction.</p>

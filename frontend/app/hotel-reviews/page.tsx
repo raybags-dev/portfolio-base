@@ -338,7 +338,7 @@ export default function HotelReviewsPage() {
       </main>
 
       {tokenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-theme bg-surface border border-white/15 p-6 shadow-2xl">
             <h2 className="font-heading font-bold text-lg mb-2">Access Token Required</h2>
             <p className="text-sm text-muted mb-4">
@@ -1148,7 +1148,7 @@ function ResultsStep({
       )}
 
       {showHintsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
           <div className="w-full max-w-lg rounded-theme bg-surface border border-white/15 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="font-heading font-bold text-lg mb-1">Help the Crawler Find Your Data</h2>
             <p className="text-sm text-muted mb-5">Paste CSS selectors (right-click in DevTools → Copy selector) to guide the AI.</p>
