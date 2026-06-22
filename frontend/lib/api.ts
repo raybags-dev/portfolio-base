@@ -882,3 +882,44 @@ export const forgotPassword = (email: string): Promise<{ reset_url: string; wa_u
 
 export const resetPassword = (token: string, new_password: string, confirm_password: string): Promise<{ ok: boolean; detail: string }> =>
   request("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, new_password, confirm_password }) });
+
+
+// ── Projects admin CRUD ───────────────────────────────────────────────────────
+
+export interface Project {
+  id: number;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  description?: string | null;
+  cover_image_url?: string | null;
+  video_url?: string | null;
+  github_url?: string | null;
+  demo_url?: string | null;
+  status: string;
+  tech_tags?: string[] | null;
+  is_featured: boolean;
+  is_hidden: boolean;
+  order: number;
+  service_key?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type ProjectCreate = Omit<Project, "id" | "created_at" | "updated_at">;
+export type ProjectUpdate = Partial<ProjectCreate>;
+
+export const listProjects = (token: string): Promise<{ items: Project[]; total: number }> =>
+  request<{ items: Project[]; total: number }>("/projects?limit=100", { token });
+
+export const getProject = (id: number): Promise<Project> =>
+  request<Project>(`/projects/${id}`);
+
+export const createProject = (token: string, body: ProjectCreate): Promise<Project> =>
+  request<Project>("/projects", { method: "POST", token, body: JSON.stringify(body) });
+
+export const updateProject = (token: string, id: number, body: ProjectUpdate): Promise<Project> =>
+  request<Project>(`/projects/${id}`, { method: "PUT", token, body: JSON.stringify(body) });
+
+export const deleteProject = (token: string, id: number): Promise<void> =>
+  request<void>(`/projects/${id}`, { method: "DELETE", token });
