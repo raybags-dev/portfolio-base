@@ -30,8 +30,8 @@ def upgrade() -> None:
                 '/dataforge',
                 'active',
                 true,
-                NOW(),
-                NOW()
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
             )
             ON CONFLICT (key) DO NOTHING
             """
@@ -55,8 +55,8 @@ def upgrade() -> None:
                 false,
                 10,
                 'dataforge-elt',
-                NOW(),
-                NOW()
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
             )
             ON CONFLICT (slug) DO NOTHING
             """
