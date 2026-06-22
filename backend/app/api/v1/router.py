@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     feature_flags,
     media,
     news,
+    pipeline_requests,
     public,
     sections,
     singletons,
@@ -39,6 +40,7 @@ api_router.include_router(collections.router)
 api_router.include_router(sections.router)
 api_router.include_router(media.router)
 api_router.include_router(contact.router)
+api_router.include_router(pipeline_requests.router)
 
 # blog
 api_router.include_router(blog.router)
