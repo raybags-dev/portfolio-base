@@ -75,3 +75,13 @@ async def list_media(request: Request, db: DbSession):
         )
         for a in rows
     ]
+
+
+@router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_admin())])
+async def delete_media(media_id: int, db: DbSession):
+    asset = await db.get(MediaAsset, media_id)
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    await db.delete(asset)
+    await db.commit()
