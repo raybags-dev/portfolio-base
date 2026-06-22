@@ -299,6 +299,18 @@ export const submitPipelineRequest = (body: {
   method: "POST", body: JSON.stringify(body),
 });
 
+export const issueToken = (authToken: string, msgId: number) =>
+  request<{ ok: boolean; token: string; expires_at: string; delivered: boolean }>(
+    `/pipeline-requests/${msgId}/issue-token`,
+    { method: "POST", token: authToken },
+  );
+
+export const rejectRequest = (authToken: string, msgId: number) =>
+  request<{ ok: boolean; delivered: boolean }>(
+    `/pipeline-requests/${msgId}/reject`,
+    { method: "POST", token: authToken },
+  );
+
 // ---- blog (public) ----
 import type { BlogComment, BlogPost } from "./types";
 
