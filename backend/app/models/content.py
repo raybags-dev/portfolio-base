@@ -71,6 +71,8 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     maintenance_bg_image_url: Mapped[str | None] = mapped_column(String(1024))
     maintenance_bg_image_url_dark: Mapped[str | None] = mapped_column(String(1024))
     maintenance_bg_image_url_light: Mapped[str | None] = mapped_column(String(1024))
+    maintenance_theme: Mapped[str | None] = mapped_column(String(8), default="dark")
+    maintenance_logo_url: Mapped[str | None] = mapped_column(String(1024))
     default_locale: Mapped[str] = mapped_column(String(8), default="en")
 
     # contact / location (used by the Contact page)

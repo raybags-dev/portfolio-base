@@ -27,15 +27,15 @@ export default function SiteAdmin() {
     }
   }, [data?.site_configuration]);
 
-  // Strip read-only/extra fields the frontend echoes back from bootstrap,
-  // and coerce empty strings to null for JSON dict fields.
+  // Strip read-only/extra fields and coerce empty strings to null for
+  // JSON dict fields and datetime fields (backend rejects "" for datetime).
   function buildPayload(f: Record<string, unknown>) {
     const skip = new Set(["id", "created_at", "updated_at"]);
-    const jsonFields = new Set(["structured_data"]);
+    const nullIfEmpty = new Set(["structured_data", "maintenance_end_at"]);
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(f)) {
       if (skip.has(k)) continue;
-      if (jsonFields.has(k)) {
+      if (nullIfEmpty.has(k)) {
         out[k] = typeof v === "string" && v.trim() === "" ? null : v;
       } else {
         out[k] = v;
@@ -194,6 +194,34 @@ export default function SiteAdmin() {
           />
           <p className="text-xs text-muted mt-1">Leave blank to hide the countdown timer.</p>
         </label>
+
+        {/* Theme selector */}
+        <div>
+          <p className="text-sm mb-2">Page theme</p>
+          <div className="flex gap-3">
+            {(["dark", "light"] as const).map((t) => (
+              <label key={t} className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="maintenance_theme"
+                  value={t}
+                  checked={(form.maintenance_theme || "dark") === t}
+                  onChange={() => set("maintenance_theme", t)}
+                  className="accent-primary"
+                />
+                <span className="text-sm capitalize">{t}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted mt-1">Controls which background image is shown and the overall colour scheme.</p>
+        </div>
+
+        {/* Maintenance logo */}
+        <ImageInput
+          label="Maintenance page logo (leave blank to hide)"
+          value={form.maintenance_logo_url || ""}
+          onChange={(v) => set("maintenance_logo_url", v)}
+        />
 
         <div className="space-y-3 pt-1">
           <p className="text-xs text-muted uppercase tracking-widest">Background images</p>
