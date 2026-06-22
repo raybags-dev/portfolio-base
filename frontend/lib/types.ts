@@ -4,6 +4,8 @@ export interface SiteConfiguration {
   site_name: string;
   tagline?: string | null;
   logo_url?: string | null;
+  logo_url_dark?: string | null;
+  logo_url_light?: string | null;
   favicon_url?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;

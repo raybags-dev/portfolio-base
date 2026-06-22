@@ -24,7 +24,7 @@ function CategoryModal({
   });
   const inp = "w-full mt-1 rounded-lg bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-surface border border-white/10 rounded-xl w-full max-w-lg p-6 relative shadow-2xl">
         <button onClick={onClose} className="absolute top-4 right-4 text-xl text-muted hover:text-fg">×</button>
         <h2 className="font-heading font-bold text-lg mb-5">
@@ -102,7 +102,7 @@ function AddSkillModal({
   const [form, setForm] = useState({ name: "", proficiency: 80, order: 0 });
   const inp = "w-full mt-1 rounded-lg bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-surface border border-white/10 rounded-xl w-full max-w-sm p-6 relative shadow-2xl">
         <button onClick={onClose} className="absolute top-4 right-4 text-xl text-muted hover:text-fg">×</button>
         <h2 className="font-heading font-bold text-lg mb-1">Add Technology</h2>

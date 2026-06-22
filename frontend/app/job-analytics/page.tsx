@@ -319,7 +319,7 @@ export default function JobAnalyticsPage() {
       </main>
 
       {tokenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-theme bg-surface border border-white/15 p-6 shadow-2xl">
             <h2 className="font-heading font-bold text-lg mb-2">Access Token Required</h2>
             <p className="text-sm text-muted mb-4">
