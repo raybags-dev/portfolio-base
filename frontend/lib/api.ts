@@ -291,6 +291,14 @@ export const submitContact = (body: {
 export const listContactMessages = (token: string) =>
   request<Record<string, unknown>[]>("/contact/messages", { token });
 
+export const submitPipelineRequest = (body: {
+  name: string;
+  email: string;
+  reason?: string;
+}) => request<{ ok: boolean; detail: string }>("/pipeline-requests", {
+  method: "POST", body: JSON.stringify(body),
+});
+
 // ---- blog (public) ----
 import type { BlogComment, BlogPost } from "./types";
 
