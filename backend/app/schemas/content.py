@@ -85,6 +85,8 @@ class SiteConfigurationRead(ORMModel):
     maintenance_bg_image_url: str | None = None
     maintenance_bg_image_url_dark: str | None = None
     maintenance_bg_image_url_light: str | None = None
+    maintenance_theme: str | None = None
+    maintenance_logo_url: str | None = None
     default_locale: str = "en"
     contact_email: str | None = None
     phone: str | None = None
@@ -134,6 +136,8 @@ class SiteConfigurationUpdate(_MapSanitizerMixin):
     maintenance_bg_image_url: str | None = None
     maintenance_bg_image_url_dark: str | None = None
     maintenance_bg_image_url_light: str | None = None
+    maintenance_theme: str | None = None
+    maintenance_logo_url: str | None = None
     default_locale: str | None = None
     contact_email: str | None = None
     phone: str | None = None
