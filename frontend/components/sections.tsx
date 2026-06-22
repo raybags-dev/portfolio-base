@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Bootstrap, Project, Skill } from "@/lib/types";
@@ -106,7 +107,15 @@ function ProjectDetailModal({
   launchUrl: string | null;
   onClose: () => void;
 }) {
-  return (
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    function onScroll() { onCloseRef.current(); }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <motion.div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -205,7 +214,8 @@ function ProjectDetailModal({
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -531,7 +541,15 @@ function SkillDetailModal({
   onClose: () => void;
 }) {
   const first = skills[0];
-  return (
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    function onScroll() { onCloseRef.current(); }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <motion.div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -581,7 +599,8 @@ function SkillDetailModal({
           </a>
         )}
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -591,6 +610,14 @@ export function Skills({ data }: { data: Bootstrap }) {
   const storeMode = useUI((s) => s.mode);
   const isDark = (storeMode ?? data.theme.default_mode) === "dark";
   const sec = data.sections.find((s) => s.key === "skills");
+
+  // Auto-close skill modal when user scrolls the page body
+  useEffect(() => {
+    if (!selectedCat) return;
+    function onScroll() { setSelectedCat(null); }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [selectedCat]);
 
   if (data.skills.length === 0) return null;
 
