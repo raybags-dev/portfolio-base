@@ -373,6 +373,9 @@ export const resetFlags = (token: string) =>
 export const listMedia = (token: string) =>
   request<MediaAsset[]>("/media", { token });
 
+export const deleteMedia = (token: string, id: number) =>
+  request<void>(`/media/${id}`, { method: "DELETE", token });
+
 // ---- live logs (admin) ----
 export const getLogs = (token: string, limit = 200, level?: string) => {
   const qs = new URLSearchParams({ limit: String(limit) });
