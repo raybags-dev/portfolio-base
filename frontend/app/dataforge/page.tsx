@@ -113,7 +113,7 @@ export default function DataForgePage() {
               Open Dashboard
             </a>
             <a
-              href="https://github.com/raybags-dev/DataForge-ELT"
+              href="https://github.com/raybags-dev/data-forge-elt"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-theme bg-surface border border-white/15 hover:border-primary/50 transition-colors"
