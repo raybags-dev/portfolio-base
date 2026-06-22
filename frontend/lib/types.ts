@@ -23,6 +23,8 @@ export interface SiteConfiguration {
   maintenance_bg_image_url?: string | null;
   maintenance_bg_image_url_dark?: string | null;
   maintenance_bg_image_url_light?: string | null;
+  maintenance_theme?: string | null;
+  maintenance_logo_url?: string | null;
   default_locale: string;
   contact_email?: string | null;
   phone?: string | null;
