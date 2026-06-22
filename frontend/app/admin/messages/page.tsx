@@ -22,7 +22,10 @@ export default function MessagesAdmin() {
   const [actions, setActions] = useState<Record<number, MsgAction>>({});
 
   const setAction = useCallback((id: number, update: Partial<MsgAction>) => {
-    setActions((prev) => ({ ...prev, [id]: { state: "idle", ...prev[id], ...update } }));
+    setActions((prev) => {
+      const current: MsgAction = prev[id] ?? { state: "idle" };
+      return { ...prev, [id]: { ...current, ...update } };
+    });
   }, []);
 
   async function handleIssue(id: number) {
