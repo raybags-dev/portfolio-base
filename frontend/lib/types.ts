@@ -17,6 +17,12 @@ export interface SiteConfiguration {
   cookie_banner_enabled: boolean;
   cookie_banner_text?: string | null;
   maintenance_mode: boolean;
+  maintenance_end_at?: string | null;
+  maintenance_title?: string | null;
+  maintenance_message?: string | null;
+  maintenance_bg_image_url?: string | null;
+  maintenance_bg_image_url_dark?: string | null;
+  maintenance_bg_image_url_light?: string | null;
   default_locale: string;
   contact_email?: string | null;
   phone?: string | null;

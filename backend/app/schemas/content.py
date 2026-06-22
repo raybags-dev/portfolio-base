@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, field_validator
@@ -78,6 +79,12 @@ class SiteConfigurationRead(ORMModel):
     cookie_banner_text: str | None = None
     robots_txt: str | None = None
     maintenance_mode: bool = False
+    maintenance_end_at: datetime | None = None
+    maintenance_title: str | None = None
+    maintenance_message: str | None = None
+    maintenance_bg_image_url: str | None = None
+    maintenance_bg_image_url_dark: str | None = None
+    maintenance_bg_image_url_light: str | None = None
     default_locale: str = "en"
     contact_email: str | None = None
     phone: str | None = None
@@ -121,6 +128,12 @@ class SiteConfigurationUpdate(_MapSanitizerMixin):
     cookie_banner_text: str | None = None
     robots_txt: str | None = None
     maintenance_mode: bool | None = None
+    maintenance_end_at: datetime | None = None
+    maintenance_title: str | None = None
+    maintenance_message: str | None = None
+    maintenance_bg_image_url: str | None = None
+    maintenance_bg_image_url_dark: str | None = None
+    maintenance_bg_image_url_light: str | None = None
     default_locale: str | None = None
     contact_email: str | None = None
     phone: str | None = None

@@ -646,9 +646,6 @@ export function Skills({ data }: { data: Bootstrap }) {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
                     <h3 className="font-heading font-bold text-base leading-snug">{cat}</h3>
-                    {first?.subheading && (
-                      <p className="text-xs text-secondary mt-1 leading-snug">{first.subheading}</p>
-                    )}
                   </div>
                   {first?.github_url && (
                     <a
