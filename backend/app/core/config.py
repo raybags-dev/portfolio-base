@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
+    # ---- notifications ----
+    DISCORD_WEBHOOK: str | None = None
+
     # ---- email / contact form (optional; messages are stored regardless) ----
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
