@@ -300,7 +300,7 @@ export default function TokensPage() {
 
       {/* Guest sessions modal */}
       {guestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-2xl bg-surface border border-white/15 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <h2 className="font-heading font-bold text-lg">Guest Sessions ({guestSessions.length})</h2>

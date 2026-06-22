@@ -262,7 +262,7 @@ export default function CrawlerProfilesPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto py-8 px-4">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto py-8 px-4">
           <div className="w-full max-w-2xl rounded-theme bg-surface border border-white/15 p-6 shadow-2xl my-4">
             <h2 className="font-heading font-bold text-xl mb-5">
               {editingId != null ? "Edit Profile" : "New Crawler Profile"}

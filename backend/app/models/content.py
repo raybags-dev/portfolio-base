@@ -43,6 +43,8 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     site_name: Mapped[str] = mapped_column(String(255), default="My Portfolio")
     tagline: Mapped[str | None] = mapped_column(String(512))
     logo_url: Mapped[str | None] = mapped_column(String(1024))
+    logo_url_dark: Mapped[str | None] = mapped_column(String(1024))
+    logo_url_light: Mapped[str | None] = mapped_column(String(1024))
     favicon_url: Mapped[str | None] = mapped_column(String(1024))
 
     # SEO / social

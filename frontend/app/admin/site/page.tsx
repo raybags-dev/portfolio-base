@@ -84,7 +84,25 @@ export default function SiteAdmin() {
 
       {text("Site name", "site_name")}
       {text("Tagline", "tagline")}
-      <ImageInput label="Logo" value={form.logo_url || ""} onChange={(v) => set("logo_url", v)} />
+      <div className="rounded-theme border border-white/10 bg-surface p-4 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted">Logo / Brand</h2>
+        <ImageInput
+          label="Dark theme logo"
+          value={form.logo_url_dark || ""}
+          onChange={(v) => set("logo_url_dark", v)}
+        />
+        <ImageInput
+          label="Light theme logo"
+          value={form.logo_url_light || ""}
+          onChange={(v) => set("logo_url_light", v)}
+        />
+        <p className="text-xs text-muted">Leave a themed logo blank to fall back to the default below.</p>
+        <ImageInput
+          label="Fallback logo (used when no themed logo is set)"
+          value={form.logo_url || ""}
+          onChange={(v) => set("logo_url", v)}
+        />
+      </div>
       <ImageInput label="Favicon" value={form.favicon_url || ""} onChange={(v) => set("favicon_url", v)} />
 
       <h2 className="font-semibold pt-4 text-secondary">SEO</h2>
