@@ -7,6 +7,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
 import BackToTop from "@/components/BackToTop";
 import RecommendationsCarousel from "@/components/RecommendationsCarousel";
+import MaintenancePage from "@/components/MaintenancePage";
 import {
   About,
   Certifications,
@@ -73,15 +74,10 @@ export default function HomePage() {
 
   if (data.site_configuration.maintenance_mode) {
     return (
-      <main className="min-h-screen grid place-items-center text-center px-6">
+      <>
         <ThemeProvider theme={data.theme} />
-        <div>
-          <h1 className="text-3xl font-heading font-bold mb-2">
-            {data.site_configuration.site_name}
-          </h1>
-          <p className="text-muted">We&apos;ll be back shortly.</p>
-        </div>
-      </main>
+        <MaintenancePage data={data} />
+      </>
     );
   }
 

@@ -229,7 +229,6 @@ function CategoryCard({
             <span className={`flex-1 text-sm ${!s.is_visible ? "opacity-40 line-through" : ""}`}>
               {s.name}
             </span>
-            <span className="text-xs text-muted w-16 text-right">{s.proficiency}%</span>
             <button
               onClick={() => onToggleVisible(s)}
               title={s.is_visible ? "Hide" : "Show"}

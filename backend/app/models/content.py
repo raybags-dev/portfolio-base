@@ -7,10 +7,13 @@ public API and renders accordingly.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    DateTime,
     Float,
     Integer,
     LargeBinary,
@@ -62,6 +65,12 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     cookie_banner_text: Mapped[str | None] = mapped_column(Text)
     robots_txt: Mapped[str | None] = mapped_column(Text)
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False)
+    maintenance_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    maintenance_title: Mapped[str | None] = mapped_column(String(255))
+    maintenance_message: Mapped[str | None] = mapped_column(Text)
+    maintenance_bg_image_url: Mapped[str | None] = mapped_column(String(1024))
+    maintenance_bg_image_url_dark: Mapped[str | None] = mapped_column(String(1024))
+    maintenance_bg_image_url_light: Mapped[str | None] = mapped_column(String(1024))
     default_locale: Mapped[str] = mapped_column(String(8), default="en")
 
     # contact / location (used by the Contact page)
