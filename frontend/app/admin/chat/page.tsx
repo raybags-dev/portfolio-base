@@ -171,6 +171,9 @@ export default function AdminChatPage() {
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
+  const [tokenForm, setTokenForm] = useState<{ name: string; email: string } | null>(null);
+  const [tokenSending, setTokenSending] = useState(false);
+  const [tokenResult, setTokenResult] = useState<string | null>(null);
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -303,6 +306,8 @@ export default function AdminChatPage() {
   useEffect(() => {
     if (!selectedId || !adminToken) return;
     setMessages([]);
+    setTokenForm(null);
+    setTokenResult(null);
     setUnreadIds((prev) => { const s = new Set(prev); s.delete(selectedId); return s; });
     loadMessages(selectedId, adminToken);
   }, [selectedId, adminToken, loadMessages]);
@@ -335,6 +340,29 @@ export default function AdminChatPage() {
     const data = await r.json().catch(() => ({}));
     await loadSessions(adminToken);
     return data.closed ?? 0;
+  }
+
+  async function generateToken(sid: string, name: string, email: string) {
+    setTokenSending(true);
+    setTokenResult(null);
+    try {
+      const params = new URLSearchParams({
+        token: adminToken,
+        name: name.trim(),
+        email: email.trim(),
+      });
+      const r = await fetch(`${CHAT_API}/sessions/${sid}/generate-token?${params}`, { method: "POST" });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setTokenResult("✓ Token sent to visitor via chat.");
+        setTokenForm(null);
+      } else {
+        setTokenResult(`✗ ${data.detail ?? "Failed to generate token."}`);
+      }
+    } catch {
+      setTokenResult("✗ Network error.");
+    }
+    setTokenSending(false);
   }
 
   const combined: ChatMsg[] = [
@@ -479,8 +507,55 @@ export default function AdminChatPage() {
                       Close
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      setTokenForm(
+                        tokenForm ? null : {
+                          name: selectedSession?.visitor_name ?? "",
+                          email: selectedSession?.visitor_email ?? "",
+                        }
+                      );
+                      setTokenResult(null);
+                    }}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  >
+                    {tokenForm ? "Cancel" : "Token"}
+                  </button>
                 </div>
               </div>
+
+              {/* Token generation form */}
+              {tokenForm && (
+                <div className="flex-none px-4 py-3 border-b border-amber-500/20 bg-amber-500/5">
+                  <p className="text-xs font-semibold text-amber-400 mb-2">Generate DataForge Token</p>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      value={tokenForm.name}
+                      onChange={(e) => setTokenForm({ ...tokenForm, name: e.target.value })}
+                      placeholder="Visitor name"
+                      className="flex-1 bg-bg border border-white/20 rounded-lg px-2.5 py-1.5 text-sm text-fg placeholder:text-muted outline-none focus:border-amber-400 transition-colors"
+                    />
+                    <input
+                      value={tokenForm.email}
+                      onChange={(e) => setTokenForm({ ...tokenForm, email: e.target.value })}
+                      placeholder="Email address"
+                      className="flex-1 bg-bg border border-white/20 rounded-lg px-2.5 py-1.5 text-sm text-fg placeholder:text-muted outline-none focus:border-amber-400 transition-colors"
+                    />
+                    <button
+                      onClick={() => generateToken(selectedId!, tokenForm.name, tokenForm.email)}
+                      disabled={tokenSending || !tokenForm.email.trim()}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-black font-semibold hover:bg-amber-400 disabled:opacity-40 transition-colors"
+                    >
+                      {tokenSending ? "Sending…" : "Send Token"}
+                    </button>
+                  </div>
+                  {tokenResult && (
+                    <p className={`text-xs ${tokenResult.startsWith("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+                      {tokenResult}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
