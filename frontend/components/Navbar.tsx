@@ -54,8 +54,10 @@ function NavLink({
         href={`/#${item.key}`}
         onClick={(e) => {
           e.preventDefault();
-          scrollTo(item.key);
+          // Close the drawer FIRST so the body position:fixed lock is released,
+          // then scroll. Calling scrollIntoView while body is fixed does nothing.
           onNavigate?.();
+          setTimeout(() => scrollTo(item.key), 50);
         }}
         className={base}
         style={shadow}
