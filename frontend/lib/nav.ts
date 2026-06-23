@@ -14,6 +14,7 @@ export interface NavItem {
 const ROUTE_SECTIONS: Record<string, string> = {
   contact: "/contact",
   blog: "/blog",
+  "chat-demo": "/chat-demo",
 };
 
 export function buildNavItems(sections: Section[]): NavItem[] {
