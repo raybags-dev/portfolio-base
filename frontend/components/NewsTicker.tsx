@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getNewsFeed } from "@/lib/api";
 
 interface NewsItem {
@@ -15,7 +15,6 @@ export default function NewsTicker() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [paused, setPaused] = useState(false);
   const [open, setOpen] = useState(false);
-  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -29,14 +28,16 @@ export default function NewsTicker() {
     }
     load();
     const interval = setInterval(load, 5 * 60 * 1000);
-    return () => { alive = false; clearInterval(interval); };
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
   }, []);
 
+  // Auto-retract when user scrolls away from top
   useEffect(() => {
     function onScroll() {
-      const atTop = window.scrollY < 120;
-      setVisible(atTop);
-      if (!atTop) setOpen(false);
+      if (window.scrollY > 80) setOpen(false);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -51,22 +52,22 @@ export default function NewsTicker() {
     <div
       style={{
         position: "fixed",
-        bottom: 0,
+        bottom: 16,
         left: 0,
-        right: 0,
         zIndex: 30,
-        height: "34px",
-        background: "rgba(0,0,0,0.72)",
-        borderTop: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(8px)",
+        height: 34,
         display: "flex",
         alignItems: "center",
-        opacity: visible ? 1 : 0.01,
-        transition: "opacity 0.4s ease",
-        pointerEvents: visible ? "auto" : "none",
+        // Rounded on the right side only — left edge hugs the viewport
+        borderRadius: "0 8px 8px 0",
+        overflow: "hidden",
+        background: "var(--color-surface)",
+        border: "1px solid rgba(128,128,128,0.18)",
+        borderLeft: "none",
+        boxShadow: "var(--card-shadow)",
       }}
     >
-      {/* LIVE chip — always visible, click to toggle */}
+      {/* LIVE tab — always visible, acts as the pull handle */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Collapse news" : "Expand news"}
@@ -79,7 +80,9 @@ export default function NewsTicker() {
           height: "100%",
           background: "none",
           border: "none",
-          borderRight: "1px solid rgba(255,255,255,0.1)",
+          borderRight: open
+            ? "1px solid rgba(128,128,128,0.18)"
+            : "none",
           cursor: "pointer",
           color: "#ef4444",
           fontSize: 10,
@@ -105,7 +108,7 @@ export default function NewsTicker() {
           style={{
             display: "inline-block",
             marginLeft: 4,
-            color: "rgba(255,255,255,0.6)",
+            color: "var(--color-muted)",
             fontSize: 12,
             animation: open ? "none" : "nt-arrow 1.2s ease-in-out infinite",
           }}
@@ -114,12 +117,11 @@ export default function NewsTicker() {
         </span>
       </button>
 
-      {/* Scrolling track — slides in/out */}
+      {/* Scrolling track — slides in when open */}
       <div
         style={{
-          flex: 1,
           overflow: "hidden",
-          maxWidth: open ? "100vw" : "0px",
+          maxWidth: open ? "min(700px, 80vw)" : "0px",
           transition: "max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
         onMouseEnter={() => setPaused(true)}
@@ -130,7 +132,9 @@ export default function NewsTicker() {
             display: "flex",
             alignItems: "center",
             whiteSpace: "nowrap",
-            animation: paused ? "none" : `nt-scroll ${duration}s linear infinite`,
+            animation: paused
+              ? "none"
+              : `nt-scroll ${duration}s linear infinite`,
           }}
         >
           {doubled.map((item, i) => (
@@ -159,16 +163,42 @@ export default function NewsTicker() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#60a5fa")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.85)")}
+                  style={{
+                    color: "var(--color-fg)",
+                    fontSize: 12,
+                    textDecoration: "none",
+                    opacity: 0.85,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "var(--color-primary)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "var(--color-fg)")
+                  }
                 >
                   {item.title}
                 </a>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 12 }}>{item.title}</span>
+                <span
+                  style={{
+                    color: "var(--color-fg)",
+                    fontSize: 12,
+                    opacity: 0.85,
+                  }}
+                >
+                  {item.title}
+                </span>
               )}
-              <span style={{ margin: "0 10px", color: "rgba(255,255,255,0.18)", fontSize: 10 }}>◆</span>
+              <span
+                style={{
+                  margin: "0 10px",
+                  color: "var(--color-muted)",
+                  fontSize: 10,
+                  opacity: 0.4,
+                }}
+              >
+                ◆
+              </span>
             </span>
           ))}
         </div>
