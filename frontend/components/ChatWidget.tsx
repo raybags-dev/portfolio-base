@@ -254,15 +254,15 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   const [endFlow,   setEndFlow]   = useState<EndFlow>("idle");
   const [userName,  setUserName]  = useState<string | null>(null);
 
-  const wsRef                    = useRef<WebSocket | null>(null);
-  const sessionIdRef             = useRef<string>("");
-  const openRef                  = useRef(false);
-  const greetingHandledRef       = useRef(false);
-  const maintenanceRef           = useRef(maintenanceActive);
-  const suppressServerGreetRef   = useRef(false); // drop first server msg in maintenance mode
-  const userNameRef              = useRef<string | null>(null);
-  const pendingNamePrompt        = useRef(false);
-  const bottomRef                = useRef<HTMLDivElement>(null);
+  const wsRef              = useRef<WebSocket | null>(null);
+  const sessionIdRef       = useRef<string>("");
+  const openRef            = useRef(false);
+  const greetingHandledRef = useRef(false);
+  const maintenanceRef     = useRef(maintenanceActive);
+  const userHasSentRef     = useRef(false); // true after user sends first msg (maintenance gate)
+  const userNameRef        = useRef<string | null>(null);
+  const pendingNamePrompt  = useRef(false);
+  const bottomRef          = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
   useEffect(() => { openRef.current = open; }, [open]);
@@ -290,7 +290,6 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     if (!maintenanceRef.current) return;
     setOpen(true);
     greetingHandledRef.current = true;
-    suppressServerGreetRef.current = true; // drop server greeting if it arrives
     setNameFlow("done");
     const hasCached = loadCachedMsgs().length > 0;
     if (!hasCached) {
@@ -350,18 +349,18 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         if (data.type !== "msg") return;
         setTyping(false);
 
-        // Drop the first server greeting in maintenance mode (already shown locally)
-        if (suppressServerGreetRef.current && data.sender === "agent") {
-          suppressServerGreetRef.current = false;
+        // In maintenance mode, suppress all server agent messages until the user
+        // sends their first message (handles multiple WS reconnects, each of which
+        // would otherwise deliver a fresh server greeting into the chat).
+        if (maintenanceRef.current && !userHasSentRef.current && data.sender === "agent") {
           return;
         }
 
         const savedName = userNameRef.current;
 
-        // First agent message on a fresh session = greeting
+        // First agent message on a fresh normal session = greeting
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
-          if (maintenanceRef.current) return; // already handled above, belt-and-suspenders
           if (savedName && savedName !== "visitor") {
             addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again — how can I help?`, ts: data.ts ?? Date.now() / 1000 });
           } else {
@@ -393,6 +392,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   function send(text: string) {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    userHasSentRef.current = true; // unlock server responses in maintenance mode
     addMsg({ sender: "user", content: text, ts: Date.now() / 1000 });
     setTyping(true);
     setEndFlow("idle");

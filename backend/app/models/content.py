@@ -81,6 +81,10 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     location_address: Mapped[str | None] = mapped_column(String(512))
     map_embed_url: Mapped[str | None] = mapped_column(Text)  # Google Maps embed src
 
+    # AI assistant context — freeform text Ray writes about himself (hobbies, background, etc.)
+    # injected into the chat LLM system prompt so it can answer personal questions
+    ai_context: Mapped[str | None] = mapped_column(Text)
+
 
 class Theme(PKMixin, TimestampMixin, Base):
     """Theme tokens (colours, fonts, spacing, effects). Singleton id=1.

@@ -243,6 +243,26 @@ export default function SiteAdmin() {
         </div>
       </div>
 
+      {/* AI Assistant Context */}
+      <div className="space-y-4 border-t border-gray-400/20 pt-6">
+        <div>
+          <h2 className="font-heading font-semibold text-lg">AI Assistant Context</h2>
+          <p className="text-xs text-muted mt-0.5">
+            Anything you write here gets injected into the chatbot&apos;s knowledge — hobbies, background, fun facts, personal preferences. The AI will use it to answer questions on your behalf.
+          </p>
+        </div>
+        <label className="block">
+          <span className="text-sm">About you (for the AI)</span>
+          <textarea
+            value={form.ai_context || ""}
+            onChange={(e) => set("ai_context", e.target.value)}
+            rows={8}
+            placeholder={`Example:\nI'm originally from Uganda and moved to the UK. Outside of code I love hiking, cooking east African food, and watching Premier League football (Arsenal fan). I'm an introvert who recharges solo but enjoys meaningful conversations. I'm open to remote contract data engineering work but not looking for full-time employment right now.`}
+            className={cls}
+          />
+        </label>
+      </div>
+
       <button
         onClick={() => save.mutate()}
         disabled={save.isPending}
