@@ -80,7 +80,6 @@ function InlineChat({ label, demoSuffix }: { label: string; demoSuffix: string }
   const sidRef = useRef<string>("");
   const greetedRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const addMsg = useCallback((m: Omit<Msg, "id">) => {
     setMsgs((prev) => [...prev, { ...m, id: genId() }]);
@@ -109,6 +108,13 @@ function InlineChat({ label, demoSuffix }: { label: string; demoSuffix: string }
         setTyping(false);
         if (!greetedRef.current && data.sender === "agent") {
           greetedRef.current = true;
+          // Replace generic backend greeting with a demo-specific guide
+          addMsg({
+            sender: "agent",
+            content: "👋 You're connected to a live session! Try asking about DataForge, Ray's background, or type \"speak to Raymond\" to test the human takeover flow.",
+            ts: data.ts ?? Date.now() / 1000,
+          });
+          return;
         }
         addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
       } catch { /* ignore */ }
@@ -125,10 +131,6 @@ function InlineChat({ label, demoSuffix }: { label: string; demoSuffix: string }
     return () => wsRef.current?.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, typing]);
 
   function send(e: React.FormEvent) {
     e.preventDefault();
@@ -164,7 +166,6 @@ function InlineChat({ label, demoSuffix }: { label: string; demoSuffix: string }
         )}
         {msgs.map((m) => <Bubble key={m.id} msg={m} />)}
         {typing && <TypingDots />}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
@@ -253,8 +254,8 @@ export default function ChatDemoPage() {
         <span className="text-xs uppercase tracking-widest text-primary font-semibold">Live demo</span>
         <h1 className="font-heading font-bold text-4xl md:text-5xl">raybags-chat</h1>
         <p className="text-muted leading-relaxed">
-          A production-grade real-time chat system built with FastAPI WebSockets, Redis pub/sub, and a Groq-powered AI agent.
-          Both windows below are live — connected to the same backend you&apos;d use on the main site.
+          A real-time chat system built with FastAPI WebSockets, Redis pub/sub, and a Groq-powered AI agent.
+          Both windows below are live — connected to the same backend as the main site.
         </p>
         <div className="inline-flex items-center gap-2 text-sm text-muted border border-white/10 px-4 py-2 rounded-full bg-surface">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -278,7 +279,7 @@ export default function ChatDemoPage() {
       <div className="space-y-8">
         <div className="text-center space-y-2">
           <h2 className="font-heading font-bold text-2xl">How it&apos;s built</h2>
-          <p className="text-muted text-sm">Every component is production-grade — this isn&apos;t a mock.</p>
+          <p className="text-muted text-sm">Both sessions are live — not mocked, not simulated.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {TECH_CARDS.map((card) => (
