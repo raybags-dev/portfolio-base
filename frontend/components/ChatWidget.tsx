@@ -284,11 +284,11 @@ export default function ChatWidget() {
         />
       )}
 
-      {/* FAB — sits above the back-to-top button (bottom-6 right-6) */}
+      {/* FAB — sits above the back-to-top button; hidden on mobile when panel is open (header X closes it) */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close chat" : "Open chat"}
-        className="fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg flex items-center justify-center transition-all duration-200"
+        className={`fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg items-center justify-center transition-all duration-200 ${open ? "hidden sm:flex" : "flex"}`}
       >
         {open ? (
           <svg
