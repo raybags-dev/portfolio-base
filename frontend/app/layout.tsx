@@ -3,7 +3,6 @@ import "./globals.css";
 import Providers from "./providers";
 import { getBootstrap } from "@/lib/api";
 import MaintenanceGate from "@/components/MaintenanceGate";
-import ChatWidget from "@/components/ChatWidget";
 
 // Best-effort dynamic metadata from the editable site configuration.
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,7 +37,6 @@ export default function RootLayout({
       <body>
         <Providers>
           <MaintenanceGate>{children}</MaintenanceGate>
-          <ChatWidget />
         </Providers>
       </body>
     </html>

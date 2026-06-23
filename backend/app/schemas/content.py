@@ -92,6 +92,7 @@ class SiteConfigurationRead(ORMModel):
     phone: str | None = None
     location_address: str | None = None
     map_embed_url: str | None = None
+    ai_context: str | None = None
 
 
 class _MapSanitizerMixin(BaseModel):
@@ -143,6 +144,7 @@ class SiteConfigurationUpdate(_MapSanitizerMixin):
     phone: str | None = None
     location_address: str | None = None
     map_embed_url: str | None = None
+    ai_context: str | None = None
 
 
 # ---- theme (singleton) ----
