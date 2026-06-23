@@ -311,15 +311,16 @@ export default function SkillsPage() {
         .then(() => { toast.success("Category updated"); refresh(); })
         .catch((err) => toast.error("Failed to update", err));
     } else {
-      // new category: create a placeholder skill so the category exists
+      // new category: create a hidden anchor skill so metadata persists
       createMutation.mutate({
-        name: `${form.category} (add skills below)`,
+        name: form.category,
         category: form.category,
         subheading: form.subheading || undefined,
         description: form.description || undefined,
         github_url: form.github_url || undefined,
         proficiency: 80,
         order: 0,
+        is_visible: false,
       });
     }
     setAddCatModal(false);
