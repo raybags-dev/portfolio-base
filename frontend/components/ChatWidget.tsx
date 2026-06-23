@@ -53,10 +53,12 @@ function clearStoredData(keepName: boolean) {
   } catch {}
 }
 
-function buildWsUrl(sid: string): string {
+function buildWsUrl(sid: string, name?: string | null): string {
   if (typeof window === "undefined") return "";
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}/ws/${sid}`;
+  const base = `${proto}//${window.location.host}/ws/${sid}`;
+  if (name && name !== "visitor") return `${base}?name=${encodeURIComponent(name)}`;
+  return base;
 }
 
 function fmtTime(ts: number): string {
@@ -262,6 +264,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   const userHasSentRef     = useRef(false); // true after user sends first msg (maintenance gate)
   const userNameRef        = useRef<string | null>(null);
   const pendingNamePrompt  = useRef(false);
+  const typingTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef          = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
@@ -336,7 +339,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     const sid = sessionIdRef.current;
     if (!sid) return;
 
-    const ws = new WebSocket(buildWsUrl(sid));
+    const ws = new WebSocket(buildWsUrl(sid, userNameRef.current));
     wsRef.current = ws;
 
     ws.onopen  = () => setConnected(true);
@@ -346,7 +349,16 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data) as { type?: string; sender: Sender; content: string; ts: number };
+
+        if (data.type === "typing") {
+          setTyping(true);
+          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+          typingTimerRef.current = setTimeout(() => setTyping(false), 5000);
+          return;
+        }
+
         if (data.type !== "msg") return;
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
         setTyping(false);
 
         // Suppress server agent messages that arrive before the user sends anything,
@@ -422,6 +434,10 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     persistName(name);
     setUserName(name);
     addMsg({ sender: "agent", content: `Great to meet you, ${name}! What can I help you with today?`, ts: Date.now() / 1000 });
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "meta", visitor_name: name }));
+    }
   }
 
   function startNewSession(keepName: boolean) {
