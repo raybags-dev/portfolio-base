@@ -254,14 +254,15 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   const [endFlow,   setEndFlow]   = useState<EndFlow>("idle");
   const [userName,  setUserName]  = useState<string | null>(null);
 
-  const wsRef              = useRef<WebSocket | null>(null);
-  const sessionIdRef       = useRef<string>("");
-  const openRef            = useRef(false);
-  const greetingHandledRef = useRef(false);
-  const maintenanceRef     = useRef(maintenanceActive);
-  const userNameRef        = useRef<string | null>(null);
-  const pendingNamePrompt  = useRef(false);
-  const bottomRef          = useRef<HTMLDivElement>(null);
+  const wsRef                    = useRef<WebSocket | null>(null);
+  const sessionIdRef             = useRef<string>("");
+  const openRef                  = useRef(false);
+  const greetingHandledRef       = useRef(false);
+  const maintenanceRef           = useRef(maintenanceActive);
+  const suppressServerGreetRef   = useRef(false); // drop first server msg in maintenance mode
+  const userNameRef              = useRef<string | null>(null);
+  const pendingNamePrompt        = useRef(false);
+  const bottomRef                = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
   useEffect(() => { openRef.current = open; }, [open]);
@@ -284,22 +285,25 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     }
   }, []);
 
-  // Maintenance mode: auto-open and show apologetic greeting immediately
+  // Maintenance mode: auto-open; show greeting only if no cached conversation
   useEffect(() => {
     if (!maintenanceRef.current) return;
     setOpen(true);
-    greetingHandledRef.current = true; // suppress the server greeting
-    const ts = Date.now() / 1000;
-    setMessages([{
-      id: genId(),
-      sender: "agent",
-      content:
-        "Hey there! The site's currently down for some maintenance — really sorry about that! " +
-        "I'm still here though and happy to help with any questions you might have. " +
-        "What can I assist you with today?",
-      ts,
-    }]);
-    setNameFlow("done"); // skip name prompt during maintenance
+    greetingHandledRef.current = true;
+    suppressServerGreetRef.current = true; // drop server greeting if it arrives
+    setNameFlow("done");
+    const hasCached = loadCachedMsgs().length > 0;
+    if (!hasCached) {
+      setMessages([{
+        id: genId(),
+        sender: "agent",
+        content:
+          "Hey there! The site's currently down for some maintenance — really sorry about that! " +
+          "I'm still here though and happy to help with any questions you might have. " +
+          "What can I assist you with today?",
+        ts: Date.now() / 1000,
+      }]);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -346,13 +350,18 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         if (data.type !== "msg") return;
         setTyping(false);
 
+        // Drop the first server greeting in maintenance mode (already shown locally)
+        if (suppressServerGreetRef.current && data.sender === "agent") {
+          suppressServerGreetRef.current = false;
+          return;
+        }
+
         const savedName = userNameRef.current;
 
         // First agent message on a fresh session = greeting
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
-          // In maintenance mode the greeting was already shown locally — skip server's
-          if (maintenanceRef.current) return;
+          if (maintenanceRef.current) return; // already handled above, belt-and-suspenders
           if (savedName && savedName !== "visitor") {
             addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again — how can I help?`, ts: data.ts ?? Date.now() / 1000 });
           } else {
