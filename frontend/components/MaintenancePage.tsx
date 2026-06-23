@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { Bootstrap } from "@/lib/types";
+import ChatWidget from "@/components/ChatWidget";
 
 // ── Animated pipeline background ────────────────────────────────────────────
 
@@ -314,6 +315,9 @@ export default function MaintenancePage({ data }: { data: Bootstrap }) {
           </>
         )}
       </div>
+
+      {/* Chat widget — auto-opens with maintenance greeting */}
+      <ChatWidget maintenanceActive />
     </div>
   );
 }

@@ -243,7 +243,7 @@ function SendIcon() {
 }
 
 // ---- Main ChatWidget ----
-export default function ChatWidget() {
+export default function ChatWidget({ maintenanceActive = false }: { maintenanceActive?: boolean }) {
   const [open,      setOpen]      = useState(false);
   const [messages,  setMessages]  = useState<Msg[]>([]);
   const [typing,    setTyping]    = useState(false);
@@ -258,6 +258,7 @@ export default function ChatWidget() {
   const sessionIdRef       = useRef<string>("");
   const openRef            = useRef(false);
   const greetingHandledRef = useRef(false);
+  const maintenanceRef     = useRef(maintenanceActive);
   const userNameRef        = useRef<string | null>(null);
   const pendingNamePrompt  = useRef(false);
   const bottomRef          = useRef<HTMLDivElement>(null);
@@ -281,6 +282,25 @@ export default function ChatWidget() {
       greetingHandledRef.current = true;   // skip re-greeting on reconnect
       if (!savedName) setNameFlow("done"); // skip name prompt if history exists
     }
+  }, []);
+
+  // Maintenance mode: auto-open and show apologetic greeting immediately
+  useEffect(() => {
+    if (!maintenanceRef.current) return;
+    setOpen(true);
+    greetingHandledRef.current = true; // suppress the server greeting
+    const ts = Date.now() / 1000;
+    setMessages([{
+      id: genId(),
+      sender: "agent",
+      content:
+        "Hey there! The site's currently down for some maintenance — really sorry about that! " +
+        "I'm still here though and happy to help with any questions you might have. " +
+        "What can I assist you with today?",
+      ts,
+    }]);
+    setNameFlow("done"); // skip name prompt during maintenance
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist messages to localStorage whenever they change
@@ -331,6 +351,8 @@ export default function ChatWidget() {
         // First agent message on a fresh session = greeting
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
+          // In maintenance mode the greeting was already shown locally — skip server's
+          if (maintenanceRef.current) return;
           if (savedName && savedName !== "visitor") {
             addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again — how can I help?`, ts: data.ts ?? Date.now() / 1000 });
           } else {
