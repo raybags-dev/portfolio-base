@@ -201,6 +201,27 @@ async def _seed_sample_content(db) -> None:
             order=1,
         ))
 
+    # Ensure raybags-chat project exists and has the demo_url set
+    chat_proj = await db.scalar(select(Project).where(Project.slug == "raybags-chat"))
+    if not chat_proj:
+        db.add(Project(
+            title="raybags-chat",
+            slug="raybags-chat",
+            summary="Event-driven real-time chat with WebSockets, Redis pub/sub, Groq AI, and live human takeover.",
+            description=(
+                "A production-grade async chat system built with FastAPI WebSockets, "
+                "Redis pub/sub fan-out, Groq LLM tool-calling, Fernet encryption at rest, "
+                "and a live admin takeover flow."
+            ),
+            tech_tags=["FastAPI", "WebSockets", "Redis", "Groq", "Next.js", "Docker", "Python"],
+            is_featured=True,
+            status="published",
+            demo_url="/chat-demo",
+            order=2,
+        ))
+    elif chat_proj.demo_url != "/chat-demo":
+        chat_proj.demo_url = "/chat-demo"
+
 
 async def _seed_microservices(db) -> None:
     for key, name, desc, category, flag in MICROSERVICES:
