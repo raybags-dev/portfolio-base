@@ -48,23 +48,26 @@ function buildWsUrl(sessionId: string): string {
 // --------------------------------------------------------------------------
 
 function Avatar({ sender }: { sender: Sender }) {
-  const base = "flex-none w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold";
+  const base =
+    "flex-none w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold";
   if (sender === "user")
     return <span className={`${base} bg-sky-500/20 text-sky-400`}>U</span>;
   if (sender === "human")
-    return <span className={`${base} bg-emerald-500/20 text-emerald-400`}>R</span>;
-  return <span className={`${base} bg-violet-500/20 text-violet-400`}>AI</span>;
+    return (
+      <span className={`${base} bg-emerald-500/20 text-emerald-400`}>R</span>
+    );
+  return <span className={`${base} bg-primary/20 text-primary`}>AI</span>;
 }
 
 function TypingDots() {
   return (
     <div className="flex gap-2 items-end">
       <Avatar sender="agent" />
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-sm px-3 py-2.5 flex gap-1">
+      <div className="bg-bg border border-white/10 rounded-2xl rounded-tl-sm px-3 py-2.5 flex gap-1">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"
+            className="w-1.5 h-1.5 rounded-full bg-muted/60 animate-bounce"
             style={{ animationDelay: `${i * 0.15}s` }}
           />
         ))}
@@ -82,10 +85,10 @@ function ChatMessage({ msg }: { msg: Msg }) {
       <div
         className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
           isUser
-            ? "bg-sky-600 text-white rounded-tr-sm"
+            ? "bg-primary text-white rounded-tr-sm"
             : isSystem
-            ? "text-slate-400 italic text-xs self-center mx-auto"
-            : "bg-slate-800 text-slate-100 rounded-tl-sm border border-slate-700"
+              ? "text-muted italic text-xs self-center mx-auto"
+              : "bg-bg text-fg rounded-tl-sm border border-white/10"
         }`}
       >
         {msg.content}
@@ -127,19 +130,25 @@ function ChatPanel({
   }
 
   return (
-    <div className="fixed bottom-24 right-6 z-[9998] w-[360px] max-h-[520px] flex flex-col rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden">
+    <div className="fixed bottom-36 right-6 z-[9998] w-[360px] max-h-[520px] flex flex-col rounded-2xl bg-surface border border-white/10 shadow-card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-surface/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-sm font-semibold text-slate-100">Chat with Ray's AI</span>
+          <span className="text-sm font-semibold text-fg">Chat with Ray's AI</span>
         </div>
         <button
           onClick={onClose}
-          className="text-slate-400 hover:text-slate-100 transition-colors p-1"
+          className="text-muted hover:text-fg transition-colors p-1"
           aria-label="Close chat"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -156,21 +165,30 @@ function ChatPanel({
       </div>
 
       {/* Input */}
-      <form onSubmit={submit} className="flex items-center gap-2 px-3 py-3 border-t border-slate-700 bg-slate-900">
+      <form
+        onSubmit={submit}
+        className="flex items-center gap-2 px-3 py-3 border-t border-white/10 bg-surface"
+      >
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={connected ? "Message Ray's AI…" : "Connecting…"}
           disabled={!connected}
-          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-500 disabled:opacity-50 transition-colors"
+          className="flex-1 bg-bg border border-white/10 rounded-xl px-3 py-2 text-sm text-fg placeholder:text-muted outline-none focus:border-primary disabled:opacity-50 transition-colors"
         />
         <button
           type="submit"
           disabled={!connected || !draft.trim()}
-          className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl w-9 h-9 flex items-center justify-center transition-colors flex-none"
+          className="bg-primary hover:opacity-90 disabled:opacity-40 text-white rounded-xl w-9 h-9 flex items-center justify-center transition-opacity flex-none"
           aria-label="Send"
         >
-          <svg className="w-4 h-4 rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-4 h-4 rotate-90"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
             <line x1="12" y1="19" x2="12" y2="5" />
             <polyline points="5 12 12 5 19 12" />
           </svg>
@@ -209,7 +227,6 @@ export default function ChatWidget() {
     ws.onopen = () => setConnected(true);
     ws.onclose = () => {
       setConnected(false);
-      // Reconnect after 3s if still mounted
       setTimeout(connect, 3000);
     };
     ws.onerror = () => ws.close();
@@ -219,7 +236,11 @@ export default function ChatWidget() {
         const data = JSON.parse(ev.data) as Msg & { type?: string };
         if (data.type !== "msg") return;
         setTyping(false);
-        addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
+        addMsg({
+          sender: data.sender,
+          content: data.content,
+          ts: data.ts ?? Date.now() / 1000,
+        });
         setUnread((n) => (open ? 0 : n + 1));
       } catch {
         /* ignore malformed frames */
@@ -263,20 +284,32 @@ export default function ChatWidget() {
         />
       )}
 
-      {/* FAB */}
+      {/* FAB — sits above the back-to-top button (bottom-6 right-6) */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close chat" : "Open chat"}
-        className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-500 active:scale-95 shadow-lg shadow-violet-900/40 flex items-center justify-center transition-all duration-200"
+        className="fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg flex items-center justify-center transition-all duration-200"
       >
         {open ? (
-          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-6 h-6 text-white"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         ) : (
           <>
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="w-6 h-6 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             {unread > 0 && (
