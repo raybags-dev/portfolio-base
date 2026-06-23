@@ -179,16 +179,15 @@ export default function SiteAdmin() {
         </label>
 
         <label className="block">
-          <span className="text-sm">Countdown end date &amp; time</span>
+          <span className="text-sm">Countdown end date</span>
           <input
-            type="datetime-local"
-            value={
-              form.maintenance_end_at
-                ? form.maintenance_end_at.replace("Z", "").substring(0, 16)
-                : ""
-            }
+            type="date"
+            value={form.maintenance_end_at ? form.maintenance_end_at.substring(0, 10) : ""}
             onChange={(e) =>
-              set("maintenance_end_at", e.target.value ? new Date(e.target.value).toISOString() : "")
+              set(
+                "maintenance_end_at",
+                e.target.value ? new Date(e.target.value + "T00:00:00.000Z").toISOString() : ""
+              )
             }
             className={cls + " text-sm"}
           />
