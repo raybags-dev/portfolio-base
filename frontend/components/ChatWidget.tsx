@@ -130,7 +130,7 @@ function ChatPanel({
   }
 
   return (
-    <div className="fixed bottom-36 right-6 z-[9998] w-[360px] max-h-[520px] flex flex-col rounded-2xl bg-surface border border-white/10 shadow-card overflow-hidden">
+    <div className="fixed inset-0 z-[9998] flex flex-col bg-surface border border-white/10 shadow-card overflow-hidden rounded-none sm:inset-auto sm:bottom-36 sm:right-6 sm:w-[360px] sm:max-h-[520px] sm:rounded-2xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-surface/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-[200px] max-h-[360px]">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 sm:max-h-[360px]">
         {messages.map((m) => (
           <ChatMessage key={m.id} msg={m} />
         ))}
