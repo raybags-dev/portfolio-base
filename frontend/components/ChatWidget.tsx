@@ -8,17 +8,20 @@ interface Msg { id: string; sender: Sender; content: string; ts: number; }
 type NameFlow = "idle" | "prompted" | "entering" | "done";
 type EndFlow = "idle" | "confirming";
 
-// ---- Storage helpers ----
+// ---- Storage keys ----
 const LS_NAME = "rc_name";
+const LS_SID  = "rc_sid";   // localStorage so it survives refresh
+const LS_MSGS = "rc_msgs";  // cached messages for refresh-persistence
 
+// ---- Helpers ----
 function genId() {
   return Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
 }
 
 function getOrCreateSid(): string {
   try {
-    let id = sessionStorage.getItem("rc_sid");
-    if (!id) { id = genId(); sessionStorage.setItem("rc_sid", id); }
+    let id = localStorage.getItem(LS_SID);
+    if (!id) { id = genId(); localStorage.setItem(LS_SID, id); }
     return id;
   } catch { return genId(); }
 }
@@ -31,13 +34,23 @@ function persistName(name: string) {
   try { localStorage.setItem(LS_NAME, name); } catch {}
 }
 
-function clearUserData(sessionId: string) {
+function loadCachedMsgs(): Msg[] {
   try {
-    localStorage.removeItem(LS_NAME);
-    sessionStorage.removeItem("rc_sid");
+    const raw = localStorage.getItem(LS_MSGS);
+    return raw ? (JSON.parse(raw) as Msg[]) : [];
+  } catch { return []; }
+}
+
+function saveCachedMsgs(msgs: Msg[]) {
+  try { localStorage.setItem(LS_MSGS, JSON.stringify(msgs.slice(-100))); } catch {}
+}
+
+function clearStoredData(keepName: boolean) {
+  try {
+    if (!keepName) localStorage.removeItem(LS_NAME);
+    localStorage.removeItem(LS_SID);
+    localStorage.removeItem(LS_MSGS);
   } catch {}
-  // Best-effort delete server-side messages
-  fetch(`/chat/api/sessions/${sessionId}/messages`, { method: "DELETE" }).catch(() => {});
 }
 
 function buildWsUrl(sid: string): string {
@@ -50,7 +63,18 @@ function fmtTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// ---- Avatar components ----
+// Theme-aware input class.
+// Avoids opacity-modifier syntax (bg-bg/60) which breaks when CSS variables are
+// hex strings rather than space-separated RGB channels.
+// border-gray-400/30 works because gray-400 is a built-in Tailwind colour
+// with known RGB values, so the /30 opacity modifier resolves correctly.
+const inputCls =
+  "flex-1 min-w-0 bg-bg border border-gray-400/30 rounded-xl " +
+  "px-3.5 py-2.5 text-sm text-fg placeholder:text-muted " +
+  "outline-none focus:border-primary transition-colors";
+
+// ---- Sub-components ----
+
 function AgentAvatar() {
   return (
     <div className="flex-none w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
@@ -67,12 +91,11 @@ function HumanAvatar() {
   );
 }
 
-// ---- Typing indicator ----
 function TypingDots() {
   return (
     <div className="flex gap-2 items-end">
       <AgentAvatar />
-      <div className="bg-surface border border-white/10 rounded-2xl rounded-bl-[4px] px-3 py-2.5 flex gap-1">
+      <div className="bg-surface border border-gray-400/20 rounded-2xl rounded-bl-[4px] px-3 py-2.5 flex gap-1">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -85,16 +108,15 @@ function TypingDots() {
   );
 }
 
-// ---- Chat bubble ----
 function ChatBubble({ msg }: { msg: Msg }) {
-  const isUser = msg.sender === "user";
+  const isUser   = msg.sender === "user";
   const isSystem = msg.sender === "system";
-  const isHuman = msg.sender === "human";
+  const isHuman  = msg.sender === "human";
 
   if (isSystem) {
     return (
       <div className="flex justify-center py-1">
-        <span className="text-[11px] text-muted italic bg-bg/40 px-3 py-1 rounded-full">
+        <span className="text-[11px] text-muted italic bg-surface px-3 py-1 rounded-full border border-gray-400/20">
           {msg.content}
         </span>
       </div>
@@ -110,7 +132,7 @@ function ChatBubble({ msg }: { msg: Msg }) {
             "px-3.5 py-2.5 text-sm leading-relaxed break-words",
             isUser
               ? "bg-primary text-white rounded-2xl rounded-br-[4px]"
-              : "bg-surface border border-white/10 text-fg rounded-2xl rounded-bl-[4px]",
+              : "bg-surface border border-gray-400/20 text-fg rounded-2xl rounded-bl-[4px]",
           ].join(" ")}
         >
           {msg.content}
@@ -121,13 +143,12 @@ function ChatBubble({ msg }: { msg: Msg }) {
   );
 }
 
-// ---- Name prompt card ----
 function NamePromptCard({ onSure, onSkip }: { onSure: () => void; onSkip: () => void }) {
   return (
     <div className="flex items-end gap-2">
       <AgentAvatar />
       <div className="flex flex-col gap-2.5 max-w-[80%]">
-        <div className="bg-surface border border-white/10 text-fg rounded-2xl rounded-bl-[4px] px-3.5 py-2.5 text-sm leading-relaxed">
+        <div className="bg-surface border border-gray-400/20 text-fg rounded-2xl rounded-bl-[4px] px-3.5 py-2.5 text-sm leading-relaxed">
           By the way — if you don&apos;t mind, what should I call you? I&apos;d love to address you by name while we chat!
         </div>
         <div className="flex gap-2">
@@ -139,7 +160,7 @@ function NamePromptCard({ onSure, onSkip }: { onSure: () => void; onSkip: () => 
           </button>
           <button
             onClick={onSkip}
-            className="px-4 py-1.5 bg-surface border border-white/20 text-muted rounded-xl text-xs font-semibold hover:text-fg transition-colors"
+            className="px-4 py-1.5 bg-surface border border-gray-400/20 text-muted rounded-xl text-xs font-semibold hover:text-fg transition-colors"
           >
             Skip for now
           </button>
@@ -149,18 +170,13 @@ function NamePromptCard({ onSure, onSkip }: { onSure: () => void; onSkip: () => 
   );
 }
 
-// ---- Name input card ----
 function NameInputCard({ onSubmit }: { onSubmit: (name: string) => void }) {
   const [val, setVal] = useState("");
   return (
     <div className="flex items-end gap-2">
       <AgentAvatar />
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const n = val.trim();
-          if (n) onSubmit(n);
-        }}
+        onSubmit={(e) => { e.preventDefault(); const n = val.trim(); if (n) onSubmit(n); }}
         className="flex gap-2 flex-1 min-w-0"
       >
         <input
@@ -168,7 +184,7 @@ function NameInputCard({ onSubmit }: { onSubmit: (name: string) => void }) {
           value={val}
           onChange={(e) => setVal(e.target.value)}
           placeholder="Your name…"
-          className="flex-1 min-w-0 bg-surface border border-white/20 rounded-xl px-3 py-2 text-sm text-fg placeholder:text-muted outline-none focus:border-primary transition-colors"
+          className={inputCls}
         />
         <button
           type="submit"
@@ -182,7 +198,6 @@ function NameInputCard({ onSubmit }: { onSubmit: (name: string) => void }) {
   );
 }
 
-// ---- End conversation confirm card ----
 function EndConfirmCard({
   onEndSession,
   onDeleteData,
@@ -193,12 +208,12 @@ function EndConfirmCard({
   onCancel: () => void;
 }) {
   return (
-    <div className="mx-1 p-3.5 bg-surface border border-white/10 rounded-2xl space-y-3">
+    <div className="mx-1 p-3.5 bg-surface border border-gray-400/20 rounded-2xl space-y-3">
       <p className="text-xs text-muted text-center">How would you like to end this chat?</p>
       <div className="flex gap-2">
         <button
           onClick={onEndSession}
-          className="flex-1 py-2.5 bg-bg border border-white/20 text-fg rounded-xl text-xs font-semibold hover:bg-surface transition-colors"
+          className="flex-1 py-2.5 bg-bg border border-gray-400/25 text-fg rounded-xl text-xs font-semibold hover:bg-surface transition-colors"
         >
           End session
         </button>
@@ -219,7 +234,6 @@ function EndConfirmCard({
   );
 }
 
-// ---- Send icon ----
 function SendIcon() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -230,36 +244,65 @@ function SendIcon() {
 
 // ---- Main ChatWidget ----
 export default function ChatWidget() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [typing, setTyping] = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [messages,  setMessages]  = useState<Msg[]>([]);
+  const [typing,    setTyping]    = useState(false);
   const [connected, setConnected] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const [draft, setDraft] = useState("");
-  const [nameFlow, setNameFlow] = useState<NameFlow>("idle");
-  const [endFlow, setEndFlow] = useState<EndFlow>("idle");
-  const [userName, setUserName] = useState<string | null>(null);
+  const [unread,    setUnread]    = useState(0);
+  const [draft,     setDraft]     = useState("");
+  const [nameFlow,  setNameFlow]  = useState<NameFlow>("idle");
+  const [endFlow,   setEndFlow]   = useState<EndFlow>("idle");
+  const [userName,  setUserName]  = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const sessionIdRef = useRef<string>("");
-  const openRef = useRef(false);
+  const wsRef              = useRef<WebSocket | null>(null);
+  const sessionIdRef       = useRef<string>("");
+  const openRef            = useRef(false);
   const greetingHandledRef = useRef(false);
-  const userNameRef = useRef<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const userNameRef        = useRef<string | null>(null);
+  const pendingNamePrompt  = useRef(false);
+  const bottomRef          = useRef<HTMLDivElement>(null);
 
-  // Keep refs in sync with state
+  // Keep refs in sync
   useEffect(() => { openRef.current = open; }, [open]);
   useEffect(() => { userNameRef.current = userName; }, [userName]);
 
-  // Load persisted name once on mount
+  // Restore persisted session on mount (runs once, client-side only)
   useEffect(() => {
-    const saved = getSavedName();
-    if (saved) {
-      setUserName(saved);
-      userNameRef.current = saved;
+    const savedName = getSavedName();
+    if (savedName) {
+      setUserName(savedName);
+      userNameRef.current = savedName;
       setNameFlow("done");
     }
+
+    const cached = loadCachedMsgs();
+    if (cached.length > 0) {
+      setMessages(cached);
+      greetingHandledRef.current = true;   // skip re-greeting on reconnect
+      if (!savedName) setNameFlow("done"); // skip name prompt if history exists
+    }
   }, []);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) saveCachedMsgs(messages);
+  }, [messages]);
+
+  // When panel opens: clear unread, fire any deferred name prompt
+  useEffect(() => {
+    if (open) {
+      setUnread(0);
+      if (pendingNamePrompt.current) {
+        pendingNamePrompt.current = false;
+        setTimeout(() => setNameFlow("prompted"), 400);
+      }
+    }
+  }, [open]);
+
+  // Scroll to bottom on new content
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, typing, nameFlow, endFlow]);
 
   const addMsg = useCallback((m: Omit<Msg, "id">) => {
     setMessages((prev) => [...prev, { ...m, id: genId() }]);
@@ -273,39 +316,29 @@ export default function ChatWidget() {
     const ws = new WebSocket(buildWsUrl(sid));
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => {
-      setConnected(false);
-      setTimeout(connect, 3000);
-    };
+    ws.onopen  = () => setConnected(true);
+    ws.onclose = () => { setConnected(false); setTimeout(connect, 3000); };
     ws.onerror = () => ws.close();
 
     ws.onmessage = (ev) => {
       try {
-        const data = JSON.parse(ev.data) as {
-          type?: string;
-          sender: Sender;
-          content: string;
-          ts: number;
-        };
+        const data = JSON.parse(ev.data) as { type?: string; sender: Sender; content: string; ts: number };
         if (data.type !== "msg") return;
         setTyping(false);
 
         const savedName = userNameRef.current;
 
-        // Personalise the very first greeting from the agent
+        // First agent message on a fresh session = greeting
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
           if (savedName && savedName !== "visitor") {
-            addMsg({
-              sender: "agent",
-              content: `Welcome back, ${savedName}! Great to see you again — how can I help?`,
-              ts: data.ts ?? Date.now() / 1000,
-            });
+            addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again — how can I help?`, ts: data.ts ?? Date.now() / 1000 });
           } else {
             addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
             if (!savedName) {
-              setTimeout(() => setNameFlow("prompted"), 900);
+              // Defer name prompt if panel isn't open yet
+              if (openRef.current) setTimeout(() => setNameFlow("prompted"), 900);
+              else pendingNamePrompt.current = true;
             }
           }
           return;
@@ -317,21 +350,13 @@ export default function ChatWidget() {
     };
   }, [addMsg]);
 
-  // Init session and connect on mount
+  // Init: restore session ID and connect once
   useEffect(() => {
     sessionIdRef.current = getOrCreateSid();
     connect();
     return () => wsRef.current?.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Clear unread when panel opens
-  useEffect(() => { if (open) setUnread(0); }, [open]);
-
-  // Scroll to bottom whenever content changes
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing, nameFlow, endFlow]);
 
   // ---- Actions ----
   function send(text: string) {
@@ -357,41 +382,42 @@ export default function ChatWidget() {
     setNameFlow("done");
     persistName("visitor");
     setUserName("visitor");
-    addMsg({
-      sender: "agent",
-      content: "No worries! I'll call you Visitor for now. What would you like to know?",
-      ts: Date.now() / 1000,
-    });
+    addMsg({ sender: "agent", content: "No worries! I'll call you Visitor for now. What would you like to know?", ts: Date.now() / 1000 });
   }
 
   function handleNameSubmit(name: string) {
     setNameFlow("done");
     persistName(name);
     setUserName(name);
-    addMsg({
-      sender: "agent",
-      content: `Great to meet you, ${name}! What can I help you with today?`,
-      ts: Date.now() / 1000,
-    });
+    addMsg({ sender: "agent", content: `Great to meet you, ${name}! What can I help you with today?`, ts: Date.now() / 1000 });
   }
 
-  function handleEndChat() { setEndFlow("confirming"); }
+  function startNewSession(keepName: boolean) {
+    clearStoredData(keepName);
+    const newSid = genId();
+    localStorage.setItem(LS_SID, newSid);
+    sessionIdRef.current = newSid;
+    greetingHandledRef.current = false;
+    pendingNamePrompt.current = false;
+    wsRef.current?.close(); // onclose → auto-reconnect with newSid after 3s
+    setMessages([]);
+    setNameFlow(keepName && userNameRef.current ? "done" : "idle");
+  }
 
   function handleEndSession() {
+    startNewSession(true); // keep name
     setOpen(false);
     setEndFlow("idle");
   }
 
   function handleDeleteData() {
-    clearUserData(sessionIdRef.current);
+    const sid = sessionIdRef.current;
+    fetch(`/chat/api/sessions/${sid}/messages`, { method: "DELETE" }).catch(() => {});
+    startNewSession(false); // clear everything
     setUserName(null);
     userNameRef.current = null;
-    setMessages([]);
-    greetingHandledRef.current = false;
-    setNameFlow("idle");
-    setEndFlow("idle");
-    wsRef.current?.close();
     setOpen(false);
+    setEndFlow("idle");
   }
 
   // ---- Render ----
@@ -403,15 +429,14 @@ export default function ChatWidget() {
           className={[
             // Mobile: full screen
             "fixed inset-0 z-[9998] flex flex-col overflow-hidden",
-            // Desktop: floating card, WhatsApp-style proportions
-            "sm:inset-auto sm:bottom-8 sm:right-6 sm:w-[400px] sm:h-[600px] sm:rounded-2xl",
-            // Appearance
-            "bg-bg border border-white/10 shadow-card",
+            // Desktop: floating card positioned above where the FAB would be
+            "sm:inset-auto sm:bottom-8 sm:right-6 sm:w-[400px] sm:h-[560px] sm:rounded-2xl",
+            // Appearance — using solid bg-bg (no opacity modifier; CSS hex vars break /N syntax)
+            "bg-bg border border-gray-400/20 shadow-card",
           ].join(" ")}
         >
-          {/* ── Header ── */}
-          <div className="flex-none flex items-center gap-3 px-4 py-3 bg-surface border-b border-white/10">
-            {/* Avatar with online dot */}
+          {/* Header */}
+          <div className="flex-none flex items-center gap-3 px-4 py-3 bg-surface border-b border-gray-400/15">
             <div className="flex-none relative">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
                 AI
@@ -420,8 +445,6 @@ export default function ChatWidget() {
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-surface" />
               )}
             </div>
-
-            {/* Name + status */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-fg leading-tight truncate">
                 Ray&apos;s AI
@@ -433,16 +456,12 @@ export default function ChatWidget() {
                 {connected ? "Online" : "Connecting…"}
               </p>
             </div>
-
-            {/* End chat */}
             <button
-              onClick={handleEndChat}
+              onClick={() => setEndFlow("confirming")}
               className="text-muted hover:text-fg transition-colors text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-bg whitespace-nowrap"
             >
               End chat
             </button>
-
-            {/* Close (X) */}
             <button
               onClick={() => setOpen(false)}
               className="flex-none text-muted hover:text-fg transition-colors p-1 rounded-lg hover:bg-bg"
@@ -455,12 +474,9 @@ export default function ChatWidget() {
             </button>
           </div>
 
-          {/* ── Messages ── */}
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {messages.map((m) => (
-              <ChatBubble key={m.id} msg={m} />
-            ))}
-
+            {messages.map((m) => <ChatBubble key={m.id} msg={m} />)}
             {nameFlow === "prompted" && (
               <NamePromptCard onSure={handleNameSure} onSkip={handleNameSkip} />
             )}
@@ -478,15 +494,15 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* ── Input ── */}
-          <div className="flex-none border-t border-white/10 bg-surface px-3 py-3">
+          {/* Input footer */}
+          <div className="flex-none border-t border-gray-400/15 bg-surface px-3 py-3">
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={connected ? "Message Ray's AI…" : "Connecting…"}
                 disabled={!connected}
-                className="flex-1 bg-bg/60 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-fg placeholder:text-muted outline-none focus:border-primary disabled:opacity-50 transition-colors"
+                className={`${inputCls} disabled:opacity-50`}
               />
               <button
                 type="submit"
@@ -501,23 +517,13 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* ── FAB ── hidden on mobile when panel is open (header X closes it) ── */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close chat" : "Open chat"}
-        className={[
-          "fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary",
-          "hover:opacity-90 active:scale-95 shadow-lg transition-all duration-200",
-          "items-center justify-center",
-          open ? "hidden sm:flex" : "flex",
-        ].join(" ")}
-      >
-        {open ? (
-          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        ) : (
+      {/* ── FAB — completely hidden while panel is open ── */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open chat"
+          className="fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg flex items-center justify-center transition-all duration-200"
+        >
           <div className="relative">
             <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -528,8 +534,8 @@ export default function ChatWidget() {
               </span>
             )}
           </div>
-        )}
-      </button>
+        </button>
+      )}
     </>
   );
 }
