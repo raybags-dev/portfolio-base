@@ -578,7 +578,6 @@ function SkillDetailModal({
           <p className="text-muted text-sm leading-relaxed mb-5">{first.description}</p>
         )}
         <div className="mb-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Technologies</h3>
           <div className="flex flex-wrap gap-2">
             {skills.map((s) => (
               <span key={s.id} className="text-xs font-medium px-2.5 py-1 rounded-full border border-primary/40 text-primary bg-primary/5">
@@ -670,11 +669,11 @@ export function Skills({ data }: { data: Bootstrap }) {
                     </span>
                   ))}
                 </div>
-                {/* Details button — same weight as project CTA */}
-                <div className="mt-auto flex flex-col items-center pt-2">
+                {/* Details button */}
+                <div className="mt-auto pt-2">
                   <button
                     onClick={() => setSelectedCat(cat)}
-                    className="w-[72%] rounded-theme border border-primary/40 text-primary text-sm font-medium py-2.5 hover:bg-primary hover:text-white transition-colors"
+                    className="rounded-theme border border-primary/40 text-primary text-sm font-medium px-5 py-2 hover:bg-primary hover:text-white transition-colors"
                   >
                     Details →
                   </button>

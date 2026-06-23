@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/store";
 
 // ---- Types ----
 interface Session {
@@ -25,7 +26,8 @@ interface ChatMsg {
 type ConnectionState = "disconnected" | "connecting" | "connected";
 
 // ---- Helpers ----
-const CHAT_API = "/chat/api";
+// nginx rewrites /chat/api/v1/... → /api/v1/... at the chat backend (port 8010)
+const CHAT_API = "/chat/api/v1";
 
 function buildAdminWsUrl(token: string): string {
   if (typeof window === "undefined") return "";
@@ -149,10 +151,16 @@ function Bubble({ msg }: { msg: ChatMsg }) {
 
 // ---- Main page ----
 export default function AdminChatPage() {
+  // Use portfolio admin JWT directly — no manual token entry needed
+  const portfolioToken = useAuth((s) => s.token) ?? "";
   const [adminToken, setAdminToken] = useState<string>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("chat_admin_token") ?? "";
+    if (typeof window !== "undefined") {
+      // Prefer portfolio JWT; fall back to manually stored static token
+      return localStorage.getItem("chat_admin_token") ?? "";
+    }
     return "";
   });
+  // Sync portfolioToken into adminToken on mount
   const [tokenInput, setTokenInput] = useState("");
   const [wsState, setWsState] = useState<ConnectionState>("disconnected");
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -259,12 +267,16 @@ export default function AdminChatPage() {
     connectWs(t);
   }
 
-  // Auto-connect if token already saved
+  // Auto-connect using portfolio JWT (preferred) or previously saved static token
   useEffect(() => {
-    if (adminToken) connectWs(adminToken);
+    const token = portfolioToken || adminToken;
+    if (token) {
+      setAdminToken(token);
+      connectWs(token);
+    }
     return () => wsRef.current?.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [portfolioToken]);
 
   // Load messages when session selected
   useEffect(() => {
@@ -300,12 +312,12 @@ export default function AdminChatPage() {
 
   const selectedSession = sessions.find((s) => s.session_id === selectedId);
 
-  // ---- Token gate ----
-  if (!adminToken) {
+  // ---- No token: show fallback input ----
+  if (!adminToken && !portfolioToken) {
     return (
       <div className="max-w-sm mx-auto mt-24 space-y-4">
         <h1 className="font-heading font-bold text-2xl">Live Chat Admin</h1>
-        <p className="text-muted text-sm">Enter the chat admin token (PORTFOLIO_ADMIN_TOKEN from your GitHub secrets).</p>
+        <p className="text-muted text-sm">Your admin session wasn&apos;t detected. Enter your PORTFOLIO_ADMIN_TOKEN to connect manually.</p>
         <div className="flex gap-2">
           <input
             type="password"
