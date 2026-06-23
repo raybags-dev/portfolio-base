@@ -164,7 +164,7 @@ jobs:
             export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
             export IMAGE_TAG="${{ github.sha }}"
             bash /mnt/portfolio-data/app/scripts/prod-deploy.sh
-            # Reload nginx config without dropping connections (picks up volume-mounted changes).
-            docker compose -f /mnt/portfolio-data/app/docker-compose.vps.yml \
-              --env-file /mnt/portfolio-data/app/.env.prod \
-              exec -T nginx nginx -s reload
+            # scp-action replaces files (new inodes), so nginx -s reload can't pick up the
+            # new bind-mount content. A full restart is required to re-resolve the mount path.
+            docker restart app-nginx-1
+            echo "Nginx restarted with latest config"
