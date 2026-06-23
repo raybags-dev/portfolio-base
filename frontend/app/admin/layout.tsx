@@ -20,6 +20,7 @@ const NAV = [
   { href: "/admin/education", label: "Education" },
   { href: "/admin/certifications", label: "Certifications" },
   { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/chat", label: "Live Chat" },
   { href: "/admin/flags", label: "Feature Flags" },
   { href: "/admin/tokens", label: "Access Tokens" },
   { href: "/admin/logs", label: "Logs" },
