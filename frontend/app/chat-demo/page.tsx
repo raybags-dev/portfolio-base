@@ -70,128 +70,6 @@ function Bubble({ msg }: { msg: Msg }) {
   );
 }
 
-// ---- Inline chat panel (no FAB, no floating) ----
-function InlineChat({ label, demoSuffix }: { label: string; demoSuffix: string }) {
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [draft, setDraft] = useState("");
-  const [typing, setTyping] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const sidRef = useRef<string>("");
-  const greetedRef = useRef(false);
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const addMsg = useCallback((m: Omit<Msg, "id">) => {
-    setMsgs((prev) => [...prev, { ...m, id: genId() }]);
-  }, []);
-
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    const ws = new WebSocket(buildWsUrl(sidRef.current));
-    wsRef.current = ws;
-
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => { setConnected(false); setTimeout(connect, 3000); };
-    ws.onerror = () => ws.close();
-
-    ws.onmessage = (ev) => {
-      try {
-        const data = JSON.parse(ev.data) as { type?: string; sender: Sender; content: string; ts: number };
-        if (data.type === "typing") {
-          setTyping(true);
-          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-          typingTimerRef.current = setTimeout(() => setTyping(false), 5000);
-          return;
-        }
-        if (data.type !== "msg") return;
-        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-        setTyping(false);
-        if (!greetedRef.current && data.sender === "agent") {
-          greetedRef.current = true;
-          // Replace generic backend greeting with a demo-specific guide
-          addMsg({
-            sender: "agent",
-            content: "👋 You're connected to a live session! Try asking about DataForge, Ray's background, or type \"speak to Raymond\" to test the human takeover flow.",
-            ts: data.ts ?? Date.now() / 1000,
-          });
-          return;
-        }
-        addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
-      } catch { /* ignore */ }
-    };
-  }, [addMsg]);
-
-  useEffect(() => {
-    // Stable demo session IDs per page session, keyed by suffix
-    const stored = sessionStorage.getItem(`demo_sid_${demoSuffix}`);
-    const sid = stored ?? `demo-${demoSuffix}-${genId()}`;
-    if (!stored) sessionStorage.setItem(`demo_sid_${demoSuffix}`, sid);
-    sidRef.current = sid;
-    connect();
-    return () => wsRef.current?.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function send(e: React.FormEvent) {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text || wsRef.current?.readyState !== WebSocket.OPEN) return;
-    addMsg({ sender: "user", content: text, ts: Date.now() / 1000 });
-    wsRef.current.send(JSON.stringify({ type: "msg", content: text }));
-    setDraft("");
-    setTyping(true);
-  }
-
-  return (
-    <div className="flex flex-col rounded-2xl border border-white/10 bg-surface overflow-hidden h-[480px]">
-      {/* Header */}
-      <div className="flex-none px-4 py-3 border-b border-white/10 flex items-center gap-3">
-        <div className="relative">
-          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-bold">AI</div>
-          <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-surface ${connected ? "bg-emerald-400" : "bg-amber-400"}`} />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-fg">Ray&apos;s AI — {label}</p>
-          <p className="text-[11px] text-muted">{connected ? "Online" : "Connecting…"}</p>
-        </div>
-        <span className="text-[10px] text-muted px-2 py-1 rounded-full border border-white/10 bg-white/5">Live session</span>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {msgs.length === 0 && !typing && (
-          <p className="text-xs text-muted text-center pt-8">
-            {connected ? "Say hi to start the demo →" : "Connecting to chat backend…"}
-          </p>
-        )}
-        {msgs.map((m) => <Bubble key={m.id} msg={m} />)}
-        {typing && <TypingDots />}
-      </div>
-
-      {/* Input */}
-      <div className="flex-none border-t border-white/10 px-3 py-3">
-        <form onSubmit={send} className="flex gap-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={connected ? "Try asking about DataForge, Ray's skills…" : "Connecting…"}
-            disabled={!connected}
-            className="flex-1 bg-bg border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-fg placeholder:text-muted outline-none focus:border-primary transition-colors disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!connected || !draft.trim()}
-            className="flex-none bg-primary hover:opacity-90 disabled:opacity-40 text-white rounded-xl w-10 h-10 flex items-center justify-center transition-opacity"
-            aria-label="Send"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // ---- Tech stack cards ----
 const TECH_CARDS = [
   {
@@ -228,19 +106,76 @@ const TECH_CARDS = [
 
 // ---- Page ----
 export default function ChatDemoPage() {
-  const [tip, setTip] = useState(0);
-  const tips = [
-    "Ask about Ray's projects or background",
-    "Ask 'How does this chat work?'",
-    "Ask for a DataForge pipeline token",
-    "Ask to speak to Raymond directly",
-  ];
+  // Shared state — one WS session, two views of the same conversation
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [draft, setDraft] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const greetedRef = useRef(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const addMsg = useCallback((m: Omit<Msg, "id">) => {
+    setMsgs((prev) => [...prev, { ...m, id: genId() }]);
+  }, []);
+
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const stored = sessionStorage.getItem("demo_sid");
+    const sid = stored ?? `demo-${genId()}`;
+    if (!stored) sessionStorage.setItem("demo_sid", sid);
+
+    const ws = new WebSocket(buildWsUrl(sid));
+    wsRef.current = ws;
+
+    ws.onopen = () => setConnected(true);
+    ws.onclose = () => { setConnected(false); setTimeout(connect, 3000); };
+    ws.onerror = () => ws.close();
+
+    ws.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data) as { type?: string; sender: Sender; content: string; ts: number };
+        if (data.type === "typing") {
+          setTyping(true);
+          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+          typingTimerRef.current = setTimeout(() => setTyping(false), 5000);
+          return;
+        }
+        if (data.type !== "msg") return;
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        setTyping(false);
+        if (!greetedRef.current && data.sender === "agent") {
+          greetedRef.current = true;
+          addMsg({
+            sender: "agent",
+            content: "👋 Hi there! This is a live demo session — type a message in the visitor window on the left and hit send to see the magic happen. You can ask about DataForge, Ray's background, or say \"speak to Raymond\" to test the human takeover flow. Let's do this 😊",
+            ts: data.ts ?? Date.now() / 1000,
+          });
+          return;
+        }
+        addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
+      } catch { /* ignore */ }
+    };
+  }, [addMsg]);
 
   useEffect(() => {
-    const t = setInterval(() => setTip((n) => (n + 1) % tips.length), 3000);
-    return () => clearInterval(t);
+    connect();
+    return () => wsRef.current?.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    // Add to shared msgs so it appears in the RIGHT (chat) panel
+    addMsg({ sender: "user", content: text, ts: Date.now() / 1000 });
+    wsRef.current.send(JSON.stringify({ type: "msg", content: text }));
+    setDraft("");
+    setTyping(true);
+  }
+
+  const sentCount = msgs.filter((m) => m.sender === "user").length;
 
   return (
     <main className="container-x py-16 space-y-16">
@@ -255,23 +190,101 @@ export default function ChatDemoPage() {
         <h1 className="font-heading font-bold text-4xl md:text-5xl">raybags-chat</h1>
         <p className="text-muted leading-relaxed">
           A real-time chat system built with FastAPI WebSockets, Redis pub/sub, and a Groq-powered AI agent.
-          Both windows below are live — connected to the same backend as the main site.
+          Type in the visitor window — watch messages and responses appear in the chat window.
         </p>
-        <div className="inline-flex items-center gap-2 text-sm text-muted border border-white/10 px-4 py-2 rounded-full bg-surface">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Try: <span className="text-primary italic transition-all duration-500">{tips[tip]}</span>
-        </div>
       </div>
 
-      {/* Two chat windows */}
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* Two-panel demo — one shared session */}
+      <div className="grid md:grid-cols-2 gap-6 items-stretch">
+
+        {/* LEFT — visitor send panel */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">Session A</p>
-          <InlineChat label="Session A" demoSuffix="a" />
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">You (Visitor)</p>
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-surface overflow-hidden h-[480px]">
+            {/* Header */}
+            <div className="flex-none px-4 py-3 border-b border-white/10 flex items-center gap-3">
+              <div className="relative">
+                <div className="w-9 h-9 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-[10px] font-bold">YOU</div>
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-surface ${connected ? "bg-emerald-400" : "bg-amber-400"}`} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-fg">Visitor window</p>
+                <p className="text-[11px] text-muted">{connected ? "Type below — responses appear in the chat →" : "Connecting…"}</p>
+              </div>
+            </div>
+
+            {/* Body — send prompt / sent count */}
+            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4">
+              {sentCount === 0 ? (
+                <>
+                  <span className="text-5xl">💬</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-fg">Say hi to start the demo →</p>
+                    <p className="text-xs text-muted">Your message will appear in the chat window on the right.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl">✓</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-fg">{sentCount} message{sentCount !== 1 ? "s" : ""} sent</p>
+                    <p className="text-xs text-muted">Check the chat window for responses →</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="flex-none border-t border-white/10 px-3 py-3">
+              <form onSubmit={send} className="flex gap-2">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={connected ? "Say hi to start the demo →" : "Connecting…"}
+                  disabled={!connected}
+                  className="flex-1 bg-bg border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-fg placeholder:text-muted outline-none focus:border-primary transition-colors disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={!connected || !draft.trim()}
+                  className="flex-none bg-primary hover:opacity-90 disabled:opacity-40 text-white rounded-xl w-10 h-10 flex items-center justify-center transition-opacity"
+                  aria-label="Send"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
+
+        {/* RIGHT — chat conversation display */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">Session B</p>
-          <InlineChat label="Session B" demoSuffix="b" />
+          <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">Chat (AI side)</p>
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-surface overflow-hidden h-[480px]">
+            {/* Header */}
+            <div className="flex-none px-4 py-3 border-b border-white/10 flex items-center gap-3">
+              <div className="relative">
+                <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-bold">AI</div>
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-surface ${connected ? "bg-emerald-400" : "bg-amber-400"}`} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-fg">Javi — Ray&apos;s AI</p>
+                <p className="text-[11px] text-muted">{connected ? "Online" : "Connecting…"}</p>
+              </div>
+              <span className="text-[10px] text-muted px-2 py-1 rounded-full border border-white/10 bg-white/5">Live session</span>
+            </div>
+
+            {/* Messages — all msgs flow here */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {msgs.length === 0 && !typing && (
+                <p className="text-xs text-muted text-center pt-8">
+                  {connected ? "Waiting for first message…" : "Connecting to backend…"}
+                </p>
+              )}
+              {msgs.map((m) => <Bubble key={m.id} msg={m} />)}
+              {typing && <TypingDots />}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -294,7 +307,7 @@ export default function ChatDemoPage() {
         </div>
       </div>
 
-      {/* Flow diagram (text-based) */}
+      {/* Flow diagram */}
       <div className="rounded-2xl border border-white/10 bg-surface p-6 space-y-4 max-w-3xl mx-auto">
         <h2 className="font-heading font-semibold text-lg">Message flow</h2>
         <div className="font-mono text-xs text-muted space-y-1 leading-relaxed">
