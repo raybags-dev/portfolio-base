@@ -83,7 +83,7 @@ function SessionRow({
       <StatusDot active={s.human_active} />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-fg truncate flex items-center gap-1.5">
-          {s.visitor_name || "Anonymous"}
+          {s.visitor_name && s.visitor_name !== "visitor" ? s.visitor_name : "Anonymous"}
           {hasUnread && <span className="w-1.5 h-1.5 rounded-full bg-rose-400 flex-none" />}
         </p>
         <p className="text-[10px] text-muted truncate">{s.session_id.slice(0, 12)}…</p>
@@ -170,6 +170,8 @@ export default function AdminChatPage() {
   const [reply, setReply] = useState("");
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [typingMap, setTypingMap] = useState<Record<string, boolean>>({});
+  const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -233,9 +235,29 @@ export default function AdminChatPage() {
           ts: number;
           tool?: string;
         };
-        if (data.type !== "msg") return;
 
         const sid = data.session_id;
+
+        if (data.type === "typing") {
+          setTypingMap((prev) => ({ ...prev, [sid]: true }));
+          if (typingTimers.current[sid]) clearTimeout(typingTimers.current[sid]);
+          typingTimers.current[sid] = setTimeout(() => {
+            setTypingMap((prev) => ({ ...prev, [sid]: false }));
+          }, 5000);
+          return;
+        }
+
+        if (data.type === "session_update") {
+          loadSessions(token);
+          return;
+        }
+
+        if (data.type !== "msg") return;
+
+        // Clear typing indicator for this session
+        setTypingMap((prev) => ({ ...prev, [sid]: false }));
+        if (typingTimers.current[sid]) clearTimeout(typingTimers.current[sid]);
+
         const newMsg: ChatMsg = {
           sender: data.sender,
           content: data.content,
@@ -252,7 +274,6 @@ export default function AdminChatPage() {
           setUnreadIds((prev) => new Set(prev).add(sid));
         }
 
-        // Refresh sessions list periodically
         loadSessions(token);
       } catch { /* ignore */ }
     };
@@ -295,14 +316,25 @@ export default function AdminChatPage() {
     setReply("");
   }
 
-  // Takeover / release
+  // Takeover / release / close / cleanup
   async function takeover(sid: string) {
     await fetch(`${CHAT_API}/sessions/${sid}/takeover?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
-    loadSessions(adminToken);
+    await loadSessions(adminToken);
   }
   async function release(sid: string) {
     await fetch(`${CHAT_API}/sessions/${sid}/release?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
-    loadSessions(adminToken);
+    await loadSessions(adminToken);
+  }
+  async function closeSession(sid: string) {
+    await fetch(`${CHAT_API}/sessions/${sid}/close?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
+    if (selectedId === sid) setSelectedId(null);
+    await loadSessions(adminToken);
+  }
+  async function cleanupStale() {
+    const r = await fetch(`${CHAT_API}/sessions/cleanup?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
+    const data = await r.json().catch(() => ({}));
+    await loadSessions(adminToken);
+    return data.closed ?? 0;
   }
 
   const combined: ChatMsg[] = [
@@ -358,12 +390,23 @@ export default function AdminChatPage() {
             {wsState}
           </span>
         </div>
-        <button
-          onClick={() => { localStorage.removeItem("chat_admin_token"); setAdminToken(""); wsRef.current?.close(); }}
-          className="text-xs text-muted hover:text-fg transition-colors"
-        >
-          Disconnect
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              const closed = await cleanupStale();
+              alert(`Closed ${closed} stale session${closed !== 1 ? "s" : ""}.`);
+            }}
+            className="text-xs text-muted hover:text-fg transition-colors"
+          >
+            Clean up stale
+          </button>
+          <button
+            onClick={() => { localStorage.removeItem("chat_admin_token"); setAdminToken(""); wsRef.current?.close(); }}
+            className="text-xs text-muted hover:text-fg transition-colors"
+          >
+            Disconnect
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 flex gap-4">
@@ -401,7 +444,9 @@ export default function AdminChatPage() {
               <div className="flex-none px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-fg">
-                    {selectedSession?.visitor_name || "Anonymous visitor"}
+                    {selectedSession?.visitor_name && selectedSession.visitor_name !== "visitor"
+                      ? selectedSession.visitor_name
+                      : "Anonymous visitor"}
                     {selectedSession?.visitor_email && (
                       <span className="ml-2 text-xs text-muted font-normal">{selectedSession.visitor_email}</span>
                     )}
@@ -426,6 +471,14 @@ export default function AdminChatPage() {
                       Take over
                     </button>
                   )}
+                  {selectedSession?.status !== "closed" && (
+                    <button
+                      onClick={() => closeSession(selectedId)}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
+                    >
+                      Close
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -437,6 +490,22 @@ export default function AdminChatPage() {
                 {combined.map((m, i) => (
                   <Bubble key={m.id ?? i} msg={m} />
                 ))}
+                {selectedId && typingMap[selectedId] && (
+                  <div className="flex items-end gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-bold flex-none text-primary">
+                      AI
+                    </div>
+                    <div className="bg-surface border border-white/10 rounded-2xl rounded-bl-[4px] px-3 py-2 flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-muted/60 animate-bounce"
+                          style={{ animationDelay: `${i * 0.15}s` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div ref={bottomRef} />
               </div>
 
