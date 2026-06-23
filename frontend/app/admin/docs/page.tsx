@@ -70,7 +70,7 @@ function Overview() {
   return (
     <>
       <P>
-        This platform is a full-stack data engineering portfolio — a live demonstration of production-grade crawlers,
+        This platform is a full-stack data engineering portfolio — a live demonstration of crawlers,
         agentic AI pipelines, stream processing, and analytics. Every project on the site is a real, running system
         you can interact with directly.
       </P>
