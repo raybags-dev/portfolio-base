@@ -349,16 +349,17 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         if (data.type !== "msg") return;
         setTyping(false);
 
-        // In maintenance mode, suppress all server agent messages until the user
-        // sends their first message (handles multiple WS reconnects, each of which
-        // would otherwise deliver a fresh server greeting into the chat).
-        if (maintenanceRef.current && !userHasSentRef.current && data.sender === "agent") {
+        // Suppress server agent messages that arrive before the user sends anything,
+        // IF a greeting has already been handled (cached session or maintenance mode).
+        // This prevents reconnect-greetings from appearing as duplicate messages
+        // in both maintenance mode and normal sessions with cached history.
+        if (greetingHandledRef.current && !userHasSentRef.current && data.sender === "agent") {
           return;
         }
 
         const savedName = userNameRef.current;
 
-        // First agent message on a fresh normal session = greeting
+        // First agent message on a fresh session = greeting
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
           if (savedName && savedName !== "visitor") {
@@ -443,7 +444,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
 
   function handleDeleteData() {
     const sid = sessionIdRef.current;
-    fetch(`/chat/api/sessions/${sid}/messages`, { method: "DELETE" }).catch(() => {});
+    fetch(`/chat/api/v1/sessions/${sid}/messages`, { method: "DELETE" }).catch(() => {});
     startNewSession(false); // clear everything
     setUserName(null);
     userNameRef.current = null;
