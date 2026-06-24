@@ -266,6 +266,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   const pendingNamePrompt  = useRef(false);
   const typingTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelay     = useRef(3000);
   const bottomRef          = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
@@ -349,11 +350,13 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     const ws = new WebSocket(buildWsUrl(sid, userNameRef.current));
     wsRef.current = ws;
 
-    ws.onopen  = () => setConnected(true);
+    ws.onopen  = () => { setConnected(true); reconnectDelay.current = 3000; };
     ws.onerror = () => ws.close();
     ws.onclose = () => {
       setConnected(false);
-      reconnectTimer.current = setTimeout(connect, 3000);
+      const delay = reconnectDelay.current;
+      reconnectDelay.current = Math.min(delay * 2, 60_000);
+      reconnectTimer.current = setTimeout(connect, delay);
     };
 
     ws.onmessage = (ev) => {
