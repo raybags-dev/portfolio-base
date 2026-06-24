@@ -177,6 +177,7 @@ export default function AdminChatPage() {
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
 
@@ -210,7 +211,8 @@ export default function AdminChatPage() {
 
   // Connect admin WebSocket
   const connectWs = useCallback((token: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
+    if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
     setWsState("connecting");
 
     const ws = new WebSocket(buildAdminWsUrl(token));
@@ -221,9 +223,11 @@ export default function AdminChatPage() {
       loadSessions(token);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       setWsState("disconnected");
-      setTimeout(() => connectWs(token), 4000);
+      // 4001 = auth rejected — stop retrying with a bad token
+      if (ev.code === 4001) return;
+      reconnectTimer.current = setTimeout(() => connectWs(token), 4000);
     };
 
     ws.onerror = () => ws.close();
@@ -298,7 +302,10 @@ export default function AdminChatPage() {
       setAdminToken(token);
       connectWs(token);
     }
-    return () => wsRef.current?.close();
+    return () => {
+      if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); wsRef.current = null; }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolioToken]);
 
