@@ -21,7 +21,7 @@ router = APIRouter(
     dependencies=[Depends(require_admin())],
 )
 
-_TOKEN_TTL_MINUTES = 10
+_TOKEN_TTL_MINUTES = 1440  # 24 hours — long enough for cross-project chat→token flow
 
 
 def _token_dict(t: AppToken) -> dict[str, Any]:
