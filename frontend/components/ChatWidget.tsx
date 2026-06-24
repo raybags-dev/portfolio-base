@@ -265,6 +265,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   const userNameRef        = useRef<string | null>(null);
   const pendingNamePrompt  = useRef(false);
   const typingTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef          = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
@@ -335,7 +336,13 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    // Guard both CONNECTING (0) and OPEN (1) — prevents spawning a second socket
+    // while the first is still handshaking, which would create two reconnect chains.
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
+
+    // Cancel any pending reconnect so we don't get two concurrent chains.
+    if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+
     const sid = sessionIdRef.current;
     if (!sid) return;
 
@@ -343,8 +350,11 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
     wsRef.current = ws;
 
     ws.onopen  = () => setConnected(true);
-    ws.onclose = () => { setConnected(false); setTimeout(connect, 3000); };
     ws.onerror = () => ws.close();
+    ws.onclose = () => {
+      setConnected(false);
+      reconnectTimer.current = setTimeout(connect, 3000);
+    };
 
     ws.onmessage = (ev) => {
       try {
@@ -397,7 +407,13 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   useEffect(() => {
     sessionIdRef.current = getOrCreateSid();
     connect();
-    return () => wsRef.current?.close();
+    return () => {
+      // Null onclose BEFORE closing so the auto-reconnect timer is not scheduled
+      // on unmount (e.g. navigating to /admin).  Without this, a stale timer fires
+      // 3 s later and creates a zombie WebSocket on an unmounted component.
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -441,15 +457,21 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   }
 
   function startNewSession(keepName: boolean) {
+    // Cancel any pending reconnect timer before tearing down the socket.
+    if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
     clearStoredData(keepName);
     const newSid = genId();
     localStorage.setItem(LS_SID, newSid);
     sessionIdRef.current = newSid;
     greetingHandledRef.current = false;
     pendingNamePrompt.current = false;
-    wsRef.current?.close(); // onclose → auto-reconnect with newSid after 3s
+    // Null onclose before closing so we control when the next connect fires.
+    if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+    setConnected(false);
     setMessages([]);
     setNameFlow(keepName && userNameRef.current ? "done" : "idle");
+    // Reconnect with the fresh SID after a short delay.
+    reconnectTimer.current = setTimeout(connect, 200);
   }
 
   function handleEndSession() {
