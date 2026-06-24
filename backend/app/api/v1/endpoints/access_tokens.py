@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 
 from app.core.access import _DEV_MODE_KEY, _client_ip
@@ -22,77 +20,6 @@ router = APIRouter(
     tags=["access-tokens"],
     dependencies=[Depends(require_admin())],
 )
-
-# ── Service-to-service router (no admin JWT required) ────────────────────────
-
-service_router = APIRouter(
-    prefix="/access-tokens",
-    tags=["access-tokens-service"],
-)
-
-
-class _AccessCheckRequest(BaseModel):
-    app_name: str
-    ip: str
-    token: str | None = None
-
-
-@service_router.post("/check")
-async def check_access(
-    body: _AccessCheckRequest,
-    db: DbSession,
-    x_service_key: str | None = Header(None, alias="X-Service-Key"),
-) -> dict[str, Any]:
-    """Service-to-service endpoint: validates visitor access on behalf of DataForge.
-
-    Secured by X-Service-Key matching PORTFOLIO_ADMIN_TOKEN env var.
-    Mirrors the logic in app.core.access.require_app_access.
-    """
-    admin_token = os.environ.get("PORTFOLIO_ADMIN_TOKEN") or os.environ.get("ADMIN_TOKEN")
-    if not admin_token or x_service_key != admin_token:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_service_key")
-
-    ip, app_name = body.ip, body.app_name
-
-    # dev-mode whitelist
-    setting = await db.scalar(select(Setting).where(Setting.key == _DEV_MODE_KEY))
-    if setting:
-        try:
-            dev_ips: list[str] = json.loads(setting.value or "[]")
-            if ip in dev_ips:
-                return {"allowed": True}
-        except Exception:
-            pass
-
-    # first-use is free
-    usage = await db.scalar(
-        select(IpUsageLog).where(IpUsageLog.ip == ip, IpUsageLog.app_name == app_name)
-    )
-    if usage is None:
-        db.add(IpUsageLog(ip=ip, app_name=app_name))
-        await db.commit()
-        return {"allowed": True}
-
-    # subsequent uses require a valid token
-    if not body.token:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "rate_limited")
-
-    now = datetime.now(UTC)
-    token = await db.scalar(
-        select(AppToken).where(
-            AppToken.token == body.token,
-            AppToken.is_used.is_(False),
-            AppToken.expires_at > now,
-        )
-    )
-    if token is None:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "invalid_token")
-
-    token.is_used = True
-    token.used_by_ip = ip
-    token.used_at = now
-    await db.commit()
-    return {"allowed": True}
 
 _TOKEN_TTL_MINUTES = 1440  # 24 hours — long enough for cross-project chat→token flow
 
