@@ -51,7 +51,10 @@ export function Section({
   bgImageLight?: string | null;
   isDark?: boolean;
 }) {
-  const activeImage = isDark ? bgImageDark : bgImageLight;
+  // Fall back to the other theme's image if the active theme has none set.
+  const activeImage = isDark
+    ? (bgImageDark || bgImageLight)
+    : (bgImageLight || bgImageDark);
   const hasImage = !!activeImage;
 
   return (
@@ -67,8 +70,8 @@ export function Section({
               backgroundImage: `url("${activeImage}")`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              backgroundAttachment: "fixed",
-              opacity: isDark ? 0.14 : 0.18,
+              backgroundAttachment: "scroll",
+              opacity: isDark ? 0.18 : 0.22,
             }}
           />
           <div
