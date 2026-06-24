@@ -16,14 +16,18 @@ export default function BackToTop() {
     <AnimatePresence>
       {show && (
         <motion.button
-          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+          key="back-to-top"
+          initial={{ opacity: 0, scale: 0.7, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: 10 }}
+          exit={{ opacity: 0, scale: 0.7, y: 8 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28 }}
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Back to top"
-          className="fixed bottom-6 right-6 z-40 grid h-11 w-11 place-items-center rounded-full bg-primary text-white shadow-card hover:opacity-90"
+          className="fixed bottom-[88px] right-5 z-[9998] flex h-12 w-12 items-center justify-center rounded-full bg-surface border border-gray-400/20 text-fg shadow-lg hover:border-primary/60 hover:text-primary transition-colors"
         >
-          ↑
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
         </motion.button>
       )}
     </AnimatePresence>
