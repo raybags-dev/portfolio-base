@@ -502,8 +502,8 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
           className={[
             // Mobile: full screen
             "fixed inset-0 z-[9998] flex flex-col overflow-hidden",
-            // Desktop: floating card positioned above where the FAB would be
-            "sm:inset-auto sm:bottom-8 sm:right-6 sm:w-[400px] sm:h-[560px] sm:rounded-2xl",
+            // Desktop: floating card above the FAB stack
+            "sm:inset-auto sm:bottom-[72px] sm:right-5 sm:w-[400px] sm:h-[560px] sm:rounded-2xl",
             // Appearance — using solid bg-bg (no opacity modifier; CSS hex vars break /N syntax)
             "bg-bg border border-gray-400/20 shadow-card",
           ].join(" ")}
@@ -595,10 +595,10 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         <button
           onClick={() => setOpen(true)}
           aria-label="Open chat"
-          className="fixed bottom-20 right-6 z-[9999] w-14 h-14 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg flex items-center justify-center transition-all duration-200"
+          className="fixed bottom-5 right-5 z-[9999] w-12 h-12 rounded-full bg-primary hover:opacity-90 active:scale-95 shadow-lg flex items-center justify-center transition-all duration-200"
         >
           <div className="relative">
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             {unread > 0 && (
