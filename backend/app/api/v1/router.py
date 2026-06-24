@@ -48,7 +48,6 @@ api_router.include_router(blog.router)
 # control plane
 api_router.include_router(feature_flags.router)
 api_router.include_router(access_tokens.router)
-api_router.include_router(access_tokens.service_router)
 
 # news feed
 api_router.include_router(news.router)
