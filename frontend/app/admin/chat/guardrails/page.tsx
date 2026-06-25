@@ -29,7 +29,7 @@ export default function GuardrailsPage() {
   const portfolioToken = useAuth((s) => s.token) ?? "";
   const [adminToken, setAdminToken] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return portfolioToken || localStorage.getItem("chat_admin_token") ?? "";
+      return portfolioToken || (localStorage.getItem("chat_admin_token") ?? "");
     }
     return "";
   });
