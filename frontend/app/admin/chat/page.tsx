@@ -426,6 +426,9 @@ export default function AdminChatPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <a href="/admin/chat/guardrails" className="text-xs text-muted hover:text-fg transition-colors">
+            Guardrails
+          </a>
           <button
             onClick={async () => {
               const closed = await cleanupStale();
