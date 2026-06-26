@@ -84,6 +84,7 @@ function SkillModal({
     status: "",
     experience: "",
     primary_use: "",
+    subheading: "",
     related_technologies: [],
     project_title: "",
     project_url: "",
@@ -141,6 +142,10 @@ function SkillModal({
           <label className="block">
             <span className="text-xs text-muted uppercase tracking-wide">Primary Use</span>
             <input value={form.primary_use ?? ""} onChange={(e) => set({ primary_use: e.target.value })} placeholder="e.g. Backend APIs, Automation & AI" className={inp} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Subheading <span className="normal-case font-normal text-muted/60">(shown under name on card)</span></span>
+            <input value={form.subheading ?? ""} onChange={(e) => set({ subheading: e.target.value })} placeholder="e.g. Data pipelines at scale" className={inp} />
           </label>
           <label className="block">
             <span className="text-xs text-muted uppercase tracking-wide">Description (shown in details modal)</span>
