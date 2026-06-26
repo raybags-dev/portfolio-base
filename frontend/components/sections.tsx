@@ -307,7 +307,7 @@ export function Hero({ data }: { data: Bootstrap }) {
       {/* Background image — opacity-only, no destructive colour filters */}
       {hasImage && (
         <div
-          className="absolute inset-[-6%]"
+          className="absolute inset-0"
           style={{
             backgroundImage: `url("${activeImageUrl}")`,
             backgroundSize: "cover",
