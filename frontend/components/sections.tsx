@@ -596,7 +596,11 @@ function SkillDetailModal({
           <SkillIcon icon={skill.icon} name={skill.name} />
           <div>
             <h2 className="font-heading font-bold text-xl leading-tight">{skill.name}</h2>
-            {skill.category && <p className="text-xs text-muted mt-0.5">{skill.category}</p>}
+            {skill.category && (
+              <span className="text-[10px] font-medium px-2 py-0.5 mt-1 rounded-full bg-white/5 border border-white/10 text-muted inline-block">
+                {skill.category}
+              </span>
+            )}
           </div>
         </div>
 
@@ -691,10 +695,15 @@ export function Skills({ data }: { data: Bootstrap }) {
                 {skill.status && <StatusBadge status={skill.status} />}
               </div>
 
+              {skill.category && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted mb-2 inline-block">
+                  {skill.category}
+                </span>
+              )}
               <div className="mb-3">
                 <h3 className="font-heading font-bold text-base leading-tight">{skill.name}</h3>
-                {skill.category && (
-                  <span className="text-[11px] text-muted mt-0.5 block">{skill.category}</span>
+                {skill.subheading && (
+                  <span className="text-[11px] text-muted mt-0.5 block">{skill.subheading}</span>
                 )}
               </div>
 
