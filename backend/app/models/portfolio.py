@@ -81,6 +81,13 @@ class Skill(PKMixin, TimestampMixin, Base):
     subheading: Mapped[str | None] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     github_url: Mapped[str | None] = mapped_column(String(512))
+    status: Mapped[str | None] = mapped_column(String(64))
+    experience: Mapped[str | None] = mapped_column(String(64))
+    primary_use: Mapped[str | None] = mapped_column(String(255))
+    related_technologies: Mapped[list | None] = mapped_column(JSON, default=None)
+    project_title: Mapped[str | None] = mapped_column(String(255))
+    project_url: Mapped[str | None] = mapped_column(String(512))
+    featured: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class TimelineEntry(PKMixin, TimestampMixin, Base):

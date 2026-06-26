@@ -4,153 +4,202 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createSkill, deleteSkill, listSkills, updateSkill } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
+import { Toggle } from "@/components/ui/Toggle";
 import type { Skill } from "@/lib/types";
 
-// ---- Category modal (create/edit category metadata) -------------------------
-function CategoryModal({
+const STATUS_OPTIONS = ["Expert", "Advanced", "Intermediate", "Beginner"];
+const inp = "w-full mt-1 rounded-lg bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary";
+
+// ---- Tag editor ----------------------------------------------------------------
+function TagEditor({
+  tags,
+  onChange,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [input, setInput] = useState("");
+
+  function add() {
+    const v = input.trim();
+    if (!v || tags.includes(v)) return;
+    onChange([...tags, v]);
+    setInput("");
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {tags.map((t) => (
+          <span
+            key={t}
+            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary"
+          >
+            {t}
+            <button
+              type="button"
+              onClick={() => onChange(tags.filter((x) => x !== t))}
+              className="hover:text-red-400 transition-colors leading-none"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        {tags.length === 0 && <span className="text-xs text-muted">No technologies added yet</span>}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="e.g. FastAPI"
+          className="flex-1 rounded-lg bg-bg border border-white/15 px-3 py-1.5 text-sm outline-none focus:border-primary"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg border border-primary/40 text-primary text-xs px-3 py-1.5 hover:bg-primary/10 transition-colors"
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- Skill modal (add / edit) --------------------------------------------------
+function SkillModal({
   initial,
   onSave,
   onClose,
 }: {
-  initial?: { category: string; subheading: string; description: string; github_url: string };
-  onSave: (data: { category: string; subheading: string; description: string; github_url: string }) => void;
+  initial?: Partial<Skill>;
+  onSave: (data: Partial<Skill>) => void;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState({
-    category: initial?.category ?? "",
-    subheading: initial?.subheading ?? "",
-    description: initial?.description ?? "",
-    github_url: initial?.github_url ?? "",
+  const [form, setForm] = useState<Partial<Skill>>({
+    name: "",
+    icon: "",
+    category: "",
+    status: "",
+    experience: "",
+    primary_use: "",
+    related_technologies: [],
+    project_title: "",
+    project_url: "",
+    github_url: "",
+    description: "",
+    order: 0,
+    featured: false,
+    is_visible: true,
+    ...initial,
   });
-  const inp = "w-full mt-1 rounded-lg bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary";
+
+  const set = (patch: Partial<Skill>) => setForm((f) => ({ ...f, ...patch }));
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface border border-white/10 rounded-xl w-full max-w-lg p-6 relative shadow-2xl">
+      <div className="bg-surface border border-white/10 rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
         <button onClick={onClose} className="absolute top-4 right-4 text-xl text-muted hover:text-fg">×</button>
         <h2 className="font-heading font-bold text-lg mb-5">
-          {initial ? "Edit Category" : "Add Skill Category"}
+          {initial?.id ? "Edit Skill" : "Add Skill"}
         </h2>
-        <div className="space-y-4">
-          <label className="block">
-            <span className="text-xs text-muted uppercase tracking-wide">Category name *</span>
-            <input
-              value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              required
-              placeholder="e.g. Core Data Engineering"
-              className={inp}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted uppercase tracking-wide">Subheading</span>
-            <input
-              value={form.subheading}
-              onChange={(e) => setForm((f) => ({ ...f, subheading: e.target.value }))}
-              placeholder="Short tagline for this category"
-              className={inp}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted uppercase tracking-wide">Description (shown in modal)</span>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={3}
-              placeholder="Longer description about this skill area"
-              className={inp}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted uppercase tracking-wide">GitHub repo URL</span>
-            <input
-              value={form.github_url}
-              onChange={(e) => setForm((f) => ({ ...f, github_url: e.target.value }))}
-              placeholder="https://github.com/..."
-              className={inp}
-            />
-          </label>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => {
-              if (!form.category.trim()) return;
-              onSave(form);
-            }}
-            className="flex-1 rounded-lg bg-primary text-white py-2 font-medium hover:opacity-90"
-          >
-            Save
-          </button>
-          <button onClick={onClose} className="flex-1 rounded-lg border border-white/15 py-2 hover:bg-white/5">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-// ---- Add skill modal --------------------------------------------------------
-function AddSkillModal({
-  category,
-  onSave,
-  onClose,
-}: {
-  category: string;
-  onSave: (data: { name: string; proficiency: number; order: number }) => void;
-  onClose: () => void;
-}) {
-  const [form, setForm] = useState({ name: "", proficiency: 80, order: 0 });
-  const inp = "w-full mt-1 rounded-lg bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary";
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface border border-white/10 rounded-xl w-full max-w-sm p-6 relative shadow-2xl">
-        <button onClick={onClose} className="absolute top-4 right-4 text-xl text-muted hover:text-fg">×</button>
-        <h2 className="font-heading font-bold text-lg mb-1">Add Technology</h2>
-        <p className="text-xs text-muted mb-5">Adding to: <span className="text-primary">{category}</span></p>
-        <div className="space-y-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted mb-3">Basic Information</p>
+        <div className="space-y-3 mb-5">
           <label className="block">
-            <span className="text-xs text-muted uppercase tracking-wide">Technology name *</span>
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Apache Spark"
-              className={inp}
-            />
+            <span className="text-xs text-muted uppercase tracking-wide">Skill Name *</span>
+            <input value={form.name ?? ""} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Python" className={inp} />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs text-muted uppercase tracking-wide">Proficiency (0-100)</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={form.proficiency}
-                onChange={(e) => setForm((f) => ({ ...f, proficiency: Number(e.target.value) }))}
-                className={inp}
-              />
+              <span className="text-xs text-muted uppercase tracking-wide">Icon</span>
+              <input value={form.icon ?? ""} onChange={(e) => set({ icon: e.target.value })} placeholder="e.g. 🐍" className={inp} />
             </label>
             <label className="block">
-              <span className="text-xs text-muted uppercase tracking-wide">Order</span>
-              <input
-                type="number"
-                value={form.order}
-                onChange={(e) => setForm((f) => ({ ...f, order: Number(e.target.value) }))}
-                className={inp}
-              />
+              <span className="text-xs text-muted uppercase tracking-wide">Category</span>
+              <input value={form.category ?? ""} onChange={(e) => set({ category: e.target.value })} placeholder="e.g. Backend Development" className={inp} />
             </label>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs text-muted uppercase tracking-wide">Status</span>
+              <select
+                value={form.status ?? ""}
+                onChange={(e) => set({ status: e.target.value || undefined })}
+                className={inp + " cursor-pointer"}
+              >
+                <option value="">— Select —</option>
+                {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs text-muted uppercase tracking-wide">Experience</span>
+              <input value={form.experience ?? ""} onChange={(e) => set({ experience: e.target.value })} placeholder="e.g. 6+ Years" className={inp} />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Primary Use</span>
+            <input value={form.primary_use ?? ""} onChange={(e) => set({ primary_use: e.target.value })} placeholder="e.g. Backend APIs, Automation & AI" className={inp} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Description (shown in details modal)</span>
+            <textarea value={form.description ?? ""} onChange={(e) => set({ description: e.target.value })} rows={2} placeholder="Longer description..." className={inp} />
+          </label>
         </div>
-        <div className="flex gap-3 mt-6">
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted mb-3">Related Technologies</p>
+        <div className="mb-5">
+          <TagEditor
+            tags={form.related_technologies ?? []}
+            onChange={(tags) => set({ related_technologies: tags })}
+          />
+        </div>
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted mb-3">Featured Project</p>
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Project Title</span>
+            <input value={form.project_title ?? ""} onChange={(e) => set({ project_title: e.target.value })} placeholder="e.g. AutoVid" className={inp} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Project URL</span>
+            <input value={form.project_url ?? ""} onChange={(e) => set({ project_url: e.target.value })} placeholder="/projects/autovid" className={inp} />
+          </label>
+        </div>
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted mb-3">Links</p>
+        <div className="mb-5">
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">GitHub URL</span>
+            <input value={form.github_url ?? ""} onChange={(e) => set({ github_url: e.target.value })} placeholder="https://github.com/..." className={inp} />
+          </label>
+        </div>
+
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted mb-3">Display Controls</p>
+        <div className="space-y-3 mb-6">
+          <label className="flex items-center justify-between">
+            <span className="text-sm">Featured</span>
+            <Toggle checked={!!form.featured} onChange={(v) => set({ featured: v })} />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-sm">Visible</span>
+            <Toggle checked={form.is_visible !== false} onChange={(v) => set({ is_visible: v })} />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted uppercase tracking-wide">Display Order</span>
+            <input type="number" value={form.order ?? 0} onChange={(e) => set({ order: Number(e.target.value) })} className={inp} />
+          </label>
+        </div>
+
+        <div className="flex gap-3">
           <button
-            onClick={() => {
-              if (!form.name.trim()) return;
-              onSave(form);
-            }}
-            className="flex-1 rounded-lg bg-primary text-white py-2 font-medium hover:opacity-90"
+            onClick={() => { if (!form.name?.trim()) return; onSave(form); }}
+            className="flex-1 rounded-lg bg-primary text-white py-2.5 font-medium hover:opacity-90"
           >
-            Add
+            Save
           </button>
-          <button onClick={onClose} className="flex-1 rounded-lg border border-white/15 py-2 hover:bg-white/5">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-white/15 py-2.5 hover:bg-white/5">
             Cancel
           </button>
         </div>
@@ -159,100 +208,66 @@ function AddSkillModal({
   );
 }
 
-// ---- Category card ----------------------------------------------------------
-function CategoryCard({
-  cat,
-  skills,
-  onEditCategory,
-  onAddSkill,
-  onDeleteSkill,
+// ---- Skill row -----------------------------------------------------------------
+function SkillRow({
+  skill,
+  onEdit,
+  onDelete,
   onToggleVisible,
+  onToggleFeatured,
 }: {
-  cat: string;
-  skills: Skill[];
-  onEditCategory: () => void;
-  onAddSkill: () => void;
-  onDeleteSkill: (id: number) => void;
-  onToggleVisible: (skill: Skill) => void;
+  skill: Skill;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleVisible: () => void;
+  onToggleFeatured: () => void;
 }) {
-  const first = skills[0];
   return (
-    <div className="rounded-xl border border-white/10 bg-surface shadow-card p-5">
-      {/* header */}
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0">
-          <h3 className="font-heading font-bold text-base truncate">{cat}</h3>
-          {first?.subheading && (
-            <p className="text-xs text-secondary mt-0.5">{first.subheading}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {first?.github_url && (
-            <a
-              href={first.github_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted hover:text-primary transition-colors"
-              title="GitHub repo"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
-              </svg>
-            </a>
-          )}
-          <button
-            onClick={onEditCategory}
-            className="text-xs border border-white/15 rounded-full px-3 py-1 hover:border-primary hover:text-primary transition-colors"
-          >
-            Edit
-          </button>
-          <button
-            onClick={onAddSkill}
-            className="text-xs border border-primary/40 text-primary rounded-full px-3 py-1 hover:bg-primary/10 transition-colors"
-          >
-            + Add
-          </button>
-        </div>
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/8 bg-surface group hover:border-white/20 transition-colors">
+      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-lg shrink-0">
+        {skill.icon ? (
+          <span>{skill.icon}</span>
+        ) : (
+          <span className="text-[10px] font-bold text-primary">
+            {skill.name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase()}
+          </span>
+        )}
       </div>
 
-      {first?.description && (
-        <p className="text-xs text-muted mb-3 line-clamp-2">{first.description}</p>
-      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm font-medium ${!skill.is_visible ? "opacity-40 line-through" : ""}`}>
+            {skill.name}
+          </span>
+          {skill.featured && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30">Featured</span>
+          )}
+          {skill.status && (
+            <span className="text-[10px] text-muted border border-white/10 rounded px-1.5 py-0.5">{skill.status}</span>
+          )}
+        </div>
+        {skill.category && <p className="text-[11px] text-muted truncate">{skill.category}</p>}
+      </div>
 
-      {/* skill entries */}
-      <div className="space-y-1 mt-3">
-        {skills.map((s) => (
-          <div
-            key={s.id}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg/50 border border-white/5 group"
-          >
-            <span className={`flex-1 text-sm ${!s.is_visible ? "opacity-40 line-through" : ""}`}>
-              {s.name}
-            </span>
-            <button
-              onClick={() => onToggleVisible(s)}
-              title={s.is_visible ? "Hide" : "Show"}
-              className="text-muted hover:text-primary opacity-0 group-hover:opacity-100 transition-all text-xs"
-            >
-              {s.is_visible ? "hide" : "show"}
-            </button>
-            <button
-              onClick={() => onDeleteSkill(s.id)}
-              className="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-all text-xs"
-            >
-              delete
-            </button>
-          </div>
-        ))}
-        {skills.length === 0 && (
-          <p className="text-xs text-muted text-center py-3">No technologies yet — add one above.</p>
-        )}
+      <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onToggleFeatured} title="Toggle featured" className="text-[11px] text-muted hover:text-accent transition-colors px-1">
+          {skill.featured ? "★" : "☆"}
+        </button>
+        <button onClick={onToggleVisible} className="text-[11px] text-muted hover:text-primary transition-colors">
+          {skill.is_visible ? "hide" : "show"}
+        </button>
+        <button onClick={onEdit} className="text-[11px] border border-white/15 rounded-full px-2.5 py-0.5 hover:border-primary hover:text-primary transition-colors">
+          Edit
+        </button>
+        <button onClick={onDelete} className="text-[11px] text-red-400 hover:text-red-300 transition-colors">
+          del
+        </button>
       </div>
     </div>
   );
 }
 
-// ---- Page -------------------------------------------------------------------
+// ---- Page ----------------------------------------------------------------------
 export default function SkillsPage() {
   const token = useAuth((s) => s.token)!;
   const qc = useQueryClient();
@@ -260,143 +275,84 @@ export default function SkillsPage() {
   const { data } = useQuery({ queryKey: ["skills"], queryFn: listSkills });
   const skills = data?.items ?? [];
 
-  // modals
-  const [addCatModal, setAddCatModal] = useState(false);
-  const [editCat, setEditCat] = useState<string | null>(null);
-  const [addSkillCat, setAddSkillCat] = useState<string | null>(null);
+  const [addModal, setAddModal] = useState(false);
+  const [editSkill, setEditSkill] = useState<Skill | null>(null);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["skills"] });
     qc.invalidateQueries({ queryKey: ["bootstrap"] });
   };
 
-  // group by category
-  const groups: Record<string, Skill[]> = {};
-  for (const s of skills) {
-    const k = s.category || "General";
-    (groups[k] ||= []).push(s);
-  }
-
   const createMutation = useMutation({
     mutationFn: (body: Partial<Skill>) => createSkill(token, body),
-    onSuccess: () => { toast.success("Saved"); refresh(); },
-    onError: (err) => toast.error("Failed to save", err),
+    onSuccess: () => { toast.success("Skill added"); refresh(); },
+    onError: (err) => toast.error("Failed to add skill", err),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: Partial<Skill> }) => updateSkill(token, id, body),
-    onSuccess: () => { toast.success("Updated"); refresh(); },
+    onSuccess: () => { toast.success("Skill updated"); refresh(); },
     onError: (err) => toast.error("Failed to update", err),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteSkill(token, id),
-    onSuccess: () => { toast.success("Deleted"); refresh(); },
+    onSuccess: () => { toast.success("Skill deleted"); refresh(); },
     onError: (err) => toast.error("Failed to delete", err),
   });
 
-  function handleSaveCategory(form: { category: string; subheading: string; description: string; github_url: string }) {
-    const existing = groups[form.category] ?? [];
-    if (existing.length > 0) {
-      // update metadata on all existing skills in this category
-      Promise.all(
-        existing.map((s) =>
-          updateSkill(token, s.id, {
-            subheading: form.subheading || null,
-            description: form.description || null,
-            github_url: form.github_url || null,
-          })
-        )
-      )
-        .then(() => { toast.success("Category updated"); refresh(); })
-        .catch((err) => toast.error("Failed to update", err));
+  function handleSave(form: Partial<Skill>) {
+    if (editSkill) {
+      updateMutation.mutate({ id: editSkill.id, body: form });
+      setEditSkill(null);
     } else {
-      // new category: create a hidden anchor skill so metadata persists
-      createMutation.mutate({
-        name: form.category,
-        category: form.category,
-        subheading: form.subheading || undefined,
-        description: form.description || undefined,
-        github_url: form.github_url || undefined,
-        proficiency: 80,
-        order: 0,
-        is_visible: false,
-      });
+      createMutation.mutate(form);
+      setAddModal(false);
     }
-    setAddCatModal(false);
-    setEditCat(null);
   }
 
-  function handleAddSkill(cat: string, form: { name: string; proficiency: number; order: number }) {
-    const ref = (groups[cat] ?? [])[0];
-    createMutation.mutate({
-      name: form.name,
-      category: cat,
-      proficiency: form.proficiency,
-      order: form.order,
-      subheading: ref?.subheading ?? undefined,
-      description: ref?.description ?? undefined,
-      github_url: ref?.github_url ?? undefined,
-    });
-    setAddSkillCat(null);
-  }
-
-  const editCatData = editCat
-    ? (() => {
-        const ref = (groups[editCat] ?? [])[0];
-        return {
-          category: editCat,
-          subheading: ref?.subheading ?? "",
-          description: ref?.description ?? "",
-          github_url: ref?.github_url ?? "",
-        };
-      })()
-    : undefined;
+  const sorted = [...skills].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading font-bold text-2xl">Skills</h1>
+        <div>
+          <h1 className="font-heading font-bold text-2xl">Skills</h1>
+          <p className="text-muted text-sm mt-1">{skills.length} skill{skills.length !== 1 ? "s" : ""} total</p>
+        </div>
         <button
-          onClick={() => setAddCatModal(true)}
+          onClick={() => setAddModal(true)}
           className="rounded-lg bg-primary text-white px-4 py-2 text-sm font-medium hover:opacity-90"
         >
-          + Add Category
+          + Add Skill
         </button>
       </div>
 
-      {Object.keys(groups).length === 0 && (
-        <p className="text-muted text-sm">No skills yet — add a category to get started.</p>
+      {sorted.length === 0 && (
+        <p className="text-muted text-sm">No skills yet — add your first skill.</p>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-5">
-        {Object.entries(groups).map(([cat, catSkills]) => (
-          <CategoryCard
-            key={cat}
-            cat={cat}
-            skills={catSkills}
-            onEditCategory={() => setEditCat(cat)}
-            onAddSkill={() => setAddSkillCat(cat)}
-            onDeleteSkill={(id) => deleteMutation.mutate(id)}
-            onToggleVisible={(s) =>
-              updateMutation.mutate({ id: s.id, body: { is_visible: !s.is_visible } })
-            }
+      <div className="space-y-2">
+        {sorted.map((skill) => (
+          <SkillRow
+            key={skill.id}
+            skill={skill}
+            onEdit={() => setEditSkill(skill)}
+            onDelete={() => deleteMutation.mutate(skill.id)}
+            onToggleVisible={() => updateMutation.mutate({ id: skill.id, body: { is_visible: !skill.is_visible } })}
+            onToggleFeatured={() => updateMutation.mutate({ id: skill.id, body: { featured: !skill.featured } })}
           />
         ))}
       </div>
 
-      {/* Modals */}
-      {addCatModal && (
-        <CategoryModal onSave={handleSaveCategory} onClose={() => setAddCatModal(false)} />
+      {addModal && (
+        <SkillModal onSave={handleSave} onClose={() => setAddModal(false)} />
       )}
-      {editCat && editCatData && (
-        <CategoryModal initial={editCatData} onSave={handleSaveCategory} onClose={() => setEditCat(null)} />
-      )}
-      {addSkillCat && (
-        <AddSkillModal
-          category={addSkillCat}
-          onSave={(form) => handleAddSkill(addSkillCat, form)}
-          onClose={() => setAddSkillCat(null)}
+      {editSkill && (
+        <SkillModal
+          initial={editSkill}
+          onSave={handleSave}
+          onClose={() => setEditSkill(null)}
         />
       )}
     </div>
