@@ -153,6 +153,13 @@ export interface Skill {
   subheading?: string | null;
   description?: string | null;
   github_url?: string | null;
+  status?: string | null;
+  experience?: string | null;
+  primary_use?: string | null;
+  related_technologies?: string[] | null;
+  project_title?: string | null;
+  project_url?: string | null;
+  featured?: boolean;
 }
 
 export interface Recommendation {

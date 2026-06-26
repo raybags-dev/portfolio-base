@@ -120,6 +120,13 @@ class SkillBase(BaseModel):
     subheading: str | None = None
     description: str | None = None
     github_url: str | None = None
+    status: str | None = None
+    experience: str | None = None
+    primary_use: str | None = None
+    related_technologies: list[str] | None = None
+    project_title: str | None = None
+    project_url: str | None = None
+    featured: bool = False
 
 
 class SkillCreate(SkillBase):
@@ -136,6 +143,13 @@ class SkillUpdate(BaseModel):
     subheading: str | None = None
     description: str | None = None
     github_url: str | None = None
+    status: str | None = None
+    experience: str | None = None
+    primary_use: str | None = None
+    related_technologies: list[str] | None = None
+    project_title: str | None = None
+    project_url: str | None = None
+    featured: bool | None = None
 
 
 class SkillRead(TimestampedRead, SkillBase):
