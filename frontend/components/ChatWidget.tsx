@@ -503,7 +503,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
             // Mobile: full screen
             "fixed inset-0 z-[9998] flex flex-col overflow-hidden",
             // Desktop: floating card above the FAB stack
-            "sm:inset-auto sm:bottom-[72px] sm:right-5 sm:w-[400px] sm:h-[560px] sm:rounded-2xl",
+            "sm:inset-auto sm:bottom-[72px] sm:right-5 sm:w-[400px] sm:h-[560px] sm:max-h-[calc(100vh-88px)] sm:rounded-2xl",
             // Appearance — using solid bg-bg (no opacity modifier; CSS hex vars break /N syntax)
             "bg-bg border border-gray-400/20 shadow-card",
           ].join(" ")}
