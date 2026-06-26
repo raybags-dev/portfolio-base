@@ -518,14 +518,6 @@ export function About({ data }: { data: Bootstrap }) {
 
 // --- Skills ---
 
-const CATEGORY_ORDER = [
-  "Core Data Engineering",
-  "Streaming & Events",
-  "Languages & Backend",
-  "Specialized Engineering",
-  "Frontend & Design",
-];
-
 function GitHubIcon() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -534,16 +526,44 @@ function GitHubIcon() {
   );
 }
 
+function StatusBadge({ status }: { status: string }) {
+  const cfg: Record<string, string> = {
+    expert:       "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    advanced:     "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    intermediate: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    beginner:     "bg-gray-500/15 text-gray-400 border-gray-500/30",
+  };
+  const cls = cfg[status.toLowerCase()] ?? "bg-primary/10 text-primary border-primary/30";
+  return (
+    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
+function SkillIcon({ icon, name }: { icon?: string | null; name: string }) {
+  if (icon) {
+    return (
+      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-2xl leading-none select-none">
+        {icon}
+      </div>
+    );
+  }
+  const initials = name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "??";
+  return (
+    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+      <span className="text-xs font-bold text-primary">{initials}</span>
+    </div>
+  );
+}
+
 function SkillDetailModal({
-  cat,
-  skills,
+  skill,
   onClose,
 }: {
-  cat: string;
-  skills: Skill[];
+  skill: Skill;
   onClose: () => void;
 }) {
-  const first = skills[0];
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
@@ -556,9 +576,7 @@ function SkillDetailModal({
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <motion.div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
       />
       <motion.div
@@ -573,25 +591,62 @@ function SkillDetailModal({
           className="absolute top-4 right-4 text-2xl leading-none text-muted hover:text-fg transition-colors"
           aria-label="Close"
         >×</button>
-        <h2 className="font-heading font-bold text-xl mb-1">{cat}</h2>
-        {first?.subheading && (
-          <p className="text-sm text-secondary mb-3">{first.subheading}</p>
-        )}
-        {first?.description && (
-          <p className="text-muted text-sm leading-relaxed mb-5">{first.description}</p>
-        )}
-        <div className="mb-5">
-          <div className="flex flex-wrap gap-2">
-            {skills.map((s) => (
-              <span key={s.id} className="text-xs font-medium px-2.5 py-1 rounded-full border border-primary/40 text-primary bg-primary/5">
-                {s.name}
-              </span>
-            ))}
+
+        <div className="flex items-center gap-3 mb-4">
+          <SkillIcon icon={skill.icon} name={skill.name} />
+          <div>
+            <h2 className="font-heading font-bold text-xl leading-tight">{skill.name}</h2>
+            {skill.category && <p className="text-xs text-muted mt-0.5">{skill.category}</p>}
           </div>
         </div>
-        {first?.github_url && (
+
+        {(skill.status || skill.experience) && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {skill.status && <StatusBadge status={skill.status} />}
+            {skill.experience && (
+              <span className="text-xs text-muted border border-white/10 rounded-full px-2.5 py-0.5">
+                {skill.experience}
+              </span>
+            )}
+          </div>
+        )}
+
+        {skill.primary_use && (
+          <p className="text-sm text-fg/80 leading-relaxed mb-4">{skill.primary_use}</p>
+        )}
+
+        {skill.description && (
+          <p className="text-sm text-muted leading-relaxed mb-4">{skill.description}</p>
+        )}
+
+        {skill.related_technologies && skill.related_technologies.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Related Technologies</p>
+            <div className="flex flex-wrap gap-2">
+              {skill.related_technologies.map((t) => (
+                <span key={t} className="text-xs px-2.5 py-1 rounded-full border border-primary/30 text-primary bg-primary/5">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {skill.project_title && skill.project_url && (
+          <div className="mb-4 p-3 rounded-lg bg-bg border border-white/8">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-1">Featured Project</p>
+            <a
+              href={skill.project_url}
+              className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              {skill.project_title} ↗
+            </a>
+          </div>
+        )}
+
+        {skill.github_url && (
           <a
-            href={first.github_url}
+            href={skill.github_url}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
@@ -607,93 +662,88 @@ function SkillDetailModal({
 }
 
 export function Skills({ data }: { data: Bootstrap }) {
-  const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Skill | null>(null);
   const animated = data.theme.animations_enabled;
   const storeMode = useUI((s) => s.mode);
   const isDark = (storeMode ?? data.theme.default_mode) === "dark";
   const sec = data.sections.find((s) => s.key === "skills");
 
-  // Auto-close skill modal when user scrolls the page body
   useEffect(() => {
-    if (!selectedCat) return;
-    function onScroll() { setSelectedCat(null); }
+    if (!selected) return;
+    function onScroll() { setSelected(null); }
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [selectedCat]);
+  }, [selected]);
 
   if (data.skills.length === 0) return null;
 
-  const groups = data.skills.reduce<Record<string, Skill[]>>((acc, s) => {
-    const k = s.category || "General";
-    (acc[k] ||= []).push(s);
-    return acc;
-  }, {});
-
-  const orderedEntries = [
-    ...CATEGORY_ORDER.filter((c) => groups[c]).map((c) => [c, groups[c]] as const),
-    ...Object.entries(groups).filter(([c]) => !CATEGORY_ORDER.includes(c)),
-  ];
-
-  const selectedSkills = selectedCat ? (groups[selectedCat] ?? []) : [];
-
   return (
     <Section id="skills" title="Skills" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {orderedEntries.map(([cat, skills], i) => {
-          const first = skills[0];
-          return (
-            <Reveal key={cat} enabled={animated} delay={i * 0.06}>
-              <Card className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="min-w-0">
-                    <h3 className="font-heading font-bold text-base leading-snug">{cat}</h3>
-                  </div>
-                  {first?.github_url && (
-                    <a
-                      href={first.github_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`GitHub repo for ${cat}`}
-                      className="text-muted hover:text-primary transition-colors shrink-0 mt-0.5"
-                    >
-                      <GitHubIcon />
-                    </a>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {data.skills.map((skill, i) => (
+          <Reveal key={skill.id} enabled={animated} delay={i * 0.05}>
+            <div
+              className="group relative rounded-theme bg-surface border border-white/8 hover:border-primary/40 shadow-card p-5 flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+              onClick={() => setSelected(skill)}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <SkillIcon icon={skill.icon} name={skill.name} />
+                {skill.status && <StatusBadge status={skill.status} />}
+              </div>
+
+              <div className="mb-3">
+                <h3 className="font-heading font-bold text-base leading-tight">{skill.name}</h3>
+                {skill.category && (
+                  <span className="text-[11px] text-muted mt-0.5 block">{skill.category}</span>
+                )}
+              </div>
+
+              {(skill.experience || skill.primary_use) && (
+                <div className="mb-3 space-y-1">
+                  {skill.experience && (
+                    <p className="text-xs font-medium text-secondary">{skill.experience}</p>
+                  )}
+                  {skill.primary_use && (
+                    <p className="text-xs text-muted line-clamp-2">{skill.primary_use}</p>
                   )}
                 </div>
-                {/* Tech badges */}
-                <div className="flex flex-wrap gap-2 flex-1 content-start mb-4">
-                  {skills.map((s) => (
-                    <span
-                      key={s.id}
-                      className="inline-flex items-center justify-center text-xs font-medium px-3 py-1 rounded-full border border-white/10 bg-white/5 text-fg hover:border-primary/40 hover:text-primary transition-colors"
-                    >
-                      {s.name}
+              )}
+
+              {skill.related_technologies && skill.related_technologies.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {skill.related_technologies.slice(0, 4).map((t) => (
+                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted">
+                      {t}
                     </span>
                   ))}
+                  {skill.related_technologies.length > 4 && (
+                    <span className="text-[10px] text-muted/60">+{skill.related_technologies.length - 4}</span>
+                  )}
                 </div>
-                {/* Details button */}
-                <div className="mt-auto pt-2">
-                  <button
-                    onClick={() => setSelectedCat(cat)}
-                    className="rounded-theme border border-primary/40 text-primary text-sm font-medium px-5 py-2 hover:bg-primary hover:text-white transition-colors"
+              )}
+
+              <div className="mt-auto flex items-center justify-between pt-3 border-t border-white/5">
+                {skill.project_title && skill.project_url ? (
+                  <a
+                    href={skill.project_url}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-0.5 max-w-[55%] truncate"
                   >
-                    Details →
-                  </button>
-                </div>
-              </Card>
-            </Reveal>
-          );
-        })}
+                    ↗ {skill.project_title}
+                  </a>
+                ) : <div />}
+                <span className="text-[11px] text-muted group-hover:text-primary transition-colors">
+                  Details →
+                </span>
+              </div>
+            </div>
+          </Reveal>
+        ))}
       </div>
 
       <AnimatePresence>
-        {selectedCat && (
-          <SkillDetailModal
-            cat={selectedCat}
-            skills={selectedSkills}
-            onClose={() => setSelectedCat(null)}
-          />
+        {selected && (
+          <SkillDetailModal skill={selected} onClose={() => setSelected(null)} />
         )}
       </AnimatePresence>
     </Section>
