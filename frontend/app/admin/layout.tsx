@@ -30,6 +30,7 @@ const NAV = [
   { href: "/admin/scheduler", label: "Scheduler" },
   { href: "/admin/streams", label: "Stream Pipeline" },
   { href: "/admin/storage", label: "Storage (UDE)" },
+  { href: "/admin/vod-pipeline", label: "VOD Pipeline" },
   { href: "/admin/docs", label: "Documentation" },
   { href: "/admin/account", label: "Account" },
 ];

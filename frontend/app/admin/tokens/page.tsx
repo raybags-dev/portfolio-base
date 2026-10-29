@@ -12,9 +12,11 @@ import {
   deleteIpUsage,
   listGuestSessions,
   deleteGuestSession,
+  listTryoutApps,
   type AppToken,
   type IpUsageEntry,
   type CrawlSession,
+  type TryoutApp,
 } from "@/lib/api";
 
 function timeLeft(expiresAt: string): string {
@@ -31,6 +33,11 @@ function statusBadge(tok: AppToken) {
   return <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-500/20 text-yellow-400">active</span>;
 }
 
+function appBadge(appName: string | null) {
+  if (!appName) return <span className="text-xs text-muted/60">any app</span>;
+  return <span className="px-2 py-0.5 rounded-full text-xs bg-primary/15 text-primary">{appName}</span>;
+}
+
 export default function TokensPage() {
   const { token: authToken } = useAuth();
   const [tokens, setTokens] = useState<AppToken[]>([]);
@@ -42,20 +49,25 @@ export default function TokensPage() {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [togglingDev, setTogglingDev] = useState(false);
+  const [tryoutApps, setTryoutApps] = useState<TryoutApp[]>([]);
+  const [genApp, setGenApp] = useState<string>("");
+  const [genMaxUses, setGenMaxUses] = useState<number>(1);
   const [, setTick] = useState(0);
 
   const load = useCallback(async () => {
     if (!authToken) return;
-    const [toks, usage, dm, guests] = await Promise.all([
+    const [toks, usage, dm, guests, apps] = await Promise.all([
       listAppTokens(authToken).catch(() => [] as AppToken[]),
       listIpUsage(authToken).catch(() => [] as IpUsageEntry[]),
       getDevMode(authToken).catch(() => null),
       listGuestSessions(authToken).catch(() => [] as CrawlSession[]),
+      listTryoutApps().catch(() => [] as TryoutApp[]),
     ]);
     setTokens(toks);
     setIpUsage(usage);
     setDevMode(dm);
     setGuestSessions(guests);
+    setTryoutApps(apps);
   }, [authToken]);
 
   useEffect(() => { load(); }, [load]);
@@ -70,7 +82,8 @@ export default function TokensPage() {
     if (!authToken) return;
     setGenerating(true);
     try {
-      const tok = await generateAppToken(authToken);
+      const opts = genApp ? { app_name: genApp, max_uses: genMaxUses } : undefined;
+      const tok = await generateAppToken(authToken, opts);
       setNewToken(tok);
       setTokens(prev => [tok, ...prev]);
     } finally {
@@ -123,7 +136,7 @@ export default function TokensPage() {
         <h1 className="font-heading font-bold text-2xl mb-1">Access Tokens</h1>
         <p className="text-muted text-sm">
           Any IP can run any app once for free. A second run requires a token you generate here.
-          Tokens are valid for 10 minutes and single-use.
+          Tokens are valid for 24 hours; tryout passes are app-scoped and quota-limited.
         </p>
       </div>
 
@@ -164,18 +177,53 @@ export default function TokensPage() {
       {/* Generate */}
       <section className="rounded-theme bg-surface border border-white/10 p-5">
         <h2 className="font-semibold mb-3">Generate Token</h2>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="rounded-theme bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {generating ? "Generating…" : "+ Generate Token"}
-        </button>
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex-1 min-w-40">
+            <label className="text-xs text-muted block mb-1">Scope to app (optional)</label>
+            <select
+              value={genApp}
+              onChange={(e) => {
+                const key = e.target.value;
+                setGenApp(key);
+                const app = tryoutApps.find(a => a.key === key);
+                if (app) setGenMaxUses(app.max_uses);
+              }}
+              className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              <option value="">Any app (legacy single-use)</option>
+              {tryoutApps.map(a => (
+                <option key={a.key} value={a.key}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          {genApp && (
+            <div className="w-28">
+              <label className="text-xs text-muted block mb-1">Quota (runs)</label>
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={genMaxUses}
+                onChange={(e) => setGenMaxUses(Math.max(1, Number(e.target.value) || 1))}
+                className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+          )}
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="rounded-theme bg-primary text-white px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {generating ? "Generating…" : "+ Generate Token"}
+          </button>
+        </div>
 
         {newToken && !newToken.is_expired && (
           <div className="mt-4 rounded-theme bg-yellow-500/10 border border-yellow-500/30 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-yellow-300">New token - share this with the user</span>
+              <span className="text-sm font-medium text-yellow-300">
+                New token{newToken.app_name ? ` (${newToken.app_name}, ${newToken.max_uses} runs)` : " (any app, single-use)"} - share this with the user
+              </span>
               <span className="text-xs text-yellow-400 font-mono">{timeLeft(newToken.expires_at)}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -198,7 +246,9 @@ export default function TokensPage() {
           <div className="space-y-2">
             {activeTokens.map(tok => (
               <div key={tok.id} className="flex items-center gap-3 rounded bg-white/5 px-3 py-2 text-sm">
+                {appBadge(tok.app_name)}
                 <code className="flex-1 font-mono text-xs text-muted/80 truncate">{tok.token}</code>
+                <span className="text-xs text-muted flex-shrink-0">{tok.uses}/{tok.max_uses} used</span>
                 <span className="text-xs font-mono text-yellow-400 w-16 text-right flex-shrink-0">{timeLeft(tok.expires_at)}</span>
                 {statusBadge(tok)}
                 <button onClick={() => copy(tok.token)} className="text-xs text-muted hover:text-white flex-shrink-0">copy</button>
@@ -216,7 +266,9 @@ export default function TokensPage() {
           <div className="space-y-2">
             {pastTokens.slice(0, 20).map(tok => (
               <div key={tok.id} className="flex items-center gap-3 rounded bg-white/5 px-3 py-2 text-sm opacity-60">
+                {appBadge(tok.app_name)}
                 <code className="flex-1 font-mono text-xs text-muted/60 truncate">{tok.token.slice(0, 20)}…</code>
+                <span className="text-xs text-muted flex-shrink-0">{tok.uses}/{tok.max_uses}</span>
                 {statusBadge(tok)}
                 {tok.used_by_ip && <span className="text-xs text-muted font-mono">{tok.used_by_ip}</span>}
                 <button onClick={() => handleRevoke(tok.id)} className="text-xs text-red-400/60 hover:text-red-300 flex-shrink-0">delete</button>

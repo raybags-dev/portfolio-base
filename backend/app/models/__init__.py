@@ -43,6 +43,7 @@ from app.models.platform import (  # noqa: F401
     ReportTemplate,
     ScheduledJob,
     StorageFile,
+    VodJob,
 )
 from app.models.portfolio import (  # noqa: F401
     Certification,
@@ -124,4 +125,5 @@ __all__ = [
     "ContactMessage",
     "AppToken",
     "IpUsageLog",
+    "VodJob",
 ]

@@ -17,6 +17,7 @@ const SERVICE_KEY_ROUTES: Record<string, string> = {
   "jobs": "/job-analytics",
   "universal-extractor": "/universal-extractor",
   "annotation": "/annotation",
+  "vod-pipeline": "/vod-pipeline",
 };
 
 // ---- Project button shown on every blog card --------------------------------

@@ -49,6 +49,20 @@ sound core it grows from.
 - **Admin UI for modules** - frontend pages drive Crawlers (jobs, run, logs with
   highlighted healing events, results), AI Agents (run workflows, view tasks),
   and the Scheduler (jobs, intervals, run-now, tick). Flag-aware.
+- **AWS tryout control plane** - generalized 24h app-scoped, quota-limited
+  access tokens (`app_tokens` with `app_name`/`max_uses`/`uses`), a public
+  request→approve→email flow (`/api/v1/tryout-requests`, Resend-backed,
+  Discord-notified), and admin UI in `/admin/messages` + `/admin/tokens`.
+  No key = zero AWS spend.
+- **VOD & HLS Packaging Pipeline** (`ENABLE_VOD_PIPELINE`,
+  `app/modules/vod_pipeline/`) - AWS-backed tryout: token-only presigned S3
+  uploads (≤100 MB, 15-min TTL, `tryout/*` keys), TypeScript Lambdas
+  (`aws/handlers/vod-*`) drive MediaConvert single-pass ≤1080p HLS packaging,
+  EventBridge status updates land in DynamoDB and sync read-through to the
+  platform. Terraform in `modules/vod-pipeline/`; tryout page at
+  `/vod-pipeline`; admin config/jobs at `/admin/vod-pipeline`. Verified E2E:
+  upload → transcode → CloudFront manifest 200. Diagram:
+  `docs/architecture/vod-pipeline.md`.
 
 ## 🔜 Next (plug-in modules, each behind a flag)
 

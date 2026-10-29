@@ -34,6 +34,24 @@ grafana-data/
 prometheus-data/
 *.log
 
+# ---- terraform ----
+terraform.tfvars
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+crash.log
+crash.*.log
+**/.terraform/
+**/.build/
+
+# ---- local terraform binary (downloaded by scripts/tf.sh when absent) ----
+tools/
+
+# ---- aws lambda handlers workspace ----
+aws/node_modules/
+aws/dist/
+
 # ---- editor / os ----
 .DS_Store
 .idea/
@@ -42,6 +60,7 @@ prometheus-data/
 
 # directives kept local, not shipped
 directives.txt
+directives_projects.txt
 .vscode/launch.json
 .claude-directives.txt
 .claude-directives.md

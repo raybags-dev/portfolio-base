@@ -54,6 +54,10 @@ DEFAULT_FLAGS: dict[str, tuple[str, str, bool, str]] = {
     "ENABLE_ANNOTATION": ("Data Annotation Platform", "projects", False, "Intelligent data annotation & AI labeling pipeline"),
     "ENABLE_UNIVERSAL_EXTRACTOR": ("Universal Data Extractor", "projects", False, "Extract every data point from any page - auto-detects scroll/pagination, exports structured datasets"),
     "ENABLE_STREAM_PIPELINE": ("Real-Time Stream Pipeline", "projects", False, "Kafka-based event pipeline - crawl events published as topics, consumed by real-time analytics workers"),
+    # AWS-backed projects (terraform-deployed; token-gated tryouts)
+    "ENABLE_VOD_PIPELINE": ("VOD & HLS Packaging Pipeline", "projects", False, "Serverless VOD pipeline - S3 upload, MediaConvert HLS transcoding, CloudFront streaming"),
+    "ENABLE_AUDIO_API": ("Audio & Podcast Stream API", "projects", False, "Serverless podcast API - API Gateway, Lambda, DynamoDB, presigned S3 audio streaming"),
+    "ENABLE_TELEMETRY_COLLECTOR": ("Live Stream Telemetry Collector", "projects", False, "High-throughput telemetry ingestion - API Gateway, SQS, Lambda, DynamoDB time-series"),
 }
 
 

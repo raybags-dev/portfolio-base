@@ -311,6 +311,115 @@ export const rejectRequest = (authToken: string, msgId: number) =>
     { method: "POST", token: authToken },
   );
 
+// ---- tryout requests (24h app-scoped token passes) ----
+export interface TryoutApp {
+  key: string;
+  label: string;
+  page: string;
+  max_uses: number;
+}
+
+export const listTryoutApps = () => request<TryoutApp[]>("/tryout-requests/apps");
+
+export const submitTryoutRequest = (body: {
+  app_key: string;
+  name: string;
+  email: string;
+  reason?: string;
+}) =>
+  request<{ ok: boolean; detail: string }>("/tryout-requests", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const checkTryoutAccess = (appKey: string, appToken?: string) =>
+  request<{ allowed: boolean; first_run?: boolean; reason?: string; uses_left?: number }>(
+    "/tryout-requests/check-access",
+    { method: "POST", body: JSON.stringify({ app_key: appKey, token: appToken ?? null }) },
+  );
+
+export const issueTryoutToken = (authToken: string, msgId: number) =>
+  request<{
+    ok: boolean;
+    token: string;
+    app_name: string;
+    max_uses: number;
+    expires_at: string;
+    delivered: boolean;
+  }>(`/tryout-requests/${msgId}/issue-token`, { method: "POST", token: authToken });
+
+export const rejectTryoutRequest = (authToken: string, msgId: number) =>
+  request<{ ok: boolean; delivered: boolean }>(
+    `/tryout-requests/${msgId}/reject`,
+    { method: "POST", token: authToken },
+  );
+
+// ---- VOD pipeline (module) ----
+export interface VodPublicConfig {
+  deployed: boolean;
+  requires_token: boolean;
+  max_upload_mb: number;
+  allowed_content_types: string[];
+  allowed_extensions: string[];
+  quota_per_token: number;
+  cloudfront_domain: string | null;
+}
+
+export interface VodJob {
+  job_id: string;
+  filename: string;
+  size_mb: number;
+  status: string;
+  stream_url: string | null;
+  error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface VodAdminConfig {
+  region?: string;
+  raw_bucket?: string;
+  processed_bucket?: string;
+  jobs_table?: string;
+  cloudfront_domain?: string;
+  access_key_id?: string;
+  secret_access_key?: string;
+  deployed: boolean;
+}
+
+export const getVodConfig = () => request<VodPublicConfig>("/vod-pipeline/config");
+
+export const requestVodUpload = (
+  body: { filename: string; size_bytes: number; content_type: string },
+  appToken?: string,
+) =>
+  request<{ job_id: string; upload: { url: string; method: string }; expires_in: number }>(
+    "/vod-pipeline/uploads",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: appToken ? { "X-App-Token": appToken } : undefined,
+    },
+  );
+
+export const getVodJob = (jobId: string) => request<VodJob>(`/vod-pipeline/jobs/${jobId}`);
+
+export const getVodAdminConfig = (token: string) =>
+  request<VodAdminConfig>("/vod-pipeline/admin/config", { token });
+
+export const putVodAdminConfig = (token: string, body: Partial<VodAdminConfig>) =>
+  request<VodAdminConfig>("/vod-pipeline/admin/config", {
+    method: "PUT",
+    token,
+    body: JSON.stringify(body),
+  });
+
+export const listVodAdminJobs = (token: string) =>
+  request<{
+    items: VodJob[];
+    usage: { total_jobs: number; by_status: Record<string, number>; total_upload_mb: number };
+  }>("/vod-pipeline/admin/jobs", { token });
+
 // ---- blog (public) ----
 import type { BlogComment, BlogPost } from "./types";
 
@@ -723,6 +832,9 @@ export interface AppToken {
   used_by_ip: string | null;
   used_at: string | null;
   is_expired: boolean;
+  app_name: string | null;
+  max_uses: number;
+  uses: number;
 }
 
 export interface IpUsageEntry {
@@ -732,8 +844,12 @@ export interface IpUsageEntry {
   first_used_at: string;
 }
 
-export const generateAppToken = (token: string) =>
-  request<AppToken>("/access-tokens/generate", { method: "POST", token });
+export const generateAppToken = (token: string, opts?: { app_name?: string; max_uses?: number }) =>
+  request<AppToken>("/access-tokens/generate", {
+    method: "POST",
+    token,
+    body: opts ? JSON.stringify(opts) : undefined,
+  });
 
 export const listAppTokens = (token: string) =>
   request<AppToken[]>("/access-tokens", { token });

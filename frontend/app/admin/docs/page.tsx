@@ -10,6 +10,8 @@ const SECTIONS: Section[] = [
   { id: "universal-extractor", title: "Universal Data Extractor", icon: "🔍" },
   { id: "streams",           title: "Stream Pipeline",            icon: "⚡" },
   { id: "crawler-profiles",  title: "Crawler Profiles",           icon: "🎯" },
+  { id: "vod-pipeline",      title: "VOD Pipeline (AWS)",         icon: "🎬" },
+  { id: "aws-tryouts",       title: "AWS Tryout System",          icon: "🔑" },
   { id: "admin",             title: "Admin Control Plane",        icon: "⚙️" },
   { id: "architecture",      title: "Architecture & Stack",       icon: "📐" },
 ];
@@ -242,6 +244,88 @@ function Streams() {
   );
 }
 
+function VodPipeline() {
+  return (
+    <>
+      <P>
+        Serverless video-on-demand pipeline (AWS). A visitor uploads a short clip at <Code>/vod-pipeline</Code>;
+        the browser PUTs it straight into a private S3 bucket through a bounded presigned URL; AWS MediaConvert
+        packages it into multi-rendition HLS; the result streams through CloudFront (OAC).
+      </P>
+      <TechStack items={["TypeScript", "AWS Lambda", "MediaConvert", "S3", "CloudFront OAC", "DynamoDB", "EventBridge", "Terraform", "FastAPI", "hls.js"]} />
+
+      <H3>Deploy checklist</H3>
+      <div className="space-y-1 mb-4">
+        {[
+          "make up  (builds aws/ handlers + terraform apply)",
+          "make output  →  paste raw_bucket, processed_bucket, jobs_table, cloudfront domain + broker creds into /admin/vod-pipeline",
+          "Enable the ENABLE_VOD_PIPELINE flag - the module goes live",
+          "make down  after AWS test sessions (resources cost money)",
+        ].map(r => (
+          <div key={r} className="flex gap-2 text-xs text-muted"><span className="text-primary">▹</span>{r}</div>
+        ))}
+      </div>
+
+      <H3>Endpoints</H3>
+      <Pre>{`GET  /api/v1/vod-pipeline/config          (public caps + deployed state)
+POST /api/v1/vod-pipeline/uploads         (token-only, X-App-Token header)
+GET  /api/v1/vod-pipeline/jobs/{job_id}   (status, synced from DynamoDB)
+GET/PUT /api/v1/vod-pipeline/admin/config (paste terraform outputs)
+GET  /api/v1/vod-pipeline/admin/jobs      (jobs + usage counters)`}</Pre>
+
+      <H3>Cost guardrails</H3>
+      <P>
+        Token-only uploads (no anonymous runs) · single-pass ≤1080p enforced in code AND terraform validation ·
+        100 MB / 15-min presign bounds · raw uploads expire in 2d, HLS in 7d, DynamoDB records via TTL ·
+        $10/month account budget alarm + SNS DLQ alarm.
+      </P>
+    </>
+  );
+}
+
+function AwsTryouts() {
+  return (
+    <>
+      <P>
+        The three AWS projects (VOD pipeline, audio API, telemetry collector) share one tryout-control
+        system. Visitors request a 24-hour access key from a project page; you approve it in{" "}
+        <Code>/admin/messages</Code>; the key is emailed via Resend. <strong>No key = zero AWS spend</strong> -
+        every spend-triggering operation (transcode, burst) requires a valid app-scoped token.
+      </P>
+      <TechStack items={["FastAPI", "Resend", "AppToken (24h, quota)", "Discord webhook", "X-App-Token header"]} />
+
+      <H3>Token model</H3>
+      <div className="space-y-2 mb-4">
+        {[
+          { term: "app-scoped",  def: "A token minted for vod-pipeline does nothing for audio-api or telemetry." },
+          { term: "quota",       def: "max_uses per token (VOD: 2 transcodes, telemetry: 5 bursts, audio: 50 reads). is_used flips when exhausted." },
+          { term: "24h TTL",     def: "Tokens expire 24 hours after issue. Expired + exhausted both reject as invalid_token." },
+          { term: "single-IP",   def: "First redemption binds the token to that IP (used_by_ip is recorded)." },
+          { term: "legacy",      def: "Tokens with no app_name and max_uses=1 keep the old single-use any-app behaviour." },
+        ].map(r => (
+          <div key={r.term} className="flex gap-3 text-sm">
+            <span className="shrink-0 font-mono text-primary text-xs w-24 mt-0.5">{r.term}</span>
+            <span className="text-muted text-xs">{r.def}</span>
+          </div>
+        ))}
+      </div>
+
+      <H3>Approval flow</H3>
+      <Pre>{`Visitor → POST /tryout-requests {app_key, name, email, reason}
+        → ContactMessage + Discord ping + admin email (Resend)
+Admin   → /admin/messages → "Issue 24h Token & Email"
+        → AppToken(app, quota, 24h) created → emailed to requester
+Visitor → pastes key on project page → X-App-Token header → tryout unlocked`}</Pre>
+
+      <H3>Admin endpoints</H3>
+      <Pre>{`POST /tryout-requests/{id}/issue-token   (24h, app-scoped, quota from registry)
+POST /tryout-requests/{id}/reject        (polite decline email)
+POST /access-tokens/generate             (ad-hoc: {app_name?, max_uses?})
+GET  /access-tokens                      (uses/max_uses per token)`}</Pre>
+    </>
+  );
+}
+
 function CrawlerProfiles() {
   return (
     <>
@@ -395,6 +479,8 @@ const CONTENT: Record<string, React.ReactNode> = {
   "job-analytics":      <JobAnalytics />,
   "universal-extractor":<UniversalExtractor />,
   "streams":            <Streams />,
+  "vod-pipeline":       <VodPipeline />,
+  "aws-tryouts":        <AwsTryouts />,
   "crawler-profiles":   <CrawlerProfiles />,
   "admin":              <AdminDocs />,
   "architecture":       <Architecture />,
