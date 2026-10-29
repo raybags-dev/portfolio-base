@@ -93,3 +93,18 @@ Stop immediately and present a clear impact assessment to the user before procee
     - Test Lambda handlers and event triggers locally where possible (using tools like local payload payloads or unit tests) before pushing infrastructure changes to AWS.
     4. **Media Processing Constraints:**
     - Ensure all media handling code properly accounts for asynchronous event-driven lifecycles (e.g., handling MediaConvert webhook notifications or S3 trigger completion states rather than blocking synchronous HTTP requests).
+
+
+## 💰 Cost Management & AWS Free Tier Guardrails
+
+Because this project utilizes AWS infrastructure (such as AWS Elemental MediaConvert), follow these strict operational rules to keep development costs at **€0.00 - €5.00 max**:
+
+### 1. Optimize Media Encoding Profiles
+* **Rule:** When configuring MediaConvert jobs (via Terraform or console overrides), strictly use standard single-pass H.264/AAC output profiles capped at 720p or 1080p for local testing.
+* **Prohibited:** Never use multi-pass 4K encoding or high-tier cinematic profiles during development iterations to avoid rapid credit depletion.
+
+### 2. Teardown Resources After Sessions
+* **Rule:** Always tear down temporary infrastructure when active coding or testing sessions conclude. 
+* **Action:** Run the following command to completely wipe out active resources and prevent lingering billing states:
+  ```bash
+  terraform destroy
