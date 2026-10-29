@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     sections,
     singletons,
     system,
+    tryout_requests,
     users,
 )
 
@@ -41,6 +42,7 @@ api_router.include_router(sections.router)
 api_router.include_router(media.router)
 api_router.include_router(contact.router)
 api_router.include_router(pipeline_requests.router)
+api_router.include_router(tryout_requests.router)
 
 # blog
 api_router.include_router(blog.router)

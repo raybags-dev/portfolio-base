@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     DISCORD_WEBHOOK: str | None = None
 
     # ---- email / contact form (optional; messages are stored regardless) ----
+    # Resend is the preferred provider; SMTP is the fallback. With neither
+    # configured, outbound email is a clean no-op.
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM: str = "onboarding@resend.dev"
+    RESEND_WEBHOOK_SECRET: str | None = None
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USER: str | None = None

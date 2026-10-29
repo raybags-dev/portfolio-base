@@ -762,6 +762,7 @@ export function Skills({ data }: { data: Bootstrap }) {
 const SERVICE_KEY_ROUTES: Record<string, string> = {
   "hotel-reviews": "/hotel-reviews",
   "jobs": "/job-analytics",
+  "vod-pipeline": "/vod-pipeline",
 };
 
 // --- Projects (with search + tag filter) ---

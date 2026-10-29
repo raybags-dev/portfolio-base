@@ -16,6 +16,10 @@ os.environ["CUSTOM_AUTH_TOKEN"] = "test-emergency-token-123"
 # Never use real API keys in tests - force StubProvider
 os.environ["GROQ_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
+# Never send real notifications/emails in tests (root .env carries live keys)
+os.environ["RESEND_API_KEY"] = ""
+os.environ["DISCORD_WEBHOOK"] = ""
+os.environ["SMTP_HOST"] = ""
 
 import pytest
 import pytest_asyncio

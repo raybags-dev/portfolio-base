@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.core.access import _DEV_MODE_KEY, _client_ip
@@ -24,6 +25,13 @@ router = APIRouter(
 _TOKEN_TTL_MINUTES = 1440  # 24 hours - long enough for cross-project chat→token flow
 
 
+def _is_expired(t: AppToken) -> bool:
+    # SQLite returns offset-naive datetimes even for DateTime(timezone=True);
+    # normalise before comparing with the aware UTC now.
+    exp = t.expires_at if t.expires_at.tzinfo is not None else t.expires_at.replace(tzinfo=UTC)
+    return exp < datetime.now(UTC)
+
+
 def _token_dict(t: AppToken) -> dict[str, Any]:
     return {
         "id": t.id,
@@ -33,17 +41,33 @@ def _token_dict(t: AppToken) -> dict[str, Any]:
         "is_used": t.is_used,
         "used_by_ip": t.used_by_ip,
         "used_at": t.used_at,
-        "is_expired": t.expires_at < datetime.now(UTC),
+        "is_expired": _is_expired(t),
+        "app_name": t.app_name,
+        "max_uses": t.max_uses,
+        "uses": t.uses,
     }
 
 
+class GenerateTokenIn(BaseModel):
+    """Optional scoping for generated tokens; defaults reproduce legacy behaviour."""
+
+    app_name: str | None = None
+    max_uses: int = 1
+
+
 @router.post("/generate", status_code=status.HTTP_201_CREATED)
-async def generate_token(db: DbSession) -> dict[str, Any]:
-    """Generate a fresh single-use access token valid for 10 minutes."""
+async def generate_token(db: DbSession, payload: GenerateTokenIn | None = None) -> dict[str, Any]:
+    """Generate a fresh access token valid for 24 hours.
+
+    With no body this creates a legacy single-use, any-app token. Pass
+    ``app_name``/``max_uses`` to mint an app-scoped multi-use tryout pass.
+    """
     now = datetime.now(UTC)
     tok = AppToken(
         token=secrets.token_urlsafe(48),
         expires_at=now + timedelta(minutes=_TOKEN_TTL_MINUTES),
+        app_name=(payload.app_name if payload else None),
+        max_uses=(payload.max_uses if payload else 1),
     )
     db.add(tok)
     await db.commit()

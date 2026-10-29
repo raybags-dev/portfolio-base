@@ -1,9 +1,6 @@
 # Raybags - PORTFOLIO
 
-A production-grade, **fully data-driven** portfolio + data-engineering platform.
-Every piece of content, every colour, every image, and every module is editable
-at runtime from an admin panel and gated by feature flags - **nothing is
-hardcoded** and **nothing needs a redeploy** to turn on or off.
+A production, **data-driven** portfolio + data-engineering platform and infra ochestration.
 
 This repo is built **foundation-first**: the core (API + content model + RBAC +
 feature-flag control plane + frontend + infra + CI/CD) is complete and runnable
@@ -52,7 +49,7 @@ cp .env.example .env            # tweak if you like; SQLite default needs nothin
 
 - API docs:   http://localhost:8000/docs
 - Public data: http://localhost:8000/api/v1/public/bootstrap
-- Admin login: `admin@raybags.com` / `ChangeMe!123` (from `.env`)
+- Admin login: `admin@test.com` / `it_wont_work_@test123` (from `.env`)
 
 Backend only:
 
@@ -145,19 +142,46 @@ Actions run to pass/fail. First run: `GIT_REMOTE_URL=<repo> scripts/ship.sh "ini
 ```
 backend/            FastAPI app, models, schemas, migrations, tests
   app/
-    core/           config, db, security, logging, deps
+    core/           config, db, security, logging, deps, email (Resend), access (tokens)
     models/         SQLAlchemy models (content, portfolio, blog, platform, rbac)
     schemas/        Pydantic v2 schemas
     api/v1/         routers (auth, public, content, collections, blog, flags, system)
     services/       feature flags (+ future module services)
+    modules/        pluggable flag-gated modules (incl. vod_pipeline broker)
     seed.py         idempotent seed
   alembic/          migrations
   tests/            pytest suite
 frontend/           Next.js app (data-driven UI + admin panel)
-scripts/            lib.sh, run-tests, deploy, promote, smoke
+aws/                TypeScript Lambda handlers (esbuild → dist/, jest) for AWS projects
+modules/            Terraform modules (vod-pipeline, audio-api, telemetry, platform-access)
+stubs/              placeholder Lambda zips so bare `terraform apply` works
+scripts/            lib.sh, run-tests, deploy, promote, smoke, tf.sh, aws-leftovers.sh
+docs/architecture/  per-project flow diagrams (mermaid + GitDiagram)
 infra/              prometheus + grafana provisioning
 docker-compose*.yml base + test/prod overlays
 .github/workflows/  ci.yml, deploy.yml
 ```
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what's built vs. what plugs in next.
+
+---
+
+## AWS portfolio projects (token-gated tryouts)
+
+Three serverless projects live behind the tryout system: visitors request a
+24h access key, the admin approves it from `/admin/messages`, and the key
+(quota-limited, app-scoped) is emailed via Resend. No key = zero AWS spend.
+Infrastructure is Terraform (`./modules/*`), handlers are strict TypeScript
+(`./aws/`), and each project has a flow diagram:
+
+- [VOD & HLS Packaging Pipeline](docs/architecture/vod-pipeline.md) — S3 → MediaConvert → CloudFront (built; `ENABLE_VOD_PIPELINE`)
+- [Audio & Podcast Stream API](docs/architecture/audio-api.md) — API GW → Lambda → DynamoDB (infra ready; Phase 3)
+- [Live Stream Telemetry Collector](docs/architecture/telemetry-collector.md) — API GW → SQS → Lambda → DynamoDB (infra ready; Phase 4)
+
+```bash
+make up      # build handlers (aws/) + terraform apply
+make down    # terraform destroy - ALWAYS after AWS test sessions
+make output  # paste these values into /admin/vod-pipeline etc.
+```
+
+[Interactive repo diagram on GitDiagram](https://gitdiagram.com/raybags-dev/portfolio-base)

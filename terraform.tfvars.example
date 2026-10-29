@@ -1,0 +1,24 @@
+# cp terraform.tfvars.example terraform.tfvars   (terraform.tfvars is git-ignored)
+
+project_name = "medialab"
+environment  = "dev"
+aws_region   = "eu-central-1"
+# aws_profile = "my-sandbox"
+
+# Build one project at a time while learning:
+enable_vod       = true
+enable_audio_api = true
+enable_telemetry = true
+
+# Cost guardrail + DLQ alarm e-mail (confirm the SNS subscription mail!)
+# alert_email        = "you@example.com"
+# monthly_budget_usd = 10
+
+# Swap placeholder handlers for your esbuild output (paths relative to this folder):
+# lambda_source_dirs = {
+#   vod_transcode      = "../dist/vod-transcode"
+#   vod_status         = "../dist/vod-status"
+#   audio_api          = "../dist/audio-api"
+#   telemetry_ingest   = "../dist/telemetry-ingest"
+#   telemetry_consumer = "../dist/telemetry-consumer"
+# }
