@@ -8,6 +8,7 @@ Create Date: 2026-10-29
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "cc2d3e4f5a6b"
@@ -17,31 +18,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "vod_jobs",
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("job_id", sa.String(64), nullable=False),
-        sa.Column(
-            "token_id",
-            sa.Integer(),
-            sa.ForeignKey("app_tokens.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-        sa.Column("client_ip", sa.String(64), nullable=True),
-        sa.Column("is_guest", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("filename", sa.String(255), nullable=False),
-        sa.Column("size_bytes", sa.BigInteger(), nullable=False, server_default="0"),
-        sa.Column("s3_key", sa.String(512), nullable=False),
-        sa.Column("status", sa.String(32), nullable=False, server_default="PENDING_UPLOAD"),
-        sa.Column("stream_url", sa.String(1024), nullable=True),
-        sa.Column("error", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-    op.create_index("ix_vod_jobs_job_id", "vod_jobs", ["job_id"], unique=True)
-    op.create_index("ix_vod_jobs_token_id", "vod_jobs", ["token_id"])
-
+    # Idempotent: restored/backup databases may already carry this table.
     conn = op.get_bind()
+    table_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema='public' AND table_name='vod_jobs'"
+        )
+    ).fetchone()
+    if not table_exists:
+        op.create_table(
+            "vod_jobs",
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+            sa.Column("job_id", sa.String(64), nullable=False),
+            sa.Column(
+                "token_id",
+                sa.Integer(),
+                sa.ForeignKey("app_tokens.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+            sa.Column("client_ip", sa.String(64), nullable=True),
+            sa.Column("is_guest", sa.Boolean(), nullable=False, server_default="true"),
+            sa.Column("filename", sa.String(255), nullable=False),
+            sa.Column("size_bytes", sa.BigInteger(), nullable=False, server_default="0"),
+            sa.Column("s3_key", sa.String(512), nullable=False),
+            sa.Column("status", sa.String(32), nullable=False, server_default="PENDING_UPLOAD"),
+            sa.Column("stream_url", sa.String(1024), nullable=True),
+            sa.Column("error", sa.Text(), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        )
+        op.create_index("ix_vod_jobs_job_id", "vod_jobs", ["job_id"], unique=True)
+        op.create_index("ix_vod_jobs_token_id", "vod_jobs", ["token_id"])
 
     # ── microservice record (base_url wires project cards -> tryout page) ────
     ms_exists = conn.execute(

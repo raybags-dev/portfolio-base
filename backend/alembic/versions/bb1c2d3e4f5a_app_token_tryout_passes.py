@@ -12,6 +12,7 @@ Create Date: 2026-10-29
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "bb1c2d3e4f5a"
@@ -21,16 +22,37 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("app_tokens", sa.Column("app_name", sa.String(length=64), nullable=True))
-    op.add_column(
-        "app_tokens",
-        sa.Column("max_uses", sa.Integer(), server_default="1", nullable=False),
-    )
-    op.add_column(
-        "app_tokens",
-        sa.Column("uses", sa.Integer(), server_default="0", nullable=False),
-    )
-    op.create_index("ix_app_tokens_app_name", "app_tokens", ["app_name"])
+    # Idempotent: restored/backup databases may already carry these columns.
+    conn = op.get_bind()
+    existing = {
+        r[0]
+        for r in conn.execute(
+            sa.text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='app_tokens'"
+            )
+        )
+    }
+    if "app_name" not in existing:
+        op.add_column("app_tokens", sa.Column("app_name", sa.String(length=64), nullable=True))
+    if "max_uses" not in existing:
+        op.add_column(
+            "app_tokens",
+            sa.Column("max_uses", sa.Integer(), server_default="1", nullable=False),
+        )
+    if "uses" not in existing:
+        op.add_column(
+            "app_tokens",
+            sa.Column("uses", sa.Integer(), server_default="0", nullable=False),
+        )
+    index_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM pg_indexes WHERE tablename='app_tokens' "
+            "AND indexname='ix_app_tokens_app_name'"
+        )
+    ).fetchone()
+    if not index_exists:
+        op.create_index("ix_app_tokens_app_name", "app_tokens", ["app_name"])
 
 
 def downgrade() -> None:

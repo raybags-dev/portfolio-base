@@ -53,10 +53,16 @@ def run_migrations_offline() -> None:
 
 
 async def run_migrations_online() -> None:
+    url = settings.DATABASE_URL
+    engine_kwargs: dict[str, object] = {}
+    if "pooler.supabase.com" in url:
+        # PgBouncer transaction mode: prepared statements are not supported.
+        engine_kwargs["connect_args"] = {"statement_cache_size": 0}
     connectable = async_engine_from_config(
-        {"sqlalchemy.url": settings.DATABASE_URL},
+        {"sqlalchemy.url": url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        **engine_kwargs,  # connect_args must be a create_engine kwarg, not a config key
     )
     async with connectable.connect() as connection:
         await connection.run_sync(_run_migrations)
