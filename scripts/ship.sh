@@ -64,8 +64,7 @@ if git diff --cached --quiet; then
   warn "nothing to commit - pushing existing commits only"
 else
   git commit -m "$MESSAGE" \
-             -m "🤖 shipped via scripts/ship.sh" \
-             -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+             -m "shipped via scripts/ship.sh"
   ok "committed"
 fi
 
