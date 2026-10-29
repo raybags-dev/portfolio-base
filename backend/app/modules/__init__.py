@@ -57,4 +57,7 @@ def discover_modules() -> list[ModuleSpec]:
     from app.modules.vod_pipeline.router import spec as vod_pipeline_spec
     specs.append(vod_pipeline_spec)
 
+    from app.modules.audio_api.router import spec as audio_api_spec
+    specs.append(audio_api_spec)
+
     return specs

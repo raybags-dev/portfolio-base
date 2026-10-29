@@ -1,12 +1,12 @@
-// Placeholder handler - replaced in Phase 3 with the Express audio/podcast
-// REST API (tracks CRUD + presigned streaming + progress sync).
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { respondOk } from "../../shared/envelope.js";
-import { log } from "../../shared/logger.js";
+// audio-api: API Gateway HTTP API -> Express via serverless-http.
+// Routes: GET /tracks, GET /tracks/:id, POST /tracks (admin), PATCH /tracks/:id/progress
 
-export const handler = async (
-  event: APIGatewayProxyEventV2,
-): Promise<APIGatewayProxyResultV2> => {
-  log.info("stub.invoked", { path: event.rawPath });
-  return respondOk({ stub: true, service: "audio-api" });
-};
+import serverless from "serverless-http";
+import { createApp } from "./app.js";
+
+// No basePath: with the API GW $default stage the rawPath already matches the
+// express routes ("/tracks", ...). basePath:"/" would strip the leading slash
+// and every route would 404 into the catch-all.
+const handler = serverless(createApp());
+
+export { handler };

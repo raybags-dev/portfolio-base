@@ -420,6 +420,125 @@ export const listVodAdminJobs = (token: string) =>
     usage: { total_jobs: number; by_status: Record<string, number>; total_upload_mb: number };
   }>("/vod-pipeline/admin/jobs", { token });
 
+// ---- Audio API (module) ----
+export interface AudioPublicConfig {
+  deployed: boolean;
+  requires_token: boolean;
+  api_url: string | null;
+  max_upload_mb: number;
+  allowed_content_types: string[];
+  allowed_extensions: string[];
+  quota_per_token: number;
+}
+
+export interface AudioTrack {
+  id: string;
+  title: string;
+  artist?: string;
+  category: string;
+  durationSeconds: number;
+  s3Key: string;
+  summary?: string;
+  coverUrl?: string;
+  publishedAt: string;
+  createdAt: string;
+}
+
+export interface AudioAdminConfig {
+  region?: string;
+  api_url?: string;
+  tracks_table?: string;
+  progress_table?: string;
+  audio_bucket?: string;
+  admin_key_param?: string;
+  access_key_id?: string;
+  secret_access_key?: string;
+  deployed: boolean;
+}
+
+export const getAudioConfig = () => request<AudioPublicConfig>("/audio-api/config");
+
+export const getAudioAdminConfig = (token: string) =>
+  request<AudioAdminConfig>("/audio-api/admin/config", { token });
+
+export const putAudioAdminConfig = (token: string, body: Partial<AudioAdminConfig>) =>
+  request<AudioAdminConfig>("/audio-api/admin/config", {
+    method: "PUT",
+    token,
+    body: JSON.stringify(body),
+  });
+
+export const listAudioAdminTracks = (token: string) =>
+  request<{ success: boolean; data?: { items: AudioTrack[] }; message?: string }>(
+    "/audio-api/admin/tracks",
+    { token },
+  );
+
+export const createAudioTrack = (token: string, body: {
+  title: string;
+  artist?: string;
+  category: string;
+  durationSeconds: number;
+  s3Key: string;
+  summary?: string;
+  coverUrl?: string;
+}) =>
+  request<{ success: boolean; data?: AudioTrack; message?: string }>(
+    "/audio-api/admin/tracks",
+    { method: "POST", token, body: JSON.stringify(body) },
+  );
+
+export const presignAudioUpload = (token: string, body: {
+  filename: string;
+  size_bytes: number;
+  content_type: string;
+}) =>
+  request<{ key: string; upload: { url: string; method: string }; expires_in: number }>(
+    "/audio-api/admin/upload",
+    { method: "POST", token, body: JSON.stringify(body) },
+  );
+
+// ---- Audio API direct (public reads hit the AWS API Gateway, not this backend) ----
+export interface AudioTrackDetail {
+  track: AudioTrack;
+  streamUrl: string;
+  expiresIn: number;
+  progress: { positionSeconds: number } | null;
+}
+
+export async function audioListTracks(apiUrl: string, category?: string): Promise<AudioTrack[]> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  const r = await fetch(`${apiUrl}/tracks${qs}`, { cache: "no-store" });
+  const body = await r.json();
+  if (!body.success) throw new Error(body.message ?? "audio api error");
+  return body.data.items as AudioTrack[];
+}
+
+export async function audioGetTrack(
+  apiUrl: string,
+  id: string,
+  listenerId?: string,
+): Promise<AudioTrackDetail> {
+  const qs = listenerId ? `?listenerId=${encodeURIComponent(listenerId)}` : "";
+  const r = await fetch(`${apiUrl}/tracks/${id}${qs}`, { cache: "no-store" });
+  const body = await r.json();
+  if (!body.success) throw new Error(body.message ?? "audio api error");
+  return body.data as AudioTrackDetail;
+}
+
+export async function audioPatchProgress(
+  apiUrl: string,
+  id: string,
+  listenerId: string,
+  positionSeconds: number,
+): Promise<void> {
+  await fetch(`${apiUrl}/tracks/${id}/progress`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ listenerId, positionSeconds: Math.floor(positionSeconds) }),
+  }).catch(() => {}); // best-effort sync, never block playback
+}
+
 // ---- blog (public) ----
 import type { BlogComment, BlogPost } from "./types";
 
