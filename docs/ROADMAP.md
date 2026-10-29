@@ -63,6 +63,14 @@ sound core it grows from.
   `/vod-pipeline`; admin config/jobs at `/admin/vod-pipeline`. Verified E2E:
   upload → transcode → CloudFront manifest 200. Diagram:
   `docs/architecture/vod-pipeline.md`.
+- **Selectable chat AI providers** (raybags-chat service) - the live-chat
+  assistant's LLM is runtime-selectable from `/admin/chat` (AI Provider card):
+  DeepSeek default, Groq, Claude, Gemini, with per-provider model override,
+  admin-entered API keys (stored in `chat_ai_config`, masked in API), a live
+  Test-connection action, and graceful env-key fallback so the chat never goes
+  dark. Tools (token issuing, human escalation) work on DeepSeek/Groq;
+  Claude/Gemini are text-only. Also: `/api/v1/sessions/reset` recovery endpoint
+  and automatic purge of stale closed sessions (7d) in the chat service.
 
 ## 🔜 Next (plug-in modules, each behind a flag)
 
