@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/store";
+import ChatAIProvider from "@/components/admin/ChatAIProvider";
 
 // ---- Types ----
 interface Session {
@@ -343,10 +344,10 @@ export default function AdminChatPage() {
     await loadSessions(adminToken);
   }
   async function cleanupStale() {
-    const r = await fetch(`${CHAT_API}/sessions/cleanup?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
+    const r = await fetch(`${CHAT_API}/sessions/reset?token=${encodeURIComponent(adminToken)}`, { method: "POST" });
     const data = await r.json().catch(() => ({}));
     await loadSessions(adminToken);
-    return data.closed ?? 0;
+    return data.closed_sessions ?? data.closed ?? 0;
   }
 
   async function generateToken(sid: string, name: string, email: string) {
@@ -432,11 +433,11 @@ export default function AdminChatPage() {
           <button
             onClick={async () => {
               const closed = await cleanupStale();
-              alert(`Closed ${closed} stale session${closed !== 1 ? "s" : ""}.`);
+              alert(`Reset complete: closed ${closed} stale session${closed !== 1 ? "s" : ""}.`);
             }}
             className="text-xs text-muted hover:text-fg transition-colors"
           >
-            Clean up stale
+            Reset chat
           </button>
           <button
             onClick={() => { localStorage.removeItem("chat_admin_token"); setAdminToken(""); wsRef.current?.close(); }}
@@ -446,6 +447,8 @@ export default function AdminChatPage() {
           </button>
         </div>
       </div>
+
+      <ChatAIProvider adminToken={adminToken} />
 
       <div className="flex-1 min-h-0 flex gap-4">
         {/* ── Session list ── */}
