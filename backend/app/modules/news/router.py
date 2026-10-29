@@ -1,4 +1,4 @@
-"""News feed API — public GET endpoint + admin trigger."""
+"""News feed API - public GET endpoint + admin trigger."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ async def get_feed(
     limit: int = Query(default=60, ge=1, le=200),
     source: str | None = Query(default=None),
 ) -> list[dict[str, Any]]:
-    """Public news feed — latest extracted headlines."""
+    """Public news feed - latest extracted headlines."""
     return await service.get_feed(db, limit=limit, source=source)
 
 

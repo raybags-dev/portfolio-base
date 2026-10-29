@@ -173,7 +173,7 @@ export default function GuardrailsPage() {
       {/* Description */}
       <p className="text-sm text-muted leading-relaxed">
         Guardrails are rules injected into the bot&apos;s system prompt at runtime. Active rules
-        take effect immediately — no restart needed. Changes apply within 60 seconds (cache TTL).
+        take effect immediately - no restart needed. Changes apply within 60 seconds (cache TTL).
       </p>
 
       {/* Error banner */}

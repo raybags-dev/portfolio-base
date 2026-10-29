@@ -30,7 +30,7 @@ function scrollTo(key: string) {
     el.scrollIntoView({ behavior: "smooth" });
     window.history.replaceState(null, "", `/#${key}`);
   } else {
-    // Not on a page that has this section — navigate to root first.
+    // Not on a page that has this section - navigate to root first.
     window.location.href = `/#${key}`;
   }
 }
@@ -211,7 +211,7 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* mobile drawer — opaque, blurred, full height, above everything */}
+      {/* mobile drawer - opaque, blurred, full height, above everything */}
       <AnimatePresence>
         {open && (
           <motion.div

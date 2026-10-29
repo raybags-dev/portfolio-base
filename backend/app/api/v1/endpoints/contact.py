@@ -82,7 +82,7 @@ async def _try_send_email(db: DbSession, payload: ContactSubmit) -> bool:
     try:
         await asyncio.to_thread(_send_email_sync, to_addr, payload)
         return True
-    except Exception as exc:  # delivery failed — message is still stored
+    except Exception as exc:  # delivery failed - message is still stored
         log.warning("contact.email.failed", error=str(exc))
         return False
 
@@ -99,7 +99,7 @@ async def submit(payload: ContactSubmit, request: Request, db: DbSession) -> dic
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Spam detected")
     if not _verify_challenge(payload.challenge_token, payload.challenge_answer):
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
-                            "Verification failed — please try the challenge again")
+                            "Verification failed - please try the challenge again")
 
     delivered = await _try_send_email(db, payload)
     msg = ContactMessage(

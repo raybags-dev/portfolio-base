@@ -94,7 +94,7 @@ export default function LoginPage() {
             ← Back to sign in
           </button>
           <h1 className="font-heading font-bold text-xl mb-2">Reset password</h1>
-          <p className="text-sm text-muted mb-6">Enter your admin email. A one-time reset link will be generated — you can copy it or send it to yourself via WhatsApp.</p>
+          <p className="text-sm text-muted mb-6">Enter your admin email. A one-time reset link will be generated - you can copy it or send it to yourself via WhatsApp.</p>
           {fpError && (
             <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded p-2">{fpError}</p>
           )}

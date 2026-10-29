@@ -126,7 +126,7 @@ export default function HotelReviewsPage() {
         Object.entries(selectorHintsMap).filter(([, v]) => v.trim())
       );
       const session = await createCrawlSession({
-        name: name.trim() || `Crawl – ${new Date().toLocaleString()}`,
+        name: name.trim() || `Crawl - ${new Date().toLocaleString()}`,
         target_url: url.trim(),
         collection_prompt: prompt.trim(),
         analytics_spec: {
@@ -515,7 +515,7 @@ function CrawlerForm({
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Session name <span className="text-muted">(optional)</span></label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Booking.com – California Hotels"
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Booking.com - California Hotels"
             className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60" />
         </div>
       </fieldset>
@@ -525,7 +525,7 @@ function CrawlerForm({
         <div>
           <label className="block text-sm font-medium mb-1">Describe what you want <span className="text-red-400">*</span></label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3}
-            placeholder={`Examples:\n• "Collect all hotel listings — name, price, rating, location"\n• "Find all reviews with a score above 7 for property XYZ"`}
+            placeholder={`Examples:\n• "Collect all hotel listings - name, price, rating, location"\n• "Find all reviews with a score above 7 for property XYZ"`}
             className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60 resize-none" required />
         </div>
         <div>
@@ -575,9 +575,9 @@ function CrawlerForm({
                 <label className="block text-sm font-medium mb-1">Crawler profile <span className="text-muted">(optional)</span></label>
                 <select value={selectedProfileId ?? ""} onChange={e => setSelectedProfileId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60">
-                  <option value="">None — use AI-generated selectors</option>
+                  <option value="">None - use AI-generated selectors</option>
                   {crawlerProfiles.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` — ${p.description}` : ""}</option>
+                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` - ${p.description}` : ""}</option>
                   ))}
                 </select>
                 <p className="text-xs text-muted/60 mt-1">A saved profile pre-fills selectors and field mappings for this crawler.</p>
@@ -621,7 +621,7 @@ function CrawlerForm({
             {/* ── Directive mode ── */}
             <div className="border-t border-white/10 pt-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-0.5">Directive mode <span className="text-muted text-xs">(optional — for complex pages)</span></label>
+                <label className="block text-sm font-medium mb-0.5">Directive mode <span className="text-muted text-xs">(optional - for complex pages)</span></label>
                 <p className="text-xs text-muted mb-3">
                   Specify a container + item selector to bypass AI-plan extraction.
                   Optionally add pre-actions (click dropdowns, select values) that run before extraction.
@@ -784,7 +784,7 @@ function KaggleSearch({
 
       {results !== null && results.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted">{results.length} datasets found — click one to select it.</p>
+          <p className="text-xs text-muted">{results.length} datasets found - click one to select it.</p>
           {results.map((ds) => (
             <button key={ds.ref} onClick={() => setSelected(selected?.ref === ds.ref ? null : ds)}
               className={`w-full text-left rounded-theme border px-4 py-3 transition-colors ${
@@ -955,7 +955,7 @@ function RunningStep({ session }: { session: CrawlSession }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         {[
           { label: "Records", value: progress.records_collected ?? 0 },
-          { label: "Max Pages", value: isKaggle ? "–" : session.max_pages },
+          { label: "Max Pages", value: isKaggle ? "-" : session.max_pages },
           { label: "Status", value: session.status },
         ].map(stat => (
           <div key={stat.label} className="rounded-theme bg-surface border border-white/10 p-3 text-center">
@@ -1125,7 +1125,7 @@ function ResultsStep({
       {showPreview && preview && (
         <div className="rounded-theme bg-surface border border-white/10 overflow-hidden mb-6">
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">JSON Preview — {preview.length} records</span>
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">JSON Preview - {preview.length} records</span>
             <button onClick={() => setShowPreview(false)} className="text-muted text-xs hover:text-white">close ✕</button>
           </div>
           <div className="h-72 overflow-auto p-4">
@@ -1413,10 +1413,10 @@ function HowItWorksHotel() {
 
   const steps = [
     { num: "01", title: "Enter a URL or import Kaggle", body: "Paste any hotel listing URL (Booking.com, TripAdvisor, etc.) or use a Kaggle dataset slug. The crawler auto-detects the page structure." },
-    { num: "02", title: "Playwright + LLM Crawl", body: "A headless Chromium browser (Playwright) loads each page — bypassing JavaScript rendering. An LLM (Groq AI) reads the DOM and extracts structured fields: name, rating, price, location, reviews." },
+    { num: "02", title: "Playwright + LLM Crawl", body: "A headless Chromium browser (Playwright) loads each page - bypassing JavaScript rendering. An LLM (Groq AI) reads the DOM and extracts structured fields: name, rating, price, location, reviews." },
     { num: "03", title: "Multi-page Pagination", body: "The engine follows pagination links automatically (up to the configured max pages), accumulating records across the full dataset." },
     { num: "04", title: "Analytics + Charts", body: "Once collected, numeric fields (price, rating) get distribution histograms; categorical fields (category, location) get bar/pie charts. Top-rated and most-expensive items are ranked." },
-    { num: "05", title: "Blog Generation", body: "Groq AI writes a full markdown article analysing the extracted data — trends, outliers, and recommendations. Saved as a draft blog post." },
+    { num: "05", title: "Blog Generation", body: "Groq AI writes a full markdown article analysing the extracted data - trends, outliers, and recommendations. Saved as a draft blog post." },
     { num: "06", title: "Export", body: "Download all structured records as JSON or CSV for use in your own tools." },
   ];
 

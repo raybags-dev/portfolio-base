@@ -89,7 +89,7 @@ class OpenAIProvider:
                 response_format={"type": "json_object"},
             )
             return json.loads(resp.choices[0].message.content or "{}")
-        except Exception as exc:  # network/parse/quota — degrade gracefully
+        except Exception as exc:  # network/parse/quota - degrade gracefully
             log.warning("openai.propose_json.failed", error=str(exc))
             return dict(fallback or {})
 

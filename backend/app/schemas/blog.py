@@ -96,7 +96,7 @@ class CommentCreate(BaseModel):
     author_name: str
     author_email: str | None = None
     content: str
-    website: str | None = None  # honeypot — must be empty
+    website: str | None = None  # honeypot - must be empty
 
 
 class CommentRead(TimestampedRead):

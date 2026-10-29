@@ -1,4 +1,4 @@
-"""Universal Data Extractor service — orchestration layer."""
+"""Universal Data Extractor service - orchestration layer."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from app.modules.universal_extractor.extractor import apply_schema, extract, val
 
 log = get_logger("ude.service")
 
-# Records inserted per DB transaction — keeps identity map small and gives
+# Records inserted per DB transaction - keeps identity map small and gives
 # frequent progress updates even for very large datasets.
 _BATCH_SIZE = 200
 
@@ -96,7 +96,7 @@ async def _store_records_in_batches(
             if is_valid:
                 valid += 1
 
-        # Core INSERT — no ORM tracking, no identity-map growth
+        # Core INSERT - no ORM tracking, no identity-map growth
         await db.execute(sa_insert(UDERecord), rows)
         await db.commit()
 
@@ -231,7 +231,7 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
         else:
             await on_progress(f"Normalising {len(raw_records):,} records…")
 
-        # ── LLM schema normalisation (CPU — run in thread) ────────────────────
+        # ── LLM schema normalisation (CPU - run in thread) ────────────────────
         if schema:
             normalised: list[dict] = await loop.run_in_executor(
                 None, apply_schema, raw_records, schema

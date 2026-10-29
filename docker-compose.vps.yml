@@ -1,12 +1,12 @@
 # =============================================================================
 # Raybags VPS Production Compose
 #
-# Standalone — does NOT extend docker-compose.yml.
-# Uses Supabase Postgres (DATABASE_URL from env) — no local postgres container.
+# Standalone - does NOT extend docker-compose.yml.
+# Uses Supabase Postgres (DATABASE_URL from env) - no local postgres container.
 # Persistent data stored under /mnt/portfolio-data (Hetzner volume).
 #
 # First-time deploy:
-#   1. scripts/server-setup.sh   (once — installs Docker, issues TLS cert)
+#   1. scripts/server-setup.sh   (once - installs Docker, issues TLS cert)
 #   2. scripts/deploy-vps.sh     (every release)
 #
 # Manual usage (on the server):
@@ -15,7 +15,7 @@
 
 services:
   # --------------------------------------------------------------------------
-  # Redis — lightweight in-process cache / rate-limit store
+  # Redis - lightweight in-process cache / rate-limit store
   # --------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
@@ -31,7 +31,7 @@ services:
     networks: [platform]
 
   # --------------------------------------------------------------------------
-  # Backend — FastAPI + Alembic migrations + seed
+  # Backend - FastAPI + Alembic migrations + seed
   # --------------------------------------------------------------------------
   backend:
     build:
@@ -75,10 +75,10 @@ services:
       SUPABASE_URL:           ${SUPABASE_URL:-}
       SUPABASE_SERVICE_KEY:   ${SUPABASE_SERVICE_KEY:-}
     volumes:
-      # Playwright browser binaries — persisted across deploys on the Hetzner
+      # Playwright browser binaries - persisted across deploys on the Hetzner
       # data volume so the browser is only downloaded once.
       - /mnt/portfolio-data/playwright:/app/.playwright
-      # Playwright runtime tmp dir — on the Hetzner volume so writes never hit
+      # Playwright runtime tmp dir - on the Hetzner volume so writes never hit
       # the container overlay filesystem (which can exhaust VPS root disk).
       - /mnt/portfolio-data/pw-tmp:/home/appuser/.pw-tmp
     depends_on:
@@ -104,7 +104,7 @@ services:
     networks: [platform]
 
   # --------------------------------------------------------------------------
-  # Frontend — Next.js standalone build
+  # Frontend - Next.js standalone build
   # --------------------------------------------------------------------------
   frontend:
     build:
@@ -128,9 +128,9 @@ services:
     networks: [platform]
 
   # --------------------------------------------------------------------------
-  # Nginx — reverse proxy + TLS termination
+  # Nginx - reverse proxy + TLS termination
   # --------------------------------------------------------------------------
-  # Nginx — reverse proxy + TLS termination
+  # Nginx - reverse proxy + TLS termination
   # NGINX_CONF defaults to nginx.prod.conf (SSL).
   # For initial bootstrap before cert:  NGINX_CONF=nginx.bootstrap.conf
   # --------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# maintenance.sh — environment health, cleanup & self-healing
+# maintenance.sh - environment health, cleanup & self-healing
 #
 # Local (WSL2) mode:     ./maintenance.sh
 # VPS mode (SSH in):     ./maintenance.sh --vps
@@ -20,7 +20,7 @@ log()  { [[ "$QUIET" == 1 ]] && return; echo "[maintenance] $*"; }
 warn() { echo "[maintenance] ⚠  $*" >&2; }
 ok()   { [[ "$QUIET" == 1 ]] && return; echo "[maintenance] ✓  $*"; }
 
-# ── VPS mode — SSH into server and fix disk + permissions ─────────────────────
+# ── VPS mode - SSH into server and fix disk + permissions ─────────────────────
 if [[ "$VPS_MODE" == 1 ]]; then
   log "Connecting to portfolio-server…"
   ssh portfolio-server bash -s <<'VPS_SCRIPT'
@@ -65,7 +65,7 @@ AVAIL_GB=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$4); print $4}')
 PCT_USED=$(df / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
 ok "Disk: ${AVAIL_GB}GB free (${PCT_USED}% used)"
 if (( AVAIL_GB < 5 )); then
-  warn "Disk critically low — ${AVAIL_GB}GB free. Running aggressive cleanup."
+  warn "Disk critically low - ${AVAIL_GB}GB free. Running aggressive cleanup."
   LOW_DISK=1
 else
   LOW_DISK=0
@@ -118,7 +118,7 @@ if (( LOW_DISK )); then
   ok "pycache cleared"
 fi
 
-# ── 6. Log rotation — keep last 200 lines of uvicorn logs ─────────────────────
+# ── 6. Log rotation - keep last 200 lines of uvicorn logs ─────────────────────
 for logfile in /home/bagum/Projects/portfolio-base/backend/*.log /tmp/uvicorn*.log; do
   [[ -f "$logfile" ]] || continue
   LINES=$(wc -l < "$logfile")

@@ -81,9 +81,9 @@ export default function StorageAdminPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: "Postgres Sessions", value: stats?.postgres_session_count ?? "—", color: "text-blue-400" },
-          { label: "S3 Blobs", value: stats?.s3_blob_count ?? "—", color: "text-emerald-400" },
-          { label: "MongoDB Docs", value: stats?.mongodb_doc_count ?? "—", color: "text-amber-400" },
+          { label: "Postgres Sessions", value: stats?.postgres_session_count ?? "-", color: "text-blue-400" },
+          { label: "S3 Blobs", value: stats?.s3_blob_count ?? "-", color: "text-emerald-400" },
+          { label: "MongoDB Docs", value: stats?.mongodb_doc_count ?? "-", color: "text-amber-400" },
         ].map((s) => (
           <div key={s.label} className="rounded-theme bg-surface border border-white/10 p-4 text-center">
             <div className={`text-3xl font-bold ${s.color}`}>{loading ? "…" : s.value.toLocaleString()}</div>

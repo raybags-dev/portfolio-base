@@ -86,7 +86,7 @@ def require_flag(key: str, default: bool = False) -> Callable:
     """Dependency factory gating an endpoint behind a feature flag.
 
     Module routers are always mounted (routes can't be added at runtime), but a
-    route guarded by this returns 404 while its flag is off — so a disabled
+    route guarded by this returns 404 while its flag is off - so a disabled
     module is invisible until an admin enables it in the panel. No redeploy.
     """
 

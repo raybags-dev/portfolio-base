@@ -1,5 +1,5 @@
 # =============================================================================
-# Raybags Data Platform — base compose (core services).
+# Raybags Data Platform - base compose (core services).
 # Heavy / optional services (Kafka, RabbitMQ, MinIO, workers, monitoring) live
 # in compose profiles so you only start what you need:
 #

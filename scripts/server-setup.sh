@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# server-setup.sh — One-time Hetzner VPS provisioning
+# server-setup.sh - One-time Hetzner VPS provisioning
 #
 # Run this ONCE after spinning up a fresh server.
 # It is safe to re-run; every step is idempotent.
@@ -10,7 +10,7 @@
 #           www.<DOMAIN>.com → <DOMAIN>.com (CNAME)
 #   2. Cloudflare SSL/TLS mode: "Full (strict)"
 #   3. Temporarily disable "Always Use HTTPS" in Cloudflare (SSL/TLS → Edge Certs)
-#      — re-enable it after the cert is issued.
+#      - re-enable it after the cert is issued.
 #
 # Usage (run from your LOCAL machine):
 #   bash scripts/server-setup.sh
@@ -99,7 +99,7 @@ CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
 if [[ -d "$CERT_PATH" ]]; then
   ok "Certificate already exists at $CERT_PATH"
 else
-  log "Issuing cert for $DOMAIN (standalone — port 80 must be free) …"
+  log "Issuing cert for $DOMAIN (standalone - port 80 must be free) …"
   # Ensure /etc/letsencrypt is on the persistent volume
   if [[ ! -L "/etc/letsencrypt" ]]; then
     # Move any existing letsencrypt data to volume then symlink

@@ -151,7 +151,7 @@ function NamePromptCard({ onSure, onSkip }: { onSure: () => void; onSkip: () => 
       <AgentAvatar />
       <div className="flex flex-col gap-2.5 max-w-[80%]">
         <div className="bg-surface border border-gray-400/20 text-fg rounded-2xl rounded-bl-[4px] px-3.5 py-2.5 text-sm leading-relaxed">
-          By the way — if you don&apos;t mind, what should I call you? I&apos;d love to address you by name while we chat!
+          By the way - if you don&apos;t mind, what should I call you? I&apos;d love to address you by name while we chat!
         </div>
         <div className="flex gap-2">
           <button
@@ -302,7 +302,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         id: genId(),
         sender: "agent",
         content:
-          "Hey there! The site's currently down for some maintenance — really sorry about that! " +
+          "Hey there! The site's currently down for some maintenance - really sorry about that! " +
           "I'm still here though and happy to help with any questions you might have. " +
           "What can I assist you with today?",
         ts: Date.now() / 1000,
@@ -337,7 +337,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
   }, []);
 
   const connect = useCallback(() => {
-    // Guard both CONNECTING (0) and OPEN (1) — prevents spawning a second socket
+    // Guard both CONNECTING (0) and OPEN (1) - prevents spawning a second socket
     // while the first is still handshaking, which would create two reconnect chains.
     if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
 
@@ -388,7 +388,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         if (!greetingHandledRef.current && data.sender === "agent") {
           greetingHandledRef.current = true;
           if (savedName && savedName !== "visitor") {
-            addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again — how can I help?`, ts: data.ts ?? Date.now() / 1000 });
+            addMsg({ sender: "agent", content: `Welcome back, ${savedName}! Great to see you again - how can I help?`, ts: data.ts ?? Date.now() / 1000 });
           } else {
             addMsg({ sender: data.sender, content: data.content, ts: data.ts ?? Date.now() / 1000 });
             if (!savedName) {
@@ -504,7 +504,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
             "fixed inset-0 z-[9998] flex flex-col overflow-hidden",
             // Desktop: floating card above the FAB stack
             "sm:inset-auto sm:bottom-[72px] sm:right-5 sm:w-[400px] sm:h-[560px] sm:max-h-[calc(100vh-88px)] sm:rounded-2xl",
-            // Appearance — using solid bg-bg (no opacity modifier; CSS hex vars break /N syntax)
+            // Appearance - using solid bg-bg (no opacity modifier; CSS hex vars break /N syntax)
             "bg-bg border border-gray-400/20 shadow-card",
           ].join(" ")}
         >
@@ -590,7 +590,7 @@ export default function ChatWidget({ maintenanceActive = false }: { maintenanceA
         </div>
       )}
 
-      {/* ── FAB — completely hidden while panel is open ── */}
+      {/* ── FAB - completely hidden while panel is open ── */}
       {!open && (
         <button
           onClick={() => setOpen(true)}

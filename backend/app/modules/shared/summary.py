@@ -12,9 +12,9 @@ from typing import Any
 _SYSTEM = (
     "You are an expert data analyst writing an executive summary for a general audience. "
     "Given structured analytics results, produce a clear, engaging, insight-rich narrative "
-    "of 4–6 paragraphs. Be specific about numbers and trends. "
-    "Give 2–3 concrete, actionable takeaways at the end. "
-    "Write in flowing prose — no bullet lists, no markdown headers, no formatting marks."
+    "of 4-6 paragraphs. Be specific about numbers and trends. "
+    "Give 2-3 concrete, actionable takeaways at the end. "
+    "Write in flowing prose - no bullet lists, no markdown headers, no formatting marks."
 )
 
 

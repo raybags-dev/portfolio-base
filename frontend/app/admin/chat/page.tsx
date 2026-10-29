@@ -151,7 +151,7 @@ function Bubble({ msg }: { msg: ChatMsg }) {
 
 // ---- Main page ----
 export default function AdminChatPage() {
-  // Use portfolio admin JWT directly — no manual token entry needed
+  // Use portfolio admin JWT directly - no manual token entry needed
   const portfolioToken = useAuth((s) => s.token) ?? "";
   const [adminToken, setAdminToken] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -225,7 +225,7 @@ export default function AdminChatPage() {
 
     ws.onclose = (ev) => {
       setWsState("disconnected");
-      // 4001 = auth rejected — stop retrying with a bad token
+      // 4001 = auth rejected - stop retrying with a bad token
       if (ev.code === 4001) return;
       reconnectTimer.current = setTimeout(() => connectWs(token), 4000);
     };
@@ -614,7 +614,7 @@ export default function AdminChatPage() {
                   </form>
                 ) : (
                   <p className="text-xs text-muted text-center py-1">
-                    AI is handling this session — click <strong>Take over</strong> to reply directly.
+                    AI is handling this session - click <strong>Take over</strong> to reply directly.
                   </p>
                 )}
               </div>

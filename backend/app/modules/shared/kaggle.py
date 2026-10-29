@@ -40,7 +40,7 @@ def _get_kaggle():
         kaggle.api.authenticate()
         return kaggle
     except ImportError as exc:
-        raise KaggleNotConfigured("kaggle package not installed — add kaggle to requirements.txt") from exc
+        raise KaggleNotConfigured("kaggle package not installed - add kaggle to requirements.txt") from exc
     except Exception as exc:
         msg = str(exc)
         if any(w in msg.lower() for w in ("credential", "username", "key", "api", "auth", "401", "403")):

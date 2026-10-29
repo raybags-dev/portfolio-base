@@ -157,7 +157,7 @@ export default function TokensPage() {
           </button>
         </div>
         <div className={`mt-3 text-xs font-medium ${devMode?.dev_mode ? "text-green-400" : "text-muted"}`}>
-          {devMode?.dev_mode ? "Dev mode ON — token checks skipped for your IP" : "Dev mode OFF — normal rate limiting applies"}
+          {devMode?.dev_mode ? "Dev mode ON - token checks skipped for your IP" : "Dev mode OFF - normal rate limiting applies"}
         </div>
       </section>
 
@@ -175,7 +175,7 @@ export default function TokensPage() {
         {newToken && !newToken.is_expired && (
           <div className="mt-4 rounded-theme bg-yellow-500/10 border border-yellow-500/30 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-yellow-300">New token — share this with the user</span>
+              <span className="text-sm font-medium text-yellow-300">New token - share this with the user</span>
               <span className="text-xs text-yellow-400 font-mono">{timeLeft(newToken.expires_at)}</span>
             </div>
             <div className="flex items-center gap-2">

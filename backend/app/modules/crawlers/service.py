@@ -66,7 +66,7 @@ async def run_job(
             await _log(db, job.id, "info" if report.get("validated") else "error",
                        f"crawled {url}: validated={report.get('validated')}")
 
-        # Persist any selectors the crawler repaired — it updates its own config.
+        # Persist any selectors the crawler repaired - it updates its own config.
         if total_healed:
             job.selectors = config_after
             await _log(db, job.id, "info",

@@ -1,5 +1,5 @@
 -- =============================================================================
--- portfolio-base: Supabase SQL — all tables in a single runnable file
+-- portfolio-base: Supabase SQL - all tables in a single runnable file
 -- Generated from alembic migration chain (8 migrations)
 -- Run this once in the Supabase SQL editor to create all tables.
 -- =============================================================================
@@ -957,7 +957,7 @@ CREATE OR REPLACE TRIGGER trg_blog_likes_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- -----------------------------------------------------------------------------
--- Tables added in migration ff1a2b3c4d5e (continued — depends on hotel_crawl_sessions)
+-- Tables added in migration ff1a2b3c4d5e (continued - depends on hotel_crawl_sessions)
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS hotel_crawl_records (
@@ -976,7 +976,7 @@ CREATE OR REPLACE TRIGGER trg_hotel_crawl_records_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- =============================================================================
--- JUNCTION / MANY-TO-MANY TABLES (no updated_at — composite PK only)
+-- JUNCTION / MANY-TO-MANY TABLES (no updated_at - composite PK only)
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS role_permissions (

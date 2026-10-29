@@ -1,4 +1,4 @@
-"""Hotel Review Analytics API — gated by ENABLE_HOTEL_REVIEWS."""
+"""Hotel Review Analytics API - gated by ENABLE_HOTEL_REVIEWS."""
 
 from __future__ import annotations
 
@@ -298,7 +298,7 @@ async def generate_blog(session_id: int, db: DbSession):
         await db.commit()
     except Exception as db_exc:
         await db.rollback()
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to save blog post — slug conflict or DB error") from db_exc
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to save blog post - slug conflict or DB error") from db_exc
     await db.refresh(post)
 
     return {"blog_post_id": post.id, "title": post.title, "slug": post.slug, "draft": True}

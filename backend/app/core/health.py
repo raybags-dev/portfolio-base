@@ -1,4 +1,4 @@
-"""Environment health — playwright browser install, /tmp cleanup, disk check.
+"""Environment health - playwright browser install, /tmp cleanup, disk check.
 
 Called at startup (best-effort, never blocks boot) and available as a
 scheduled task so the server self-heals without manual intervention.
@@ -14,9 +14,9 @@ the error. Solution:
   4. Retry once on ENOSPC after a fresh clean.
 
 Public surface:
-  prepare_playwright()       — call before every async_playwright() context
-  run_full_check()           — synchronous full sweep (call via executor)
-  run_health_check_async()   — async wrapper
+  prepare_playwright()       - call before every async_playwright() context
+  run_full_check()           - synchronous full sweep (call via executor)
+  run_health_check_async()   - async wrapper
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from app.core.logging import get_logger
 
 log = get_logger("health")
 
-# All playwright temp output goes here — on the home filesystem, always writable.
+# All playwright temp output goes here - on the home filesystem, always writable.
 PW_TMP = pathlib.Path.home() / ".pw-tmp"
 _STALE_SECS = 1800   # clean dirs older than 30 min
 
@@ -144,7 +144,7 @@ def _clear_pip_cache_if_low() -> dict[str, Any]:
 
 
 def run_full_check() -> dict[str, Any]:
-    """Full synchronous health check — call via run_in_executor from async code."""
+    """Full synchronous health check - call via run_in_executor from async code."""
     prepare_playwright()
     results: dict[str, Any] = {}
     results["disk"]       = _disk_stats()

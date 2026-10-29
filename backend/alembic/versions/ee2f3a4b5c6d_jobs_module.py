@@ -73,7 +73,7 @@ def upgrade() -> None:
             VALUES (
               'jobs',
               'Job Market Analytics',
-              'Point the LLM crawler at any job board — Indeed, RemoteOK, company careers pages — and get instant skill-demand charts, salary distributions, and hiring-trend insights.',
+              'Point the LLM crawler at any job board - Indeed, RemoteOK, company careers pages - and get instant skill-demand charts, salary distributions, and hiring-trend insights.',
               'data',
               'ENABLE_JOBS',
               '/job-analytics',
@@ -102,7 +102,7 @@ def upgrade() -> None:
             VALUES (
               'Job Market Analytics',
               'job-market-analytics',
-              'LLM-guided crawler for any job board — extracts listings, parses skills, salary ranges and seniority levels, then renders interactive analytics charts.',
+              'LLM-guided crawler for any job board - extracts listings, parses skills, salary ranges and seniority levels, then renders interactive analytics charts.',
               'Playwright navigates job boards (Indeed, RemoteOK, company careers pages) guided by Groq AI. Extracts structured job data, runs skill-demand frequency analysis, salary histograms, work-arrangement breakdowns, and auto-generates market-trend blog posts.',
               '["Playwright","Groq AI","FastAPI","Next.js","Recharts","SQLAlchemy","Python"]',
               true,
@@ -127,7 +127,7 @@ def upgrade() -> None:
             VALUES (
               'universal-extractor',
               'Universal Data Extractor',
-              'Provide any URL — the engine maps every data point on the page, auto-detects scroll vs pagination, extracts all endpoints and structured datasets, and uses the LLM to annotate and categorise them.',
+              'Provide any URL - the engine maps every data point on the page, auto-detects scroll vs pagination, extracts all endpoints and structured datasets, and uses the LLM to annotate and categorise them.',
               'data',
               'ENABLE_UNIVERSAL_EXTRACTOR',
               NULL,
@@ -150,7 +150,7 @@ def upgrade() -> None:
             VALUES (
               'Universal Data Extractor',
               'universal-data-extractor',
-              'Point it at any URL — it extracts every data point, auto-navigates scroll & pagination, maps API endpoints, and exports LLM-annotated structured datasets.',
+              'Point it at any URL - it extracts every data point, auto-navigates scroll & pagination, maps API endpoints, and exports LLM-annotated structured datasets.',
               'The grand-master extractor: provide a URL and it auto-detects whether the page loads via infinite scroll or pagination, maps all visible data including endpoints and hidden JSON payloads, and uses the LLM to produce a clean annotated dataset ready for analysis.',
               '["Playwright","Groq AI","FastAPI","Next.js","Python"]',
               false,
@@ -175,7 +175,7 @@ def upgrade() -> None:
             VALUES (
               'stream-pipeline',
               'Real-Time Stream Pipeline',
-              'Kafka-powered event bus: crawl results, job listings, and analytics events are published as topics and consumed by real-time workers — enabling live dashboards and streaming ML inference.',
+              'Kafka-powered event bus: crawl results, job listings, and analytics events are published as topics and consumed by real-time workers - enabling live dashboards and streaming ML inference.',
               'infra',
               'ENABLE_STREAM_PIPELINE',
               NULL,
@@ -198,7 +198,7 @@ def upgrade() -> None:
             VALUES (
               'Real-Time Stream Pipeline',
               'stream-pipeline',
-              'Kafka event bus connecting crawlers, analytics workers, and live dashboards — each data source publishes events, consumers react in real time.',
+              'Kafka event bus connecting crawlers, analytics workers, and live dashboards - each data source publishes events, consumers react in real time.',
               'Kafka topics wire together all data-engineering modules: job listings, news articles, and price data are published as events. Stream-processing consumers run analytics, trigger alerts, and feed the live dashboard without any polling.',
               '["Kafka","FastAPI","Next.js","Python","SQLAlchemy"]',
               false,

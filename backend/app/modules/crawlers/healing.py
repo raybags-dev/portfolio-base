@@ -1,12 +1,12 @@
 """Self-healing selector recovery.
 
-When a field's selector stops matching (site HTML changed), we don't fail —
+When a field's selector stops matching (site HTML changed), we don't fail -
 we search the new DOM for nodes whose *text* satisfies the field's hint
 (which describes a valid value, not its location), derive a fresh, stable
 selector for the best candidate, and verify it re-extracts a valid value.
 
 An LLM (when available) ranks ambiguous candidates; otherwise a deterministic
-heuristic does — so healing works fully offline.
+heuristic does - so healing works fully offline.
 """
 
 from __future__ import annotations

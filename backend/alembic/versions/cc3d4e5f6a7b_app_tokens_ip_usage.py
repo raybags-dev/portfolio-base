@@ -1,4 +1,4 @@
-"""app_tokens and ip_usage_logs — access control for per-IP rate limiting
+"""app_tokens and ip_usage_logs - access control for per-IP rate limiting
 
 Revision ID: cc3d4e5f6a7b
 Revises: aa2b3c4d5e6f

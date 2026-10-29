@@ -48,7 +48,7 @@ async def generate_blog_post(
     system = (
         "You are a technical blog writer for a data engineering portfolio site. "
         "Write in an engaging, professional tone. Be specific about technology choices. "
-        "You MUST respond with a valid JSON object only — no prose before or after."
+        "You MUST respond with a valid JSON object only - no prose before or after."
     )
     prompt = f"""Write a blog post about this completed data-engineering project and return it as JSON.
 
@@ -70,7 +70,7 @@ Return this exact JSON structure:
   "content": "<full markdown blog post, minimum 400 words, covering: what was built, how the LLM pipeline works, insights from the data, tech stack>"
 }}"""
 
-    # Use complete() — more reliable than propose_json() for large outputs
+    # Use complete() - more reliable than propose_json() for large outputs
     raw = await provider.complete(system, prompt)
     result = _parse_json_from_text(raw) if raw else None
 

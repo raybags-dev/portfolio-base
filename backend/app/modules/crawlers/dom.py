@@ -1,6 +1,6 @@
 """A tiny dependency-free DOM for selector matching.
 
-Not a full CSS engine — it supports the selector spec the crawler uses:
+Not a full CSS engine - it supports the selector spec the crawler uses:
 ``{"tag": "span", "class": "price", "id": "x", "attrs": {"data-test": "v"}}``.
 Enough to extract fields and to drive self-healing, with zero third-party deps
 so it runs anywhere (tests, CI, restricted hosts). Production can swap in

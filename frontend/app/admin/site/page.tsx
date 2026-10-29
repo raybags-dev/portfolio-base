@@ -56,7 +56,7 @@ export default function SiteAdmin() {
           ? e.message
           : e instanceof Error
           ? e.message
-          : "Could not save — check your inputs";
+          : "Could not save - check your inputs";
       toast.error("Save failed", new Error(msg));
     },
   });
@@ -153,7 +153,7 @@ export default function SiteAdmin() {
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <p className="text-xs text-amber-300">Maintenance mode is <strong>active</strong> — the public site is hidden.</p>
+            <p className="text-xs text-amber-300">Maintenance mode is <strong>active</strong> - the public site is hidden.</p>
           </div>
         )}
 
@@ -248,7 +248,7 @@ export default function SiteAdmin() {
         <div>
           <h2 className="font-heading font-semibold text-lg">AI Assistant Context</h2>
           <p className="text-xs text-muted mt-0.5">
-            Anything you write here gets injected into the chatbot&apos;s knowledge — hobbies, background, fun facts, personal preferences. The AI will use it to answer questions on your behalf.
+            Anything you write here gets injected into the chatbot&apos;s knowledge - hobbies, background, fun facts, personal preferences. The AI will use it to answer questions on your behalf.
           </p>
         </div>
         <label className="block">

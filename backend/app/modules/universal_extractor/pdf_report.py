@@ -356,7 +356,7 @@ def generate_pdf(
         story.append(st)
         story.append(Spacer(1, 28))
 
-    # ── Charts — each on its own fresh area, page-break before section ────────
+    # ── Charts - each on its own fresh area, page-break before section ────────
     if charts:
         story.append(PageBreak())
         story.append(Paragraph("Analytics Charts", _h2()))
@@ -366,7 +366,7 @@ def generate_pdf(
         bar_charts  = [c for c in charts if c.get("type") == "bar"]
         line_charts = [c for c in charts if c.get("type") == "line"]
 
-        # Pie charts — render as matching-width images (avoid platypus inline)
+        # Pie charts - render as matching-width images (avoid platypus inline)
         for i in range(0, len(pie_charts), 2):
             pair = pie_charts[i: i + 2]
             img_bytes = []
@@ -401,7 +401,7 @@ def generate_pdf(
                 story.append(cells[0])
             story.append(Spacer(1, 20))
 
-        # Bar charts — full width, one per block with title above
+        # Bar charts - full width, one per block with title above
         for c in bar_charts:
             title = c.get("title", "")
             try:
@@ -419,7 +419,7 @@ def generate_pdf(
             except Exception:
                 pass
 
-        # Line charts — full width
+        # Line charts - full width
         for c in line_charts:
             title = c.get("title", "")
             try:

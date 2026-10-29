@@ -1,4 +1,4 @@
-"""Per-IP app access control — first run is free, second requires a token.
+"""Per-IP app access control - first run is free, second requires a token.
 
 Usage:
     @router.post("/sessions/{id}/run", dependencies=[Depends(require_app_access("hotel-reviews"))])

@@ -1,4 +1,4 @@
-"""cURL command importer — parse, paginate, extract records via AI."""
+"""cURL command importer - parse, paginate, extract records via AI."""
 
 from __future__ import annotations
 
@@ -161,7 +161,7 @@ async def fetch_curl_pages(
     headers = dict(parsed.get("headers") or {})
     body = parsed.get("body")
 
-    # Remove Transfer-Encoding / Content-Length — httpx sets these
+    # Remove Transfer-Encoding / Content-Length - httpx sets these
     for drop in ("Transfer-Encoding", "Content-Length", "transfer-encoding", "content-length"):
         headers.pop(drop, None)
 
@@ -216,7 +216,7 @@ async def fetch_curl_pages(
 
             except Exception as exc:
                 if on_progress:
-                    await on_progress(f"Page {page_num}: error — {exc}")
+                    await on_progress(f"Page {page_num}: error - {exc}")
                 break
 
     return all_records

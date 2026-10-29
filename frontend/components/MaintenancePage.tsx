@@ -179,7 +179,7 @@ export default function MaintenancePage({ data }: { data: Bootstrap }) {
   const email = site.contact_email;
   const phone = site.phone;
 
-  // Dedicated maintenance logo — explicit field only, no fallback to site logo
+  // Dedicated maintenance logo - explicit field only, no fallback to site logo
   const logoUrl = site.maintenance_logo_url || null;
 
   const bgUrl = isDark
@@ -231,7 +231,7 @@ export default function MaintenancePage({ data }: { data: Bootstrap }) {
           backdropFilter: "blur(20px)",
         }}
       >
-        {/* Logo — only shows if maintenance_logo_url is set */}
+        {/* Logo - only shows if maintenance_logo_url is set */}
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

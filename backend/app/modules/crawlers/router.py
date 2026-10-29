@@ -1,4 +1,4 @@
-"""Crawler API — gated by ENABLE_CRAWLERS."""
+"""Crawler API - gated by ENABLE_CRAWLERS."""
 
 from __future__ import annotations
 

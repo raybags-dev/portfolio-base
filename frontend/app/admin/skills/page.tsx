@@ -130,7 +130,7 @@ function SkillModal({
                 onChange={(e) => set({ status: e.target.value || undefined })}
                 className={inp + " cursor-pointer"}
               >
-                <option value="">— Select —</option>
+                <option value="">- Select -</option>
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
@@ -334,7 +334,7 @@ export default function SkillsPage() {
       </div>
 
       {sorted.length === 0 && (
-        <p className="text-muted text-sm">No skills yet — add your first skill.</p>
+        <p className="text-muted text-sm">No skills yet - add your first skill.</p>
       )}
 
       <div className="space-y-2">

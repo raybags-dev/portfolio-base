@@ -1,7 +1,7 @@
-# Frontend — Raybags Data Platform
+# Frontend - Raybags Data Platform
 
 Next.js (App Router) + TypeScript + Tailwind + Framer Motion + React Query +
-Zustand. **100% data-driven** — every section, colour, font, image, and which
+Zustand. **100% data-driven** - every section, colour, font, image, and which
 modules appear is read from the backend at runtime. Nothing is hardcoded.
 
 ## Run

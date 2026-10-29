@@ -44,7 +44,7 @@ if (( RUN_FRONTEND )); then
     ok "frontend passed"
     cd "$ROOT"
   else
-    warn "frontend/package.json not found — skipping frontend tests"
+    warn "frontend/package.json not found - skipping frontend tests"
   fi
 fi
 

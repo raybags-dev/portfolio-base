@@ -9,7 +9,7 @@ import { Toggle } from "@/components/ui/Toggle";
 import { useToast } from "@/components/admin/Toast";
 
 // Theme is intentionally simple: the site ships with one carefully-designed
-// palette. Admins choose the default mode (dark/light) and toggle motion —
+// palette. Admins choose the default mode (dark/light) and toggle motion -
 // no per-colour editing. Visitors can still flip dark/light on the site.
 export default function ThemePage() {
   const token = useAuth((s) => s.token)!;
@@ -42,7 +42,7 @@ export default function ThemePage() {
         <div>
           <h1 className="font-heading font-bold text-2xl mb-1">Theme</h1>
           <p className="text-muted text-sm">
-            Dark and light modes only — the palette is part of the site&apos;s identity.
+            Dark and light modes only - the palette is part of the site&apos;s identity.
           </p>
         </div>
         <ResetConfirm

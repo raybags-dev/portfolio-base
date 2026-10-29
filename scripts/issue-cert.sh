@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================================
-# issue-cert.sh — Issue Let's Encrypt TLS certificate via Cloudflare DNS-01
+# issue-cert.sh - Issue Let's Encrypt TLS certificate via Cloudflare DNS-01
 #
 # Why DNS-01 and not HTTP-01?
 #   raybags.com is behind the Cloudflare proxy, so HTTP-01 challenge requests
 #   may not reach the origin. DNS-01 proves domain ownership via a TXT record
-#   created directly through the Cloudflare API — no port 80 access needed.
+#   created directly through the Cloudflare API - no port 80 access needed.
 #
 # Prerequisites:
 #   1. DNS A record: raybags.com → 89.167.74.127 (Cloudflare proxied)
@@ -60,13 +60,13 @@ log "Installing certbot-dns-cloudflare …"
 if ! certbot plugins 2>&1 | grep -q dns-cloudflare; then
   # Install plugin snap
   snap install certbot-dns-cloudflare
-  # Set trust flag FIRST — certbot's prepare-plug-plugin hook requires this
+  # Set trust flag FIRST - certbot's prepare-plug-plugin hook requires this
   snap set certbot trust-plugin-with-root=ok
-  # Now connect — the hook reads the flag above
+  # Now connect - the hook reads the flag above
   snap connect certbot:plugin certbot-dns-cloudflare
 fi
 # Final verification (certbot needs to see the plugin)
-certbot plugins 2>&1 | grep -q dns-cloudflare || die "certbot-dns-cloudflare plugin not available — check 'snap connect certbot:plugin certbot-dns-cloudflare'"
+certbot plugins 2>&1 | grep -q dns-cloudflare || die "certbot-dns-cloudflare plugin not available - check 'snap connect certbot:plugin certbot-dns-cloudflare'"
 ok "Plugin ready"
 
 # ---- Write Cloudflare credentials ----
@@ -80,7 +80,7 @@ ok "Credentials written to $CF_CREDS"
 # ---- Issue the certificate ----
 CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
 if [[ -d "$CERT_PATH" ]]; then
-  log "Certificate already exists — running renewal instead"
+  log "Certificate already exists - running renewal instead"
   certbot renew --quiet --cert-name "$DOMAIN" || true
 else
   log "Requesting certificate for $DOMAIN and www.$DOMAIN …"

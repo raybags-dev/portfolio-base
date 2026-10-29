@@ -52,7 +52,7 @@ function ResetForm() {
   return (
     <form onSubmit={onSubmit} className="w-full max-w-sm rounded-theme bg-surface shadow-card p-8 border border-white/10">
       <h1 className="font-heading font-bold text-xl mb-2">Set new password</h1>
-      <p className="text-sm text-muted mb-6">Choose a strong password — at least 8 characters.</p>
+      <p className="text-sm text-muted mb-6">Choose a strong password - at least 8 characters.</p>
       {error && <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded p-2">{error}</p>}
       <label className="block text-sm mb-1">New password</label>
       <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={8} placeholder="••••••••" className={INPUT} />

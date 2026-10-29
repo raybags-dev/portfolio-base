@@ -23,7 +23,7 @@ export default function NewsTicker() {
         const data = await getNewsFeed(80);
         if (alive && data.length > 0) setItems(data);
       } catch {
-        // Feed unavailable — stay hidden
+        // Feed unavailable - stay hidden
       }
     }
     load();
@@ -58,7 +58,7 @@ export default function NewsTicker() {
         height: 34,
         display: "flex",
         alignItems: "center",
-        // Rounded on the right side only — left edge hugs the viewport
+        // Rounded on the right side only - left edge hugs the viewport
         borderRadius: "0 8px 8px 0",
         overflow: "hidden",
         background: "var(--color-surface)",
@@ -67,7 +67,7 @@ export default function NewsTicker() {
         boxShadow: "var(--card-shadow)",
       }}
     >
-      {/* LIVE tab — always visible, acts as the pull handle */}
+      {/* LIVE tab - always visible, acts as the pull handle */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Collapse news" : "Expand news"}
@@ -117,7 +117,7 @@ export default function NewsTicker() {
         </span>
       </button>
 
-      {/* Scrolling track — slides in when open */}
+      {/* Scrolling track - slides in when open */}
       <div
         style={{
           overflow: "hidden",

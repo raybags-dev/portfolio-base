@@ -2,7 +2,7 @@
 -- portfolio-base: Pre-emptive project tables
 -- One schema block per Feature Flag project (group: "projects").
 -- Run this in the Supabase SQL editor after supabase_migrations.sql.
--- Projects covered (Hotel Reviews already migrated — skipped here):
+-- Projects covered (Hotel Reviews already migrated - skipped here):
 --   ENABLE_RETAIL     Retail Price Intelligence
 --   ENABLE_SPORTS     Sports Analytics
 --   ENABLE_WEATHER    Weather Pipeline
@@ -17,7 +17,7 @@
 -- =============================================================================
 
 -- =============================================================================
--- HOTEL REVIEWS — backfill columns added in migration bb2cc3dd4ee5
+-- HOTEL REVIEWS - backfill columns added in migration bb2cc3dd4ee5
 -- (Only needed if hotel_crawl_sessions was already created via supabase_migrations.sql)
 -- =============================================================================
 

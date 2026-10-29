@@ -1,7 +1,7 @@
 """Public, read-only API consumed by the frontend.
 
 ``GET /public/bootstrap`` returns everything the homepage needs in a single
-round-trip — all content-driven, nothing hardcoded in the frontend.
+round-trip - all content-driven, nothing hardcoded in the frontend.
 """
 
 from __future__ import annotations

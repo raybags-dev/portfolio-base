@@ -62,7 +62,7 @@ if [[ -f "$ROOT/frontend/package.json" ]]; then
   PIDS+=($!)
   cd "$ROOT"
 else
-  warn "frontend not set up yet — backend only"
+  warn "frontend not set up yet - backend only"
 fi
 
 ok "API docs:  http://localhost:8000/docs"

@@ -61,7 +61,7 @@ async def login(payload: LoginRequest, db: DbSession) -> Token:
 async def login_form(
     form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession
 ) -> Token:
-    """OAuth2 password flow — powers the Swagger 'Authorize' button.
+    """OAuth2 password flow - powers the Swagger 'Authorize' button.
 
     ``username`` is the email.
     """

@@ -15,7 +15,7 @@ curl -fsSL -X POST "$API" \
   -d '{
     "title": "raybags-chat",
     "slug": "raybags-chat",
-    "summary": "Real-time AI chat embedded in the portfolio — WebSockets, Redis pub/sub, Groq LLM with tool use, and live human takeover.",
+    "summary": "Real-time AI chat embedded in the portfolio - WebSockets, Redis pub/sub, Groq LLM with tool use, and live human takeover.",
     "description": "A fully event-driven chat system built for raybags.com. Visitors connect via persistent WebSockets. Messages are fanned through Redis pub/sub to a Groq-backed LLM agent that answers portfolio questions, issues DataForge pipeline tokens, and escalates to a live human session on demand. An admin dashboard lets Ray intercept any conversation and reply in real time. The frontend widget is built in Next.js and embeds directly in the portfolio with localStorage-persisted name and session history.",
     "github_url": "https://github.com/raybags-dev/chatter-ray",
     "demo_url": "https://raybags.com",

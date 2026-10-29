@@ -7,16 +7,16 @@ export default function AdminDashboard() {
   const { data } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
 
   const stats = [
-    { label: "Projects", value: data?.projects.length ?? "—" },
-    { label: "Skills", value: data?.skills.length ?? "—" },
-    { label: "Recommendations", value: data?.recommendations.length ?? "—" },
+    { label: "Projects", value: data?.projects.length ?? "-" },
+    { label: "Skills", value: data?.skills.length ?? "-" },
+    { label: "Recommendations", value: data?.recommendations.length ?? "-" },
     {
       label: "Enabled flags",
       value: data
         ? Object.values(data.feature_flags).filter(Boolean).length
-        : "—",
+        : "-",
     },
-    { label: "Live modules", value: data?.microservices.length ?? "—" },
+    { label: "Live modules", value: data?.microservices.length ?? "-" },
   ];
 
   return (
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
       <div className="rounded-theme border border-white/10 p-5 text-sm text-muted">
         <p className="mb-2">
           Edit content, theme, and modules from the sidebar. Everything you change
-          here updates the public site immediately — no redeploy.
+          here updates the public site immediately - no redeploy.
         </p>
         <div className="flex gap-3 mt-3">
           <Link href="/admin/flags" className="text-primary hover:underline">Feature flags →</Link>
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
         </div>
         <p className="mt-4 text-xs">
           More entity editors (projects, blog, recommendations, crawlers, agents,
-          reports) plug in here — the API CRUD already exists for them.
+          reports) plug in here - the API CRUD already exists for them.
         </p>
       </div>
     </div>

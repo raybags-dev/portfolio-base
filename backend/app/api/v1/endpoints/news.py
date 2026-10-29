@@ -1,4 +1,4 @@
-"""News feed endpoint — returns items from news_items table."""
+"""News feed endpoint - returns items from news_items table."""
 
 from __future__ import annotations
 

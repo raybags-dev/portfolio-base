@@ -60,7 +60,7 @@ async def _notify_discord(payload: PipelineRequestIn) -> bool:
                 "fields": [
                     {"name": "Name", "value": payload.name, "inline": True},
                     {"name": "Email", "value": payload.email, "inline": True},
-                    {"name": "Reason", "value": payload.reason or "—", "inline": False},
+                    {"name": "Reason", "value": payload.reason or "-", "inline": False},
                 ],
                 "footer": {"text": "raybags.com/dataforge"},
             }
@@ -153,7 +153,7 @@ async def _deliver_to_admin(db: DbSession, payload: PipelineRequestIn) -> bool:
         to_addr=to_addr,
         reply_to=payload.email,
         subject=f"[DataForge] {_SUBJECT}",
-        body=f"From: {payload.name} <{payload.email}>\n\nReason:\n{payload.reason or '—'}",
+        body=f"From: {payload.name} <{payload.email}>\n\nReason:\n{payload.reason or '-'}",
     )
     return await _try_send(email)
 
@@ -233,7 +233,7 @@ async def issue_token(msg_id: int, db: DbSession) -> dict:
             f"It expires in {_TOKEN_TTL_HOURS} hours. To use it, visit:\n"
             "  https://raybags.com/dataforge/\n\n"
             "Click 'Run Pipeline', enter the token when prompted, and you're set.\n\n"
-            "— Ray"
+            "- Ray"
         ),
     )
     delivered = await _try_send(email)
@@ -268,7 +268,7 @@ async def reject_request(msg_id: int, db: DbSession) -> dict:
             "accommodate this request at the moment.\n\n"
             "Feel free to explore the dashboard at https://raybags.com/dataforge/ "
             "and reach out again any time.\n\n"
-            "— Ray"
+            "- Ray"
         ),
     )
     delivered = await _try_send(email)

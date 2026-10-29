@@ -8,18 +8,18 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$ROOT"
 
-phase "STEP 1/4 — Test gate"
+phase "STEP 1/4 - Test gate"
 bash scripts/run-tests.sh
 
-phase "STEP 2/4 — Deploy to TEST"
+phase "STEP 2/4 - Deploy to TEST"
 bash scripts/deploy.sh test
 
-phase "STEP 3/4 — Smoke test TEST"
+phase "STEP 3/4 - Smoke test TEST"
 TEST_PORT="$(grep -E '^HTTP_PORT=' .env.test 2>/dev/null | cut -d= -f2)"; TEST_PORT="${TEST_PORT:-8080}"
 bash scripts/smoke.sh "http://localhost:${TEST_PORT}"
 
-phase "STEP 4/4 — Promote to PROD"
+phase "STEP 4/4 - Promote to PROD"
 warn "test environment is green; promoting to production"
 bash scripts/deploy.sh prod
 
-phase "RELEASE COMPLETE — test passed, test env healthy, prod deployed"
+phase "RELEASE COMPLETE - test passed, test env healthy, prod deployed"

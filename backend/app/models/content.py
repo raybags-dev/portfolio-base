@@ -1,6 +1,6 @@
 """Editable site content: configuration, theme, hero, about, resume, socials.
 
-Everything here is admin-editable at runtime — no hardcoded text, image,
+Everything here is admin-editable at runtime - no hardcoded text, image,
 or colour ever ships in the frontend. The frontend reads these via the
 public API and renders accordingly.
 """
@@ -81,7 +81,7 @@ class SiteConfiguration(PKMixin, TimestampMixin, Base):
     location_address: Mapped[str | None] = mapped_column(String(512))
     map_embed_url: Mapped[str | None] = mapped_column(Text)  # Google Maps embed src
 
-    # AI assistant context — freeform text Ray writes about himself (hobbies, background, etc.)
+    # AI assistant context - freeform text Ray writes about himself (hobbies, background, etc.)
     # injected into the chat LLM system prompt so it can answer personal questions
     ai_context: Mapped[str | None] = mapped_column(Text)
 
@@ -211,7 +211,7 @@ class MediaAsset(PKMixin, TimestampMixin, Base):
     """Uploaded binary stored directly in the DB and served via the API.
 
     Storing bytes in Postgres keeps deployments stateless (no shared disk /
-    volume needed) — uploads survive container restarts and work the same in
+    volume needed) - uploads survive container restarts and work the same in
     every environment. Served at GET /api/v1/media/{id}.
     """
 
@@ -227,7 +227,7 @@ class Section(PKMixin, TimestampMixin, Base):
     """A toggleable, orderable site section/tab.
 
     The frontend builds its navigation and decides which sections to render
-    from these rows — so any tab (certifications, education, experience…) can
+    from these rows - so any tab (certifications, education, experience…) can
     be removed or reordered from the admin without code changes.
     """
 

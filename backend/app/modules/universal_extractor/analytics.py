@@ -1,4 +1,4 @@
-"""Universal Data Extractor — auto-analytics engine.
+"""Universal Data Extractor - auto-analytics engine.
 
 Auto-detects numeric/categorical/date fields and generates chart-ready insights.
 Similar data points are aggregated/clustered so charts stay readable.
@@ -51,7 +51,7 @@ def _histogram(values: list[float], bins: int = 10) -> list[dict]:
         bucket_vals = [v for v in values if low <= v < high or (i == bins - 1 and v == high)]
         if bucket_vals:
             buckets.append({
-                "range": f"{low:.0f}–{high:.0f}",
+                "range": f"{low:.0f}-{high:.0f}",
                 "count": len(bucket_vals),
                 "avg": round(sum(bucket_vals) / len(bucket_vals), 2),
             })

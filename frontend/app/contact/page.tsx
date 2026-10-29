@@ -102,7 +102,7 @@ export default function ContactPage() {
         <div className={`container-x py-14 ${activeContactBg ? "relative z-10" : ""}`}>
         <h1 className="text-3xl sm:text-4xl font-heading font-bold mb-3">Contact</h1>
         <p className="text-muted mb-8 max-w-2xl">
-          Have a project or opportunity? Send a message — I&apos;ll get back to you.
+          Have a project or opportunity? Send a message - I&apos;ll get back to you.
         </p>
 
         {/* Info cards */}
@@ -144,7 +144,7 @@ export default function ContactPage() {
           </div>
         )}
 
-        {/* WhatsApp CTA — only shown when a phone number is configured */}
+        {/* WhatsApp CTA - only shown when a phone number is configured */}
         {site.phone && (
           <div className="mb-10">
             <a
@@ -162,7 +162,7 @@ export default function ContactPage() {
           </div>
         )}
 
-        {/* Map + Form — perfectly aligned same-height grid */}
+        {/* Map + Form - perfectly aligned same-height grid */}
         <div className="grid md:grid-cols-2 gap-8 md:items-stretch">
           {/* Map */}
           <div className="flex flex-col min-h-[480px]">

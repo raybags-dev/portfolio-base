@@ -2,12 +2,12 @@
 
 Extraction pipeline per page (strategies run in parallel, best wins):
 
-  1. SPA embedded JSON  — window.__NEXT_DATA__, __NUXT__, __APP_STATE__ etc.
+  1. SPA embedded JSON  - window.__NEXT_DATA__, __NUXT__, __APP_STATE__ etc.
                           Covers CNN (Next.js), Reddit, GitHub, most modern SPAs.
-  2. Semantic containers — article, [data-asin], [data-testid*=card/result],
+  2. Semantic containers - article, [data-asin], [data-testid*=card/result],
                           li:has(img):has(a), .card, .result …
                           Covers Amazon, eBay, job boards, property sites.
-  3. Link-anchor groups  — every meaningful <a> tag becomes one record with
+  3. Link-anchor groups  - every meaningful <a> tag becomes one record with
                           title + url + image + description + date + author.
                           Covers all news/blog sites where headlines are links.
 
@@ -15,10 +15,10 @@ Scoring: records × avg_meaningful_fields → pick the highest-scoring strategy.
 If all three yield < 3 records, fall back to LLM-guided DOM extraction.
 
 Cookie/modal dismissal:
-  tier-1  — 80+ known CSS selectors (vendors, keywords in id/class, text matchers)
-  tier-2  — JS brute-force scan inside dialogs and cookie-named containers
-  tier-3  — user-supplied hint
-  tier-4  — LLM (last resort, one API call)
+  tier-1  - 80+ known CSS selectors (vendors, keywords in id/class, text matchers)
+  tier-2  - JS brute-force scan inside dialogs and cookie-named containers
+  tier-3  - user-supplied hint
+  tier-4  - LLM (last resort, one API call)
 
 Scroll: 6-pass scroll with incremental waits triggers lazy-loaded content.
 
@@ -145,7 +145,7 @@ _EXTRACT_JS = """
 
     /* ── Strategy 2: Semantic container extraction ─────────────────── */
     const CONTAINER_SELS = [
-        /* data attributes — most stable */
+        /* data attributes - most stable */
         '[data-component-type*="result"]',
         '[data-component-type*="card"]',
         '[data-testid*="result-item"]',
@@ -195,7 +195,7 @@ _EXTRACT_JS = """
             }
         }
 
-        /* images — lazy-load aware */
+        /* images - lazy-load aware */
         for (const img of el.querySelectorAll('img,[style*="background"]')) {
             const src = img.src
                 || img.getAttribute('data-src')
@@ -409,7 +409,7 @@ class UDECrawler:
         except ImportError:
             if on_progress:
                 await on_progress(
-                    "ERROR: Playwright not installed — "
+                    "ERROR: Playwright not installed - "
                     "`pip install playwright && playwright install chromium`"
                 )
             return "error", []
@@ -503,7 +503,7 @@ class UDECrawler:
                                 navigated = await self._go_next(page, page.url, page_num)
                                 if not navigated:
                                     if on_progress:
-                                        await on_progress("No further pages — crawl complete.")
+                                        await on_progress("No further pages - crawl complete.")
                                     break
                                 current_url = page.url
                                 await asyncio.sleep(2.5)
@@ -511,14 +511,14 @@ class UDECrawler:
                         await context.close()
                         await browser.close()
 
-                # Success — break out of retry loop
+                # Success - break out of retry loop
                 break
 
             except Exception as exc:
                 if "ENOSPC" in str(exc) and attempt == 0:
                     if on_progress:
                         await on_progress(
-                            "WARNING: ENOSPC on /tmp — cleaning up and retrying…"
+                            "WARNING: ENOSPC on /tmp - cleaning up and retrying…"
                         )
                     continue  # retry
                 raise  # re-raise on second attempt or non-ENOSPC error
@@ -565,7 +565,7 @@ class UDECrawler:
             return True
         except Exception:
             pass
-        # networkidle hangs on sites with persistent SSE/WS — fall back
+        # networkidle hangs on sites with persistent SSE/WS - fall back
         if on_progress:
             await on_progress("Retrying with domcontentloaded…")
         try:
@@ -576,7 +576,7 @@ class UDECrawler:
             return True
         except Exception as exc:
             if on_progress:
-                await on_progress(f"WARNING: page load failed — {exc}")
+                await on_progress(f"WARNING: page load failed - {exc}")
             return False
 
     # ── Multi-pass scrolling ──────────────────────────────────────────────────
@@ -593,7 +593,7 @@ class UDECrawler:
                     await page.evaluate("() => window.scrollTo(0, 0)")
                     await asyncio.sleep(0.6)
                     if on_progress:
-                        await on_progress(f"Scroll pass {i + 1}/{passes} — mid-page reveal…")
+                        await on_progress(f"Scroll pass {i + 1}/{passes} - mid-page reveal…")
             except Exception:
                 break
         try:
@@ -605,7 +605,7 @@ class UDECrawler:
 
     async def _dismiss_cookie_banner(self, page: Any) -> tuple[bool, str]:
         """4-tier dismissal: CSS selectors → JS scan → LLM."""
-        # Tier 1 — known CSS selectors
+        # Tier 1 - known CSS selectors
         for sel in _COOKIE_SELECTORS:
             try:
                 el = await page.query_selector(sel)
@@ -616,7 +616,7 @@ class UDECrawler:
             except Exception:
                 continue
 
-        # Tier 2 — JS brute-force scan
+        # Tier 2 - JS brute-force scan
         try:
             result = await page.evaluate(_COOKIE_DISMISS_JS)
             if result.get("clicked"):
@@ -625,7 +625,7 @@ class UDECrawler:
         except Exception as exc:
             log.debug("cookie.js_scan_failed", error=str(exc))
 
-        # Tier 3 — LLM (if provider available and page looks like it has a banner)
+        # Tier 3 - LLM (if provider available and page looks like it has a banner)
         if self.provider:
             html_text = _clean_html_for_text(await page.content())
             if any(kw in html_text.lower() for kw in ["cookie", "consent", "gdpr", "privacy"]):
@@ -768,7 +768,7 @@ class UDECrawler:
             except Exception:
                 pass
 
-        # 3. Infinite scroll — scroll and check if DOM grew
+        # 3. Infinite scroll - scroll and check if DOM grew
         try:
             prev = await page.evaluate("() => document.querySelectorAll('article,li,[data-id],[data-asin]').length")
             await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")

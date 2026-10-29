@@ -47,10 +47,10 @@ lxml==5.3.0
 # --- kaggle (dataset import) ---
 kaggle==2.2.1
 
-# --- LLM (Groq/OpenAI-compatible — required for AI summariser) ---
+# --- LLM (Groq/OpenAI-compatible - required for AI summariser) ---
 openai==1.58.1
 
-# --- MongoDB (optional — UDE raw document store) ---
+# --- MongoDB (optional - UDE raw document store) ---
 pymongo[srv]==3.12.3
 
 # --- S3 blob storage (UDE raw extraction blobs) ---

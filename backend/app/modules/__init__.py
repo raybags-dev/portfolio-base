@@ -6,7 +6,7 @@ APIRouter) whose routes are gated by the module's feature flag via
 feature-flag system controls whether they actually do anything at runtime.
 
 Add a new module by dropping a package here and appending it to ``MODULES``.
-No core changes, no redeploy — flip its flag in the admin panel.
+No core changes, no redeploy - flip its flag in the admin panel.
 """
 
 from __future__ import annotations

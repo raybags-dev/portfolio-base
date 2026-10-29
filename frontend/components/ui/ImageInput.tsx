@@ -160,7 +160,7 @@ export function ImageInput({
                     </div>
                   )}
 
-                  {/* Delete bin — top-left, visible on hover */}
+                  {/* Delete bin - top-left, visible on hover */}
                   <button
                     type="button"
                     onClick={(e) => {

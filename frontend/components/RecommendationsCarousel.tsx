@@ -69,7 +69,7 @@ export default function RecommendationsCarousel({
     if (!el) return;
     const card = el.children[n] as HTMLElement | undefined;
     if (!card) return;
-    // Scroll only horizontally within the snap container — never touch page scroll
+    // Scroll only horizontally within the snap container - never touch page scroll
     el.scrollTo({
       left: card.offsetLeft - (el.clientWidth - card.offsetWidth) / 2,
       behavior: "smooth",

@@ -1,4 +1,4 @@
-"""Self-healing crawler tests — fully offline (stdlib DOM + static fetcher)."""
+"""Self-healing crawler tests - fully offline (stdlib DOM + static fetcher)."""
 
 import pytest
 

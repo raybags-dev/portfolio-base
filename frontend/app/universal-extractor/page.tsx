@@ -40,7 +40,7 @@ const CHART_COLORS = [
 
 const SOURCE_TYPES = [
   { id: "auto",   label: "Auto-detect", icon: "🔍", hint: "Let the engine figure it out from the URL" },
-  { id: "html",   label: "Web Page",    icon: "🌐", hint: "Any HTML page — static or JS-rendered" },
+  { id: "html",   label: "Web Page",    icon: "🌐", hint: "Any HTML page - static or JS-rendered" },
   { id: "api",    label: "JSON API",    icon: "⚙️", hint: "REST or GraphQL endpoint returning JSON" },
   { id: "csv",    label: "CSV URL",     icon: "📊", hint: "Direct link to a CSV file" },
   { id: "kaggle", label: "Kaggle",      icon: "🏆", hint: "kaggle://owner/dataset-slug format" },
@@ -102,7 +102,7 @@ export default function UniversalExtractorPage() {
     try { setSessions(await listUDESessions()); } catch { /* ignore */ }
   }
 
-  const MAX_PASTE_BYTES = 2 * 1024 * 1024; // 2 MB — matches backend cap
+  const MAX_PASTE_BYTES = 2 * 1024 * 1024; // 2 MB - matches backend cap
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +120,7 @@ export default function UniversalExtractorPage() {
             const truncated = parsed.slice(0, maxRecords);
             finalUrl = JSON.stringify(truncated);
           }
-        } catch { /* not valid JSON — pass as-is, backend will handle it */ }
+        } catch { /* not valid JSON - pass as-is, backend will handle it */ }
       }
       if (new TextEncoder().encode(finalUrl).length > MAX_PASTE_BYTES) {
         setFormError(`Dataset is too large even after truncation (>${MAX_PASTE_BYTES / 1024 / 1024} MB). Reduce the data or lower Max Records.`);
@@ -148,7 +148,7 @@ export default function UniversalExtractorPage() {
       }
 
       const session = await createUDESession({
-        name: name.trim() || `Extraction — ${new Date().toLocaleString()}`,
+        name: name.trim() || `Extraction - ${new Date().toLocaleString()}`,
         source_url: (overrideUrl ?? sourceUrl).trim(),
         source_type: sourceType,
         extraction_prompt: prompt.trim(),
@@ -222,7 +222,7 @@ export default function UniversalExtractorPage() {
           <div>
             <h1 className="text-3xl font-heading font-bold tracking-tight">Universal Data Extractor</h1>
             <p className="text-muted mt-1 text-sm max-w-xl">
-              Point it at any URL, API, CSV, or Kaggle dataset — auto-detect, extract, normalise, and analyse without writing a single line of code.
+              Point it at any URL, API, CSV, or Kaggle dataset - auto-detect, extract, normalise, and analyse without writing a single line of code.
             </p>
           </div>
           <button
@@ -399,7 +399,7 @@ function ConfigureStep({
       try {
         const arr = JSON.parse(trimmed);
         if (Array.isArray(arr)) { setPasteStats({ count: arr.length, kb, parsed: true }); return; }
-      } catch { /* partial paste — don't throw */ }
+      } catch { /* partial paste - don't throw */ }
     }
     setPasteStats({ count: 0, kb, parsed: false });
   }
@@ -463,7 +463,7 @@ function ConfigureStep({
                 )}
                 {pasteStats.kb > 1800 && (
                   <span className="text-xs bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 rounded">
-                    Approaching 2 MB limit — reduce data or lower Max Records
+                    Approaching 2 MB limit - reduce data or lower Max Records
                   </span>
                 )}
               </div>
@@ -911,8 +911,8 @@ function HowItWorks() {
 
   const steps = [
     { num: "01", title: "Choose Source Type", body: "Pick Auto-detect, Web Page, JSON API, CSV URL, Kaggle dataset, or paste raw data. Auto-detect works for most public URLs by probing the content-type." },
-    { num: "02", title: "Set Extraction Goal", body: 'Describe what you want in plain English — e.g. "Extract product names, prices, and ratings". The more specific, the better the LLM schema normalisation.' },
-    { num: "03", title: "Fetch + Save Raw to S3", body: "The engine fetches the source (Playwright for JS-heavy pages) and immediately uploads the raw content to AWS S3 before any processing — preserving the original." },
+    { num: "02", title: "Set Extraction Goal", body: 'Describe what you want in plain English - e.g. "Extract product names, prices, and ratings". The more specific, the better the LLM schema normalisation.' },
+    { num: "03", title: "Fetch + Save Raw to S3", body: "The engine fetches the source (Playwright for JS-heavy pages) and immediately uploads the raw content to AWS S3 before any processing - preserving the original." },
     { num: "04", title: "LLM Schema Normalisation", body: "Groq AI (llama-3.3-70b-versatile) analyses sample records and proposes a unified snake_case schema. All rows are mapped to consistent field names." },
     { num: "05", title: "Store in Postgres + MongoDB", body: "Normalised records are written to PostgreSQL for structured queries and mirrored to MongoDB (raybags_ude database) for flexible document access." },
     { num: "06", title: "Analytics + Export", body: "Numeric fields get distribution histograms; categorical fields get bar/pie charts. Export as JSON or CSV, or let AI write a blog post from the findings." },

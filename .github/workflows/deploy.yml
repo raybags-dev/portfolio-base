@@ -4,12 +4,12 @@ name: CI + Deploy
 # Pipeline: test → build & push ghcr.io images → SSH deploy to prod
 #
 # Required GitHub secrets (repo Settings → Secrets → Actions):
-#   SSH_HOST   — VPS IP
-#   SSH_USER   — SSH login user (root)
-#   SSH_KEY    — private SSH key for the VPS
-#   SSH_PORT   — (optional) defaults to 22
+#   SSH_HOST   - VPS IP
+#   SSH_USER   - SSH login user (root)
+#   SSH_KEY    - private SSH key for the VPS
+#   SSH_PORT   - (optional) defaults to 22
 #
-# Images are pushed to ghcr.io using the automatic GITHUB_TOKEN — no extra
+# Images are pushed to ghcr.io using the automatic GITHUB_TOKEN - no extra
 # registry secret needed. The VPS pulls using the same token during the
 # workflow run, so no separate GHCR_TOKEN secret is required.
 #
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
-  # 1. Tests — backend lint + pytest + frontend typecheck + build
+  # 1. Tests - backend lint + pytest + frontend typecheck + build
   # ──────────────────────────────────────────────────────────────────────────
   test:
     name: Tests
@@ -48,22 +48,22 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
 
-      - name: Backend — install deps
+      - name: Backend - install deps
         working-directory: backend
         run: pip install -r requirements-dev.txt
 
-      - name: Backend — ruff lint
+      - name: Backend - ruff lint
         working-directory: backend
         run: ruff check app tests
 
-      - name: Backend — pytest
+      - name: Backend - pytest
         working-directory: backend
         env:
           ENVIRONMENT: test
           SECRET_KEY: ci-secret-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         run: pytest -q --tb=short
 
-      - name: Backend — alembic migrations
+      - name: Backend - alembic migrations
         working-directory: backend
         env:
           DATABASE_URL: sqlite+aiosqlite:///./ci.db
@@ -75,13 +75,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Frontend — install & typecheck
+      - name: Frontend - install & typecheck
         working-directory: frontend
         run: |
           npm ci
           npx tsc --noEmit
 
-      - name: Frontend — production build
+      - name: Frontend - production build
         working-directory: frontend
         run: npm run build
 

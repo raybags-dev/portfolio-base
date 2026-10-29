@@ -1,4 +1,4 @@
-"""Universal Data Extractor — source detection and extraction engine.
+"""Universal Data Extractor - source detection and extraction engine.
 
 Pipeline:
   1. Detect source type (url pattern / content-type)
@@ -10,8 +10,8 @@ HTML extraction:
   - Quick static pass (httpx + BeautifulSoup): used only for genuine
     structured data (JSON-LD *item arrays*, embedded JSON state, HTML tables).
     Org-metadata JSON-LD (WebSite / Organization with ≤ 2 records) is skipped.
-  - Full Playwright crawl (UDECrawler): three parallel strategies — SPA state,
-    container DOM, link-anchor grouping — with cookie dismissal, multi-pass
+  - Full Playwright crawl (UDECrawler): three parallel strategies - SPA state,
+    container DOM, link-anchor grouping - with cookie dismissal, multi-pass
     scroll, stealth mode, and S3 raw HTML upload.
 """
 
@@ -273,7 +273,7 @@ async def _static_html_quickcheck(
             if not rows:
                 continue
             records = [_flatten_record(r) for r in rows[:max_records] if isinstance(r, dict)]
-            # Skip org-metadata blocks — they return 1-2 records about the site itself
+            # Skip org-metadata blocks - they return 1-2 records about the site itself
             if records and not _is_org_metadata(records) and len(records) >= 3:
                 if on_progress:
                     await on_progress(f"Static JSON-LD: {len(records)} item records.")
@@ -372,7 +372,7 @@ async def normalize_schema(
     sample_text = json.dumps(sample_records[:5], indent=2, default=str)
     prompt = (
         f"User wants to extract: {extraction_prompt}\n\n"
-        f"Sample records (already flattened — nested keys use underscores):\n{sample_text}\n\n"
+        f"Sample records (already flattened - nested keys use underscores):\n{sample_text}\n\n"
         "Propose a unified schema mapping."
     )
     try:
@@ -489,7 +489,7 @@ async def extract(
     # ── HTML pages ────────────────────────────────────────────────────────
     elif detected == "html":
         if on_progress:
-            await on_progress("Detected HTML — running quick static check…")
+            await on_progress("Detected HTML - running quick static check…")
 
         # Fast path: structured data already in the HTML (no JS needed)
         raw = await _static_html_quickcheck(source_url, on_progress, max_records)
@@ -497,13 +497,13 @@ async def extract(
         if raw:
             if on_progress:
                 await on_progress(
-                    f"Static extraction yielded {len(raw)} records — "
+                    f"Static extraction yielded {len(raw)} records - "
                     "skipping Playwright."
                 )
         else:
             if on_progress:
                 await on_progress(
-                    "Static check found no structured data — "
+                    "Static check found no structured data - "
                     "launching full Playwright crawler…"
                 )
             raw = await _extract_html_playwright(

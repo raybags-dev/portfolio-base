@@ -50,7 +50,7 @@ class EventBus:
                 pass
 
     async def subscribe(self, topic: str | None = None) -> AsyncGenerator[dict]:
-        """Async generator — yields every event (optionally filtered by topic).
+        """Async generator - yields every event (optionally filtered by topic).
         Cleans up the queue when the caller's connection closes."""
         q: asyncio.Queue[dict] = asyncio.Queue(maxsize=_QUEUE_MAX)
         self._queues.append(q)
@@ -72,7 +72,7 @@ class EventBus:
         return events[-limit:]
 
 
-# Module-level singleton — shared across all requests in the same process.
+# Module-level singleton - shared across all requests in the same process.
 bus = EventBus()
 
 
@@ -94,7 +94,7 @@ class _KafkaBridge:
             log.info("streams.kafka.connected", bootstrap=bootstrap)
         except ImportError:
             log.info("streams.kafka.unavailable",
-                     reason="confluent-kafka not installed — using in-process bus only")
+                     reason="confluent-kafka not installed - using in-process bus only")
         except Exception as exc:
             log.warning("streams.kafka.init_failed", error=str(exc))
 
@@ -153,11 +153,11 @@ async def redis_publish(envelope: dict) -> None:
 
 
 async def redis_subscribe(topic: str | None = None):
-    """Async generator — yields events from Redis pub/sub (visible to all workers).
+    """Async generator - yields events from Redis pub/sub (visible to all workers).
     Falls back to the in-process EventBus when Redis is unavailable."""
     r = await _get_redis()
     if r is None:
-        log.info("streams.redis.unavailable", reason="REDIS_URL not set — using in-process bus")
+        log.info("streams.redis.unavailable", reason="REDIS_URL not set - using in-process bus")
         async for ev in bus.subscribe(topic=topic):
             yield ev
         return

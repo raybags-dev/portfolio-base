@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Scripted git release — NO manual git. One command:
+# Scripted git release - NO manual git. One command:
 #   1. runs the full local test gate (ruff + pytest + frontend build)
 #   2. stages + commits everything with your message
 #   3. pushes to the remote (sets up origin on first run)
@@ -14,7 +14,7 @@
 #   GIT_REMOTE_URL=git@github.com:you/portfolio-base.git scripts/ship.sh "init"
 #
 # Flags:
-#   SKIP_TESTS=1   skip the local gate (CI still runs remotely)  — not advised
+#   SKIP_TESTS=1   skip the local gate (CI still runs remotely)  - not advised
 #   NO_WATCH=1     don't wait on the GitHub Actions run
 # -----------------------------------------------------------------------------
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -26,7 +26,7 @@ need git
 
 # ---- 1. local test gate ----
 if [[ "${SKIP_TESTS:-0}" == "1" ]]; then
-  warn "SKIP_TESTS=1 — skipping local gate (CI will still run)"
+  warn "SKIP_TESTS=1 - skipping local gate (CI will still run)"
 else
   phase "Local test gate"
   bash scripts/run-tests.sh
@@ -61,7 +61,7 @@ fi
 phase "Commit"
 git add -A
 if git diff --cached --quiet; then
-  warn "nothing to commit — pushing existing commits only"
+  warn "nothing to commit - pushing existing commits only"
 else
   git commit -m "$MESSAGE" \
              -m "🤖 shipped via scripts/ship.sh" \
@@ -76,7 +76,7 @@ ok "pushed"
 
 # ---- 6. watch CI ----
 if [[ "${NO_WATCH:-0}" == "1" ]]; then
-  log "NO_WATCH=1 — not waiting on GitHub Actions"
+  log "NO_WATCH=1 - not waiting on GitHub Actions"
   exit 0
 fi
 
@@ -87,12 +87,12 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   RUN_ID="$(gh run list --branch "$BRANCH" --limit 1 --json databaseId \
             --jq '.[0].databaseId' 2>/dev/null || echo)"
   if [[ -n "$RUN_ID" ]]; then
-    gh run watch "$RUN_ID" --exit-status && ok "CI passed" || die "CI failed — see: gh run view $RUN_ID"
+    gh run watch "$RUN_ID" --exit-status && ok "CI passed" || die "CI failed - see: gh run view $RUN_ID"
   else
     warn "could not find a run yet; check: gh run list --branch $BRANCH"
   fi
 else
-  warn "gh CLI not installed/authenticated — skipping CI watch."
+  warn "gh CLI not installed/authenticated - skipping CI watch."
   warn "Install: https://cli.github.com/  then: gh auth login"
   log "CI is still running on GitHub; check the Actions tab."
 fi

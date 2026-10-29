@@ -1,4 +1,4 @@
-"""News extraction service — crawls CNN (and future sources) on a schedule.
+"""News extraction service - crawls CNN (and future sources) on a schedule.
 
 Each run launches UDECrawler, extracts article titles/URLs/descriptions,
 and upserts results into the news_items table (deduplicated by URL).

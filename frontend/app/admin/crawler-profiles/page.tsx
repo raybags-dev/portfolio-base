@@ -190,7 +190,7 @@ export default function CrawlerProfilesPage() {
         <div>
           <h1 className="font-heading font-bold text-2xl">Crawler Profiles</h1>
           <p className="text-muted text-sm mt-1">
-            Named extraction configs — override LLM-generated selectors with hand-crafted CSS or regexp anchors.
+            Named extraction configs - override LLM-generated selectors with hand-crafted CSS or regexp anchors.
             Select a profile when running Hotel Reviews or Job Analytics crawls.
           </p>
         </div>
@@ -324,7 +324,7 @@ export default function CrawlerProfilesPage() {
 
               {fields.length === 0 && (
                 <p className="text-sm text-muted py-6 text-center border border-dashed border-white/10 rounded-theme">
-                  No fields yet — click &quot;Add field&quot; to define what data to extract.
+                  No fields yet - click &quot;Add field&quot; to define what data to extract.
                 </p>
               )}
 
@@ -373,8 +373,8 @@ export default function CrawlerProfilesPage() {
                       onChange={(e) => updateField(f._key, { selector: e.target.value })}
                       placeholder={
                         f.selector_type === "css"
-                          ? "CSS selector — e.g. .hotel-name, h3.title, [data-name]"
-                          : "RegExp pattern — e.g. \\$[0-9,.]+ or Rating:\\s*(\\d+)"
+                          ? "CSS selector - e.g. .hotel-name, h3.title, [data-name]"
+                          : "RegExp pattern - e.g. \\$[0-9,.]+ or Rating:\\s*(\\d+)"
                       }
                       className="w-full bg-surface border border-white/15 rounded-theme px-2 py-1.5 text-sm font-mono focus:outline-none focus:border-primary/60"
                     />
@@ -413,7 +413,7 @@ export default function CrawlerProfilesPage() {
                   onChange={(e) => setLoopEnabled(e.target.checked)}
                 />
                 <span className="font-semibold text-sm">Loop extraction</span>
-                <span className="text-xs text-muted">— repeat for each matching item in a container</span>
+                <span className="text-xs text-muted">- repeat for each matching item in a container</span>
               </label>
               {loopEnabled && (
                 <div className="grid grid-cols-2 gap-3">
