@@ -18,14 +18,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Idempotent: restored/backup databases may already carry this table.
+    # Idempotent (dialect-agnostic): restored/backup databases may already
+    # carry this table. Uses SQLAlchemy inspection, not information_schema.
     conn = op.get_bind()
-    table_exists = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.tables "
-            "WHERE table_schema='public' AND table_name='vod_jobs'"
-        )
-    ).fetchone()
+    table_exists = "vod_jobs" in set(sa.inspect(conn).get_table_names())
     if not table_exists:
         op.create_table(
             "vod_jobs",
