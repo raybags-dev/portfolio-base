@@ -763,6 +763,7 @@ const SERVICE_KEY_ROUTES: Record<string, string> = {
   "hotel-reviews": "/hotel-reviews",
   "jobs": "/job-analytics",
   "vod-pipeline": "/vod-pipeline",
+  "audio-api": "/audio-api",
 };
 
 // --- Projects (with search + tag filter) ---

@@ -63,6 +63,15 @@ sound core it grows from.
   `/vod-pipeline`; admin config/jobs at `/admin/vod-pipeline`. Verified E2E:
   upload → transcode → CloudFront manifest 200. Diagram:
   `docs/architecture/vod-pipeline.md`.
+- **Audio & Podcast Stream API** (`ENABLE_AUDIO_API`,
+  `app/modules/audio_api/`) - serverless audio catalog: Express Lambda behind
+  API Gateway (`aws/handlers/audio-api/`), DynamoDB track/progress tables,
+  presigned S3 streaming (1h TTL), Zod-validated admin registration, per-listener
+  progress sync. Token-free public reads (near-zero cost); admin writes brokered
+  by the platform with the SSM-held admin key. Terraform in `modules/audio-api/`;
+  demo at `/audio-api`; admin at `/admin/audio-api`. Verified E2E on AWS:
+  register → upload real audio → presigned stream 200. Diagram:
+  `docs/architecture/audio-api.md`.
 - **Selectable chat AI providers** (raybags-chat service) - the live-chat
   assistant's LLM is runtime-selectable from `/admin/chat` (AI Provider card):
   DeepSeek default, Groq, Claude, Gemini, with per-provider model override,

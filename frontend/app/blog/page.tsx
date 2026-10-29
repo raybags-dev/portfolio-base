@@ -18,6 +18,7 @@ const SERVICE_KEY_ROUTES: Record<string, string> = {
   "universal-extractor": "/universal-extractor",
   "annotation": "/annotation",
   "vod-pipeline": "/vod-pipeline",
+  "audio-api": "/audio-api",
 };
 
 // ---- Project button shown on every blog card --------------------------------
