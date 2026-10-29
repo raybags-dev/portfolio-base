@@ -225,7 +225,11 @@ async def test_get_job_and_sync_from_dynamodb(
             "mediaConvertJobId": {"S": "mc-123"},
         }
 
+    async def fake_presign(cfg, *, key, content_type, max_bytes, ttl_seconds):
+        return {"url": f"https://s3.example/{key}?sig=1", "method": "PUT", "headers": {}}
+
     monkeypatch.setattr(service.aws_broker, "fetch_job", fake_fetch)
+    monkeypatch.setattr(service.aws_broker, "presign_put", fake_presign)
     monkeypatch.setattr(service.aws_broker, "is_aws_available", lambda cfg: True)
 
     async with SessionLocal() as db:

@@ -20,6 +20,9 @@ os.environ["OPENAI_API_KEY"] = ""
 os.environ["RESEND_API_KEY"] = ""
 os.environ["DISCORD_WEBHOOK"] = ""
 os.environ["SMTP_HOST"] = ""
+# Never touch real AWS in tests (root .env carries live credentials)
+os.environ["AWS_ACCESS_KEY_ID"] = ""
+os.environ["AWS_SECRET_ACCESS_KEY"] = ""
 
 import pytest
 import pytest_asyncio
