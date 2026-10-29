@@ -1,4 +1,4 @@
-"""Hotel Review Analytics service — orchestrates crawl + analytics + blog."""
+"""Hotel Review Analytics service - orchestrates crawl + analytics + blog."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
                     if regexp_hints:
                         selector_hints = {**(selector_hints or {}), **regexp_hints}
                 await on_progress(
-                    f"Applying crawler profile '{profile.name}' — {len(fields)} configured field(s)."
+                    f"Applying crawler profile '{profile.name}' - {len(fields)} configured field(s)."
                 )
 
         records = await engine.run(
@@ -231,7 +231,7 @@ async def run_curl_import(db: AsyncSession, session_id: int) -> dict[str, Any]:
         parsed = parse_curl(curl_command)
 
         await _progress(
-            f"Detected: {parsed['method']} {parsed['url'][:80]} — "
+            f"Detected: {parsed['method']} {parsed['url'][:80]} - "
             f"fetching {page_count} page(s)…"
         )
 

@@ -50,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [hydrated, token, isLogin, router]);
 
   if (isLogin) return <ToastProvider>{children}</ToastProvider>;
-  // Render nothing until hydration — avoids flash-redirect on refresh
+  // Render nothing until hydration - avoids flash-redirect on refresh
   if (!hydrated || !token) return null;
 
   return (

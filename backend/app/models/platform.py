@@ -44,7 +44,7 @@ class Microservice(PKMixin, TimestampMixin, Base):
     """A pluggable data-engineering microservice/project, surfaced dynamically.
 
     Enabling its ``feature_flag_key`` makes it appear in the portfolio and
-    exposes its routes/cards — no redeploy required.
+    exposes its routes/cards - no redeploy required.
     """
 
     __tablename__ = "microservices"
@@ -323,7 +323,7 @@ class JobCrawlRecord(PKMixin, TimestampMixin, Base):
 
 
 class UDESession(PKMixin, TimestampMixin, Base):
-    """Universal Data Extractor — extraction session."""
+    """Universal Data Extractor - extraction session."""
     __tablename__ = "ude_sessions"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -351,7 +351,7 @@ class UDESession(PKMixin, TimestampMixin, Base):
 
 
 class UDERecord(PKMixin, TimestampMixin, Base):
-    """Universal Data Extractor — individual extracted record."""
+    """Universal Data Extractor - individual extracted record."""
     __tablename__ = "ude_records"
 
     session_id: Mapped[int] = mapped_column(
@@ -467,7 +467,7 @@ class AlertRule(PKMixin, TimestampMixin, Base):
 
 
 class AlertFired(PKMixin, TimestampMixin, Base):
-    """One firing of an AlertRule — stores the triggering event snapshot."""
+    """One firing of an AlertRule - stores the triggering event snapshot."""
 
     __tablename__ = "alert_fired"
 

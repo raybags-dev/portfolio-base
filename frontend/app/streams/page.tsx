@@ -175,12 +175,12 @@ export default function StreamsPage() {
               ))}
             </div>
 
-            {/* How it works — compact */}
+            {/* How it works - compact */}
             <div className="px-3 py-3 border-t text-xs text-muted space-y-2"
               style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-              <div><span className="text-fg font-medium">Ingest</span> — Schedulers crawl URLs and publish to topics.</div>
-              <div><span className="text-fg font-medium">Alert</span> — Rules watch fields and fire on threshold breach.</div>
-              <div><span className="text-fg font-medium">Export</span> — DB keeps last 500 per topic; optional Kafka mirror.</div>
+              <div><span className="text-fg font-medium">Ingest</span> - Schedulers crawl URLs and publish to topics.</div>
+              <div><span className="text-fg font-medium">Alert</span> - Rules watch fields and fire on threshold breach.</div>
+              <div><span className="text-fg font-medium">Export</span> - DB keeps last 500 per topic; optional Kafka mirror.</div>
             </div>
           </aside>
 

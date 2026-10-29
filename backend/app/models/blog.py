@@ -98,7 +98,7 @@ class BlogComment(PKMixin, TimestampMixin, Base):
 
 
 class BlogLike(PKMixin, TimestampMixin, Base):
-    """One like per (post, fingerprint/ip) — keeps the count honest."""
+    """One like per (post, fingerprint/ip) - keeps the count honest."""
 
     __tablename__ = "blog_likes"
 

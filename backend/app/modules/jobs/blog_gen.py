@@ -43,7 +43,7 @@ async def generate_blog_post(
     if salary_stats:
         salary_text = (
             f"avg ${salary_stats.get('avg', 0):,.0f}, "
-            f"range ${salary_stats.get('min', 0):,.0f}–${salary_stats.get('max', 0):,.0f} "
+            f"range ${salary_stats.get('min', 0):,.0f}-${salary_stats.get('max', 0):,.0f} "
             f"(from {salary_stats.get('count', 0)} listings with salary data)"
         )
 
@@ -57,7 +57,7 @@ async def generate_blog_post(
     system = (
         "You are a data-driven blog writer for a software engineering portfolio. "
         "Write concisely with specific numbers. Reference the data provided. "
-        "You MUST respond with a valid JSON object only — no prose before or after."
+        "You MUST respond with a valid JSON object only - no prose before or after."
     )
     prompt = f"""Write a job-market trends blog post based on real scraped data. Return JSON only.
 
@@ -75,10 +75,10 @@ FastAPI + SQLAlchemy, Next.js + Recharts, Python analytics engine.
 
 Return exactly this JSON structure:
 {{
-  "title": "<specific data-driven title, e.g. 'Python Engineer Jobs: {total} Listings Analysed — What the Data Shows'>",
+  "title": "<specific data-driven title, e.g. 'Python Engineer Jobs: {total} Listings Analysed - What the Data Shows'>",
   "slug": "<kebab-case-url-slug, max 60 chars>",
   "excerpt": "<2-sentence summary using specific numbers from the data>",
-  "content": "<full markdown post, minimum 400 words. Sections: Introduction, Methodology, Top Skills in Demand, Salary Landscape, Work Arrangement Trends, Key Takeaways. Be specific — cite numbers from the data.>"
+  "content": "<full markdown post, minimum 400 words. Sections: Introduction, Methodology, Top Skills in Demand, Salary Landscape, Work Arrangement Trends, Key Takeaways. Be specific - cite numbers from the data.>"
 }}"""
 
     raw = await provider.complete(system, prompt)

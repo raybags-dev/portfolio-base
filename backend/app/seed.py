@@ -6,7 +6,7 @@ Creates RBAC roles/permissions, the bootstrap admin, default site content,
 feature flags, and registers the data-engineering microservice catalogue so
 their cards appear in the portfolio once their feature flag is enabled.
 
-Safe to run repeatedly — existing rows are left untouched.
+Safe to run repeatedly - existing rows are left untouched.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ ROLES = {
 MICROSERVICES = [
     ("retail", "Retail Price Intelligence", "Crawl & analyse retail prices across Amazon, Bol, Coolblue, MediaMarkt, AH, Jumbo.", "data", "ENABLE_RETAIL"),
     ("hotel-reviews", "Hotel Review Analytics", "Sentiment & topic analytics over Booking, Google, TripAdvisor reviews.", "data", "ENABLE_HOTEL_REVIEWS"),
-    ("sports", "Sports Analytics", "Football, F1, NBA, cricket, rugby — predictions & rankings.", "data", "ENABLE_SPORTS"),
+    ("sports", "Sports Analytics", "Football, F1, NBA, cricket, rugby - predictions & rankings.", "data", "ENABLE_SPORTS"),
     ("weather", "Weather Pipeline", "Collect, transform, store & forecast weather trends.", "data", "ENABLE_WEATHER"),
     ("news", "News Pipeline", "RSS/News APIs, topic extraction, summarization, embedding search.", "data", "ENABLE_NEWS"),
     ("stocks", "Stock Pipeline", "Yahoo/Polygon/Alpaca daily ETL & prediction models.", "data", "ENABLE_STOCKS"),
@@ -70,7 +70,7 @@ TOOLS = [
     (
         "annotation",
         "Data Annotation Platform",
-        "Full-stack ML annotation pipeline — upload CSV/JSON/Excel, validate, clean, and label records with local AI (Ollama/llama3).",
+        "Full-stack ML annotation pipeline - upload CSV/JSON/Excel, validate, clean, and label records with local AI (Ollama/llama3).",
         "tools",
         "ENABLE_ANNOTATION",
         "https://raybags.com/annotation",
@@ -121,7 +121,7 @@ async def _seed_singletons(db) -> None:
     if not await db.get(SiteConfiguration, 1):
         db.add(SiteConfiguration(
             id=1,
-            site_name="Raybags — Data Engineering",
+            site_name="Raybags - Data Engineering",
             tagline="Building self-healing data platforms & agentic AI.",
             meta_title="Raybags | Data Engineering Portfolio",
             meta_description="Production-grade data engineering, crawlers, pipelines and agentic AI.",
@@ -133,7 +133,7 @@ async def _seed_singletons(db) -> None:
             id=1,
             name="Raybags",
             title="Data Engineer & Platform Builder",
-            subtitle="Crawlers, pipelines, agentic AI — production-grade, self-healing.",
+            subtitle="Crawlers, pipelines, agentic AI - production-grade, self-healing.",
             cta_text="View Projects",
             cta_url="#projects",
             background_mode="gradient",
@@ -193,7 +193,7 @@ async def _seed_sample_content(db) -> None:
             slug="self-healing-crawlers",
             summary="Crawlers that repair their own selectors with AI when sites change.",
             description="When HTML changes, an AI agent diffs the DOM, proposes new "
-            "selectors, validates output, and updates the crawler config — no manual fix.",
+            "selectors, validates output, and updates the crawler config - no manual fix.",
             tech_tags=["Playwright", "LangGraph", "Polars", "PostgreSQL"],
             is_featured=True,
             status="published",
@@ -247,7 +247,7 @@ async def _seed_microservices(db) -> None:
         db.add(Project(
             title="Hotel Review Analytics",
             slug="hotel-reviews",
-            summary="LLM-guided crawler — point it at any hotel site, describe what to collect, get interactive analytics charts.",
+            summary="LLM-guided crawler - point it at any hotel site, describe what to collect, get interactive analytics charts.",
             description="Playwright + Groq AI navigates any website, extracts structured data, self-heals broken selectors, and runs analytics (price distribution, ratings, temporal trends).",
             tech_tags=["Playwright", "Groq AI", "FastAPI", "Next.js", "Recharts", "SQLAlchemy"],
             is_featured=True,
@@ -256,7 +256,7 @@ async def _seed_microservices(db) -> None:
             order=2,
         ))
 
-    # Fix self-healing-crawlers project — point it at the hotel-reviews tool
+    # Fix self-healing-crawlers project - point it at the hotel-reviews tool
     crawler_proj = await db.scalar(select(Project).where(Project.slug == "self-healing-crawlers"))
     if crawler_proj and crawler_proj.service_key != "hotel-reviews":
         crawler_proj.service_key = "hotel-reviews"
@@ -288,7 +288,7 @@ async def _seed_microservices(db) -> None:
 
 
 async def _seed_blog_posts(db) -> None:
-    """Seed draft blog posts for built-in projects. Idempotent — checks service_key."""
+    """Seed draft blog posts for built-in projects. Idempotent - checks service_key."""
     POSTS = [
         {
             "service_key": "crawlers",
@@ -296,7 +296,7 @@ async def _seed_blog_posts(db) -> None:
             "slug": "self-healing-web-crawler-ai",
             "excerpt": (
                 "How we built a crawler that automatically fixes broken selectors "
-                "using AI — so it never needs manual maintenance when sites change their HTML."
+                "using AI - so it never needs manual maintenance when sites change their HTML."
             ),
             "is_featured": False,
             "content_markdown": """\
@@ -306,7 +306,7 @@ async def _seed_blog_posts(db) -> None:
 
 Web scrapers are notoriously brittle. A site redesign, a new CSS class name, or a
 layout change breaks your selectors overnight. Most teams respond by manually patching
-selectors — a tedious, never-ending game of whack-a-mole.
+selectors - a tedious, never-ending game of whack-a-mole.
 
 ## The Solution
 
@@ -317,18 +317,18 @@ a selector stops working and automatically finds a replacement.
 
 The crawl pipeline follows a five-step loop:
 
-1. **Observe** — Load the page with Playwright (headless Chromium)
-2. **Extract** — Try the configured selectors to pull field values
-3. **Validate** — Check each extracted value against a regex/length hint
-4. **Heal** — If validation fails, send the page HTML to the LLM; it proposes a new selector
-5. **Persist** — Rewrite the job configuration with the repaired selector
+1. **Observe** - Load the page with Playwright (headless Chromium)
+2. **Extract** - Try the configured selectors to pull field values
+3. **Validate** - Check each extracted value against a regex/length hint
+4. **Heal** - If validation fails, send the page HTML to the LLM; it proposes a new selector
+5. **Persist** - Rewrite the job configuration with the repaired selector
 
 ## Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Browser automation | Playwright (async) |
-| LLM inference | Groq API — llama-3.3-70b-versatile |
+| LLM inference | Groq API - llama-3.3-70b-versatile |
 | Backend | FastAPI + SQLAlchemy 2.0 |
 | Job storage | PostgreSQL (Supabase in prod) |
 | Feature flags | Custom control plane |
@@ -348,7 +348,7 @@ In testing across booking.com, Amazon, and TripAdvisor pages:
             "title": "Hotel Review Analytics: AI-Guided Crawling at Scale",
             "slug": "hotel-review-analytics-ai-crawler",
             "excerpt": (
-                "A deep-dive into the Hotel Review Analytics platform — how Groq AI "
+                "A deep-dive into the Hotel Review Analytics platform - how Groq AI "
                 "navigates any hotel website, extracts structured data, and generates "
                 "interactive analytics charts automatically."
             ),
@@ -377,24 +377,24 @@ Self-heal if 0 results → analytics engine → Recharts UI
 
 ## Key Features
 
-- **Natural language configuration** — no CSS selectors to write
-- **Self-healing** — LLM proposes fixes when extractors return zero results
-- **Multi-page crawling** — follows pagination automatically
-- **Analytics engine** — price distribution, rating heatmaps, top-10 rankings, temporal trends
-- **Auto blog generation** — Groq writes a post from the crawl findings with one click
+- **Natural language configuration** - no CSS selectors to write
+- **Self-healing** - LLM proposes fixes when extractors return zero results
+- **Multi-page crawling** - follows pagination automatically
+- **Analytics engine** - price distribution, rating heatmaps, top-10 rankings, temporal trends
+- **Auto blog generation** - Groq writes a post from the crawl findings with one click
 
 ## Technology Stack
 
-- **Playwright** — headless Chromium for JavaScript-heavy sites
-- **Groq API** (llama-3.3-70b-versatile) — fast LLM inference for navigation + extraction
-- **FastAPI + SQLAlchemy** — async backend with session persistence
-- **Next.js + Recharts** — interactive charts (BarChart, PieChart, LineChart)
+- **Playwright** - headless Chromium for JavaScript-heavy sites
+- **Groq API** (llama-3.3-70b-versatile) - fast LLM inference for navigation + extraction
+- **FastAPI + SQLAlchemy** - async backend with session persistence
+- **Next.js + Recharts** - interactive charts (BarChart, PieChart, LineChart)
 
 ## Example Use Cases
 
 | Goal | Prompt |
 |------|--------|
-| California hotels | "Collect all hotel listings — name, price per night, star rating, location" |
+| California hotels | "Collect all hotel listings - name, price per night, star rating, location" |
 | Review analysis | "Find all reviews with score above 7, include date, reviewer country, comment" |
 | Price comparison | "Extract property names and weekend prices from search results" |
 

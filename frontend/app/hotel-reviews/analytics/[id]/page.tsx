@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
               {(analytics.fields_found || []).map(f => (
                 <span key={f} className="text-xs font-mono bg-white/10 px-2 py-0.5 rounded">{f}</span>
               ))}
-              {!analytics.fields_found?.length && <span className="text-xs text-muted">—</span>}
+              {!analytics.fields_found?.length && <span className="text-xs text-muted">-</span>}
             </div>
           </div>
           <div>
@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
             { label: "Records", value: analytics.total_records ?? progress.records_collected ?? 0 },
             { label: "Charts", value: charts.length },
             { label: "Fields", value: analytics.fields_found?.length ?? 0 },
-            { label: "Highly Rated", value: analytics.high_rated_count ?? "—" },
+            { label: "Highly Rated", value: analytics.high_rated_count ?? "-" },
           ].map(s => (
             <div key={s.label} className="rounded-theme bg-surface border border-white/10 p-4 text-center">
               <div className="text-3xl font-bold text-primary">{s.value}</div>
@@ -153,7 +153,7 @@ export default function AnalyticsPage() {
           <section className="rounded-theme bg-surface border border-white/10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
               <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-                Data Preview — first {preview.length} records
+                Data Preview - first {preview.length} records
               </span>
               <button onClick={() => setShowPreview(false)} className="text-muted text-xs hover:text-white">close</button>
             </div>

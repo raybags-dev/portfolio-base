@@ -1,4 +1,4 @@
-"""Job Market Analytics API — gated by ENABLE_JOBS."""
+"""Job Market Analytics API - gated by ENABLE_JOBS."""
 
 from __future__ import annotations
 

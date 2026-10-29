@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
         sec_added = await ensure_default_sections(db)
         if sec_added:
             log.info("sections.seeded", added=sec_added)
-        # Seed microservice catalogue and blog posts (idempotent — skips existing keys).
+        # Seed microservice catalogue and blog posts (idempotent - skips existing keys).
         from app.seed import _seed_blog_posts, _seed_microservices
 
         await _seed_microservices(db)
@@ -78,7 +78,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=__version__,
-        description="Data Engineering Portfolio Platform — fully data-driven, "
+        description="Data Engineering Portfolio Platform - fully data-driven, "
         "modular, feature-flag controlled.",
         docs_url="/docs",
         redoc_url="/redoc",

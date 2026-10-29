@@ -93,7 +93,7 @@ export default function DataForgePage() {
             </h1>
           </div>
           <p className="text-muted text-lg max-w-2xl mb-6 leading-relaxed">
-            A production-quality data engineering platform — Playwright crawlers, a
+            A production-quality data engineering platform - Playwright crawlers, a
             partitioned data lake, DuckDB warehouse, dbt transformations, and a live
             React dashboard. All deployable on a single VPS.
           </p>

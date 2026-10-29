@@ -43,7 +43,7 @@ async function request<T>(
     cache: "no-store",
   });
 
-  // Auto-refresh on 401 — only once, only in browser
+  // Auto-refresh on 401 - only once, only in browser
   if (res.status === 401 && !_retried && typeof window !== "undefined") {
     const { refresh_token, token: currentToken, email, setAuth, logout } =
       useAuth.getState();
@@ -69,10 +69,10 @@ async function request<T>(
           /* fall through to logout */
         }
       }
-      // No refresh token, or refresh failed — clear expired session so admin
+      // No refresh token, or refresh failed - clear expired session so admin
       // layout redirects to login automatically.
       logout();
-      throw new ApiError(401, "Session expired — please log in again");
+      throw new ApiError(401, "Session expired - please log in again");
     }
   }
 

@@ -1,4 +1,4 @@
-"""Analytics engine — computes chart-ready insights from crawl records."""
+"""Analytics engine - computes chart-ready insights from crawl records."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def compute_analytics(
         all_fields.update(r.keys())
     result["fields_found"] = sorted(all_fields - {"source_url"})
 
-    # Detect numeric fields — require at least 2 parseable values (not 30%)
+    # Detect numeric fields - require at least 2 parseable values (not 30%)
     numeric_fields: dict[str, list[float]] = {}
     for field in all_fields:
         vals = [_to_float(r.get(field)) for r in records]

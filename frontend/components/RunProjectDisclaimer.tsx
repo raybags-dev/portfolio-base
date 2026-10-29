@@ -51,7 +51,7 @@ export default function RunProjectDisclaimer({ projectName, onRun, onClose }: Pr
             <h2 className="font-heading font-bold text-base">Running: {projectName}</h2>
             <p className="text-xs text-muted mt-1 leading-relaxed">
               This demo runs on{" "}
-              <span className="text-text">real infrastructure</span> — AI models, live web crawlers,
+              <span className="text-text">real infrastructure</span> - AI models, live web crawlers,
               and cloud compute. Every run has a real cost in time and money.
               I genuinely appreciate you checking out my work!
             </p>
@@ -73,7 +73,7 @@ export default function RunProjectDisclaimer({ projectName, onRun, onClose }: Pr
             {/* optional contact */}
             <div>
               <p className="text-xs font-medium mb-2 text-muted uppercase tracking-wide">
-                Who are you? <span className="normal-case font-normal">(optional — helps me know who's exploring)</span>
+                Who are you? <span className="normal-case font-normal">(optional - helps me know who's exploring)</span>
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -110,10 +110,10 @@ export default function RunProjectDisclaimer({ projectName, onRun, onClose }: Pr
               <a href="/contact" target="_blank" className="text-primary hover:underline">
                 Get in touch
               </a>{" "}
-              — or just leave your details above and I'll reach out.
+              - or just leave your details above and I'll reach out.
             </div>
 
-            {/* GDPR consent — only shown when contact fields are filled */}
+            {/* GDPR consent - only shown when contact fields are filled */}
             {hasContactInfo && (
               <label className="flex items-start gap-2.5 cursor-pointer group">
                 <input

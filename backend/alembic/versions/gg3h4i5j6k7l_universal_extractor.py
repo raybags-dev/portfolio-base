@@ -70,7 +70,7 @@ def upgrade() -> None:
             VALUES (
               'ENABLE_UNIVERSAL_EXTRACTOR', true,
               'Universal Data Extractor',
-              'Point it at any URL or paste raw data — auto-detects source type, extracts records, normalises schema via LLM, and runs analytics.',
+              'Point it at any URL or paste raw data - auto-detects source type, extracts records, normalises schema via LLM, and runs analytics.',
               'data',
               '{}',
               CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -93,7 +93,7 @@ def upgrade() -> None:
             VALUES (
               'universal-extractor',
               'Universal Data Extractor',
-              'Point it at any URL, API endpoint, CSV, JSON, or Kaggle dataset — the engine auto-detects the source type, extracts all records, normalises to a unified schema via LLM, validates, and renders instant analytics.',
+              'Point it at any URL, API endpoint, CSV, JSON, or Kaggle dataset - the engine auto-detects the source type, extracts all records, normalises to a unified schema via LLM, validates, and renders instant analytics.',
               'data',
               'ENABLE_UNIVERSAL_EXTRACTOR',
               '/universal-extractor',
@@ -122,7 +122,7 @@ def upgrade() -> None:
             VALUES (
               'Universal Data Extractor',
               'universal-data-extractor',
-              'Point it at any URL — it extracts every data point, auto-navigates scroll & pagination, maps API endpoints, and exports LLM-annotated structured datasets.',
+              'Point it at any URL - it extracts every data point, auto-navigates scroll & pagination, maps API endpoints, and exports LLM-annotated structured datasets.',
               'Accepts web pages, REST/GraphQL APIs, CSV/JSON files, or Kaggle datasets. Auto-detects source type, runs deterministic extraction first (CSS selectors, JSONPath, table parsing), falls back to Playwright + Groq AI for JS-heavy pages, normalises all fields to a unified schema, validates, and renders interactive analytics charts.',
               '["Playwright","Groq AI","FastAPI","Next.js","Recharts","SQLAlchemy","Python","httpx"]',
               true,
@@ -153,7 +153,7 @@ def upgrade() -> None:
             VALUES (
               'Real-Time Stream Pipeline',
               'stream-pipeline',
-              'Kafka event bus connecting crawlers, analytics workers, and live dashboards — each data source publishes events, consumers react in real time.',
+              'Kafka event bus connecting crawlers, analytics workers, and live dashboards - each data source publishes events, consumers react in real time.',
               'Kafka topics wire together all data-engineering modules: job listings, news articles, and price data are published as events. Stream-processing consumers run analytics, trigger alerts, and feed the live dashboard without any polling.',
               '["Kafka","FastAPI","Next.js","Python","SQLAlchemy"]',
               false,

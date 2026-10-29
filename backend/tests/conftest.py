@@ -13,7 +13,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 os.environ["FIRST_ADMIN_EMAIL"] = "admin@example.com"
 os.environ["FIRST_ADMIN_PASSWORD"] = "TestPass!123"
 os.environ["CUSTOM_AUTH_TOKEN"] = "test-emergency-token-123"
-# Never use real API keys in tests — force StubProvider
+# Never use real API keys in tests - force StubProvider
 os.environ["GROQ_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
 

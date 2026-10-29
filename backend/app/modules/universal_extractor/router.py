@@ -1,4 +1,4 @@
-"""Universal Data Extractor API — gated by ENABLE_UNIVERSAL_EXTRACTOR."""
+"""Universal Data Extractor API - gated by ENABLE_UNIVERSAL_EXTRACTOR."""
 
 from __future__ import annotations
 
@@ -179,7 +179,7 @@ async def cancel_session(session_id: int, db: DbSession):
     session.status = "cancelled"
     session.error = "Cancelled by user"
     await db.commit()
-    # Kill the live asyncio task — raises CancelledError at its next await,
+    # Kill the live asyncio task - raises CancelledError at its next await,
     # which propagates through the crawler's finally block so browser is closed.
     task = _RUNNING_TASKS.pop(session_id, None)
     if task and not task.done():
@@ -192,7 +192,7 @@ async def _run_in_background(session_id: int) -> None:
         from app.core.database import SessionLocal
         from app.modules.universal_extractor.service import run_session as _run
     except Exception as import_exc:  # noqa: BLE001
-        # Can't import — try to mark session failed via a raw connection
+        # Can't import - try to mark session failed via a raw connection
         try:
             from app.core.database import SessionLocal
 
@@ -426,7 +426,7 @@ async def download_pdf_report(session_id: int, db: DbSession):
     )
 
 
-# ── Storage stats endpoints (public — view only) ──────────────────────────────
+# ── Storage stats endpoints (public - view only) ──────────────────────────────
 
 @router.get("/storage/stats")
 async def storage_stats(db: DbSession):

@@ -1,8 +1,8 @@
-# Raybags - Data Engineering Platform
+# Raybags - PORTFOLIO
 
 A production-grade, **fully data-driven** portfolio + data-engineering platform.
 Every piece of content, every colour, every image, and every module is editable
-at runtime from an admin panel and gated by feature flags — **nothing is
+at runtime from an admin panel and gated by feature flags - **nothing is
 hardcoded** and **nothing needs a redeploy** to turn on or off.
 
 This repo is built **foundation-first**: the core (API + content model + RBAC +
@@ -82,7 +82,7 @@ App is served by Nginx on `http://localhost` (`/` → frontend, `/api` → backe
 call: site config, theme tokens, hero, about, projects, skills, recommendations,
 timeline, experience, education, certifications, social links, enabled feature
 flags, and the visible microservice catalogue. The frontend renders purely from
-this — change it in the admin panel, the site changes. No rebuild.
+this - change it in the admin panel, the site changes. No rebuild.
 
 ### Feature flags = the control plane
 Every capability is a flag (`ENABLE_CRAWLERS`, `ENABLE_AI`, `ENABLE_KAFKA`,
@@ -95,18 +95,18 @@ appears in the portfolio only when its flag is on. See
 ## Modules (plug-in, flag-gated)
 
 Modules live in `backend/app/modules/<name>/`, are always mounted, but every
-route is gated by a feature flag (returns 404 while off) — enable in the admin
+route is gated by a feature flag (returns 404 while off) - enable in the admin
 panel, no redeploy. Two are built:
 
-- **Agentic AI orchestrator** (`ENABLE_AGENTIC_AI`, `/api/v1/agents/*`) — an
+- **Agentic AI orchestrator** (`ENABLE_AGENTIC_AI`, `/api/v1/agents/*`) - an
   observe→reason→plan→execute→validate→retry→log→report engine with bounded
   retries, persisting to `agent_tasks`. LLM is vendor-agnostic: a deterministic
   **offline stub** by default, OpenAI when `OPENAI_API_KEY` is set. Run a
   workflow: `POST /agents/run {"workflow":"insight","input":{...}}`.
-- **Self-healing crawler** (`ENABLE_CRAWLERS`, `/api/v1/crawlers/*`) — when a
+- **Self-healing crawler** (`ENABLE_CRAWLERS`, `/api/v1/crawlers/*`) - when a
   site's HTML changes and selectors break, it searches the new DOM for nodes
   matching the field's *value hint*, derives a stable new selector, verifies it,
-  **rewrites the job's own config**, logs a `healing_event`, and continues — no
+  **rewrites the job's own config**, logs a `healing_event`, and continues - no
   manual fix. Runs fully offline (stdlib DOM); Playwright/BeautifulSoup swap in
   for production via the `Fetcher`/`Extractor` interfaces.
 
@@ -117,7 +117,7 @@ it to `discover_modules()`, and register its `ENABLE_*` flag. That's it.
 
 ## Testing & deployment
 
-The deploy path is **scripted and gated** — production is never touched unless
+The deploy path is **scripted and gated** - production is never touched unless
 tests pass and a test deployment is healthy.
 
 ```bash
@@ -128,7 +128,7 @@ scripts/smoke.sh URL        # post-deploy smoke tests
 scripts/ship.sh "msg"       # release: local gate → commit → push → watch GH Actions
 ```
 
-`scripts/ship.sh` is the **only** way to commit/push — it gates on the local
+`scripts/ship.sh` is the **only** way to commit/push - it gates on the local
 test suite, commits, pushes (the push triggers CI), and (with `gh`) watches the
 Actions run to pass/fail. First run: `GIT_REMOTE_URL=<repo> scripts/ship.sh "init"`.
 

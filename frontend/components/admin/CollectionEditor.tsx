@@ -230,7 +230,7 @@ export default function CollectionEditor({
             </div>
           );
         })}
-        {items.length === 0 && <p className="text-muted text-sm">Nothing yet — add above.</p>}
+        {items.length === 0 && <p className="text-muted text-sm">Nothing yet - add above.</p>}
       </div>
     </div>
   );

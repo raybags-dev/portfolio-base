@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy-vps.sh — Deploy the platform to the Hetzner VPS (89.167.74.127)
+# deploy-vps.sh - Deploy the platform to the Hetzner VPS (89.167.74.127)
 #
 # Flow:
-#   1. Local gate  — ruff lint + pytest + frontend type-check  (skippable)
-#   2. Rsync       — push code + .env.prod to server
-#   3. Remote      — docker compose up --build (migrate → seed → start)
+#   1. Local gate  - ruff lint + pytest + frontend type-check  (skippable)
+#   2. Rsync       - push code + .env.prod to server
+#   3. Remote      - docker compose up --build (migrate → seed → start)
 #   4. Health check
 #
 # Usage:
@@ -43,12 +43,12 @@ NGINX_CONF="nginx.prod.conf"
 HEALTH_PATH="/api/v1/health"
 if (( BOOTSTRAP )); then
   NGINX_CONF="nginx.bootstrap.conf"
-  warn "Bootstrap mode — HTTP only (Cloudflare Flexible SSL). Run scripts/issue-cert.sh to upgrade to HTTPS."
+  warn "Bootstrap mode - HTTP only (Cloudflare Flexible SSL). Run scripts/issue-cert.sh to upgrade to HTTPS."
 fi
 
 # ---- pre-flight checks ----
-[[ -f "$ENV_FILE" ]] || die "Missing $ENV_FILE — copy from .env and fill in DATABASE_URL"
-grep -q "SUPABASE_DB_PASSWORD" "$ENV_FILE" && die "$ENV_FILE still has the SUPABASE_DB_PASSWORD placeholder — fill it in first"
+[[ -f "$ENV_FILE" ]] || die "Missing $ENV_FILE - copy from .env and fill in DATABASE_URL"
+grep -q "SUPABASE_DB_PASSWORD" "$ENV_FILE" && die "$ENV_FILE still has the SUPABASE_DB_PASSWORD placeholder - fill it in first"
 need rsync
 need ssh
 
@@ -130,7 +130,7 @@ elapsed=0
 until curl -fsS --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; do
   sleep 5; elapsed=$((elapsed + 5))
   if (( elapsed >= 60 )); then
-    warn "Health check timed out — DNS may still be propagating."
+    warn "Health check timed out - DNS may still be propagating."
     warn "Verify manually: curl -fsS $HEALTH_URL"
     break
   fi

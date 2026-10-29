@@ -214,7 +214,7 @@ export default function BlogAdmin() {
             <input placeholder="Tags (comma separated)" value={editor.tags} onChange={(e) => setEditor({ ...editor, tags: e.target.value })} className={cls} />
           </div>
 
-          {/* Prominent publish-state banner — the most common reason a post "doesn't appear" */}
+          {/* Prominent publish-state banner - the most common reason a post "doesn't appear" */}
           <div className={`flex flex-wrap items-center gap-3 rounded-theme px-4 py-3 border ${
             editor.status === "published"
               ? "bg-green-500/10 border-green-500/30"
@@ -222,8 +222,8 @@ export default function BlogAdmin() {
           }`}>
             <span className="text-sm font-medium flex-1">
               {editor.status === "published"
-                ? "✓ Published — visible on the site"
-                : "⚠ Draft — not visible on the site until published"}
+                ? "✓ Published - visible on the site"
+                : "⚠ Draft - not visible on the site until published"}
             </span>
             <div className="flex gap-1.5">
               <button
@@ -292,7 +292,7 @@ export default function BlogAdmin() {
               onChange={(e) => setEditor({ ...editor, service_key: e.target.value })}
               className={cls}
             />
-            <p className="text-xs text-muted">Used only if no direct URL is set — resolves to a microservice base URL or a known internal route.</p>
+            <p className="text-xs text-muted">Used only if no direct URL is set - resolves to a microservice base URL or a known internal route.</p>
           </div>
 
           <div className="flex gap-2">

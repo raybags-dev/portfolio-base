@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: AnyHttpUrl | None = None
     SUPABASE_SERVICE_KEY: str | None = None
 
-    # ---- MongoDB (optional — UDE raw document store) ----
+    # ---- MongoDB (optional - UDE raw document store) ----
     MONGODB_URL: str | None = None
 
     # ---- AI ----

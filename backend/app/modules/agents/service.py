@@ -1,4 +1,4 @@
-"""Agent service — runs workflows and persists progress to `agent_tasks`."""
+"""Agent service - runs workflows and persists progress to `agent_tasks`."""
 
 from __future__ import annotations
 

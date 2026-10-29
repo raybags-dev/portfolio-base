@@ -280,7 +280,7 @@ export function Hero({ data }: { data: Bootstrap }) {
       };
     } else {
       // Light mode: clean white base with barely-there brand-color blush.
-      // #ffffffcc = rgba(255,255,255,0.8) — used as the dominant stop so dark
+      // #ffffffcc = rgba(255,255,255,0.8) - used as the dominant stop so dark
       // text reads perfectly against the near-white surface.
       bgStyle = {
         backgroundImage:
@@ -304,7 +304,7 @@ export function Hero({ data }: { data: Bootstrap }) {
       className="min-h-screen flex items-center relative overflow-hidden"
       style={!hasImage ? bgStyle : undefined}
     >
-      {/* Background image — opacity-only, no destructive colour filters */}
+      {/* Background image - opacity-only, no destructive colour filters */}
       {hasImage && (
         <div
           className="absolute inset-0"
@@ -321,7 +321,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         />
       )}
 
-      {/* Depth overlay — only in dark mode; light mode has white bg so this gradient just muddies it */}
+      {/* Depth overlay - only in dark mode; light mode has white bg so this gradient just muddies it */}
       {hasImage && isDark && (
         <div
           className="absolute inset-0"
@@ -333,7 +333,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         />
       )}
 
-      {/* Scroll veil — bg colour rises from bottom as user scrolls */}
+      {/* Scroll veil - bg colour rises from bottom as user scrolls */}
       <div
         className="absolute inset-0 pointer-events-none z-[1]"
         style={{
@@ -342,7 +342,7 @@ export function Hero({ data }: { data: Bootstrap }) {
         }}
       />
 
-      {/* Subtle dot grid — data-pipeline aesthetic */}
+      {/* Subtle dot grid - data-pipeline aesthetic */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
@@ -852,7 +852,7 @@ export function Projects({ data }: { data: Bootstrap }) {
           return (
             <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
               <Card>
-                {/* Clickable body — opens detail modal */}
+                {/* Clickable body - opens detail modal */}
                 <div
                   className="cursor-pointer"
                   role="button"
@@ -888,7 +888,7 @@ export function Projects({ data }: { data: Bootstrap }) {
                     </div>
                   )}
                 </div>
-                {/* Buttons — click does NOT open modal */}
+                {/* Buttons - click does NOT open modal */}
                 <div className="mt-auto pt-4 flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {!launchUrl ? (
                     <span className={`${btnCls} border border-white/10 text-muted cursor-not-allowed select-none`}>
@@ -948,7 +948,7 @@ export function Services({ data }: { data: Bootstrap }) {
     <Section id="platform" title="Data Platform" bgImageDark={sec?.background_image_url_dark} bgImageLight={sec?.background_image_url_light} isDark={isDark}>
       <Reveal enabled={animated}>
         <p className="text-muted mb-6 max-w-2xl">
-          Live data-engineering modules — each toggled at runtime via feature flags.
+          Live data-engineering modules - each toggled at runtime via feature flags.
         </p>
       </Reveal>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -998,7 +998,7 @@ export function Experience({ data }: { data: Bootstrap }) {
                   {e.role} {e.company && <span className="text-muted">· {e.company}</span>}
                 </h3>
                 <span className="text-sm text-muted">
-                  {[e.start_date, e.is_current ? "Present" : e.end_date].filter(Boolean).join(" — ")}
+                  {[e.start_date, e.is_current ? "Present" : e.end_date].filter(Boolean).join(" - ")}
                 </span>
               </div>
               {e.description && <p className="text-sm text-muted mt-2">{e.description}</p>}
@@ -1035,7 +1035,7 @@ export function Education({ data }: { data: Bootstrap }) {
                   {ed.degree} {ed.institution && <span className="text-muted">· {ed.institution}</span>}
                 </h3>
                 <span className="text-sm text-muted">
-                  {[ed.start_date, ed.end_date].filter(Boolean).join(" — ")}
+                  {[ed.start_date, ed.end_date].filter(Boolean).join(" - ")}
                 </span>
               </div>
               {ed.field_of_study && (
@@ -1235,7 +1235,7 @@ export function Footer({ data }: { data: Bootstrap }) {
         </div>
       </div>
       <div className="container-x py-5 border-t border-white/5 text-muted text-xs">
-        © 2020–{year} {site.site_name}. All rights reserved.
+        © 2020-{year} {site.site_name}. All rights reserved.
       </div>
     </footer>
   );

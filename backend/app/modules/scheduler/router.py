@@ -1,4 +1,4 @@
-"""Scheduler API — gated by ENABLE_SCHEDULER."""
+"""Scheduler API - gated by ENABLE_SCHEDULER."""
 
 from __future__ import annotations
 

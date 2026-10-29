@@ -1,4 +1,4 @@
-"""Feature-flag endpoints — the runtime control layer."""
+"""Feature-flag endpoints - the runtime control layer."""
 
 from __future__ import annotations
 

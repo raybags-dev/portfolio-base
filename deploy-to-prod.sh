@@ -14,7 +14,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/scripts/lib.sh"
 cd "$ROOT"
 
 if [[ "${FORCE_PROD_ONLY:-0}" == "1" ]]; then
-  warn "FORCE_PROD_ONLY set — skipping test stage (NOT recommended)"
+  warn "FORCE_PROD_ONLY set - skipping test stage (NOT recommended)"
   bash scripts/run-tests.sh
   bash scripts/deploy.sh prod
 else

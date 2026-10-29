@@ -1,4 +1,4 @@
-"""Stream pipeline service — topic management, event publishing, alert evaluation."""
+"""Stream pipeline service - topic management, event publishing, alert evaluation."""
 
 from __future__ import annotations
 

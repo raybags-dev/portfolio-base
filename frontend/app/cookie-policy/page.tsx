@@ -41,7 +41,7 @@ export default function CookiePolicyPage() {
             <p>
               Cookies are small text files stored in your browser. This site primarily uses{" "}
               <strong>browser localStorage</strong> (not HTTP cookies) to remember your preferences.
-              The effect and legal basis are the same — they are considered equivalent under GDPR/ePrivacy.
+              The effect and legal basis are the same - they are considered equivalent under GDPR/ePrivacy.
             </p>
           </Section>
 
@@ -101,15 +101,15 @@ export default function CookiePolicyPage() {
           <Section title="4. Legal basis (GDPR)">
             <ul className="list-disc pl-5 space-y-1 text-muted text-sm">
               <li>
-                <strong className="text-text">Strictly necessary</strong> — no consent required.
+                <strong className="text-text">Strictly necessary</strong> - no consent required.
                 Used purely to make the site function (session auth, rate-limiting).
               </li>
               <li>
-                <strong className="text-text">Functional</strong> — legitimate interest / your
+                <strong className="text-text">Functional</strong> - legitimate interest / your
                 consent. Remembering UI preferences to improve your experience.
               </li>
               <li>
-                <strong className="text-text">Contact information</strong> — your explicit consent,
+                <strong className="text-text">Contact information</strong> - your explicit consent,
                 given via the pre-run opt-in form. Lawful basis: Article 6(1)(a) GDPR.
               </li>
             </ul>
@@ -161,7 +161,7 @@ export default function CookiePolicyPage() {
               <div className="px-5 py-4 border-b border-white/10">
                 <h3 className="font-semibold text-sm">Your current preferences</h3>
                 <p className="text-xs text-muted mt-0.5">
-                  {decided ? "You have made a choice." : "You have not yet made a choice — defaults applied."}
+                  {decided ? "You have made a choice." : "You have not yet made a choice - defaults applied."}
                 </p>
               </div>
               <div className="divide-y divide-white/8">

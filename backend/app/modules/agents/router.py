@@ -1,4 +1,4 @@
-"""Agentic AI API — gated by ENABLE_AGENTIC_AI."""
+"""Agentic AI API - gated by ENABLE_AGENTIC_AI."""
 
 from __future__ import annotations
 

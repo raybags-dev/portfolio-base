@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# prod-deploy.sh — Pull pre-built ghcr.io images and restart the stack.
+# prod-deploy.sh - Pull pre-built ghcr.io images and restart the stack.
 #
 # Called automatically by GitHub Actions (deploy.yml) after images are pushed.
 # Can also be run manually on the server:
@@ -9,12 +9,12 @@
 #   GHCR_OWNER=raybags-dev bash scripts/prod-deploy.sh           # uses :latest
 #
 # Required env vars:
-#   GHCR_OWNER   — GitHub username / org that owns the ghcr.io packages
+#   GHCR_OWNER   - GitHub username / org that owns the ghcr.io packages
 #
 # Optional env vars:
-#   GHCR_TOKEN   — GitHub token with read:packages scope (for private packages)
-#   IMAGE_TAG    — image tag to deploy (default: latest)
-#   REMOTE_APP   — path to the app on the server (default: /mnt/portfolio-data/app)
+#   GHCR_TOKEN   - GitHub token with read:packages scope (for private packages)
+#   IMAGE_TAG    - image tag to deploy (default: latest)
+#   REMOTE_APP   - path to the app on the server (default: /mnt/portfolio-data/app)
 # =============================================================================
 set -Eeuo pipefail
 
@@ -76,7 +76,7 @@ until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" \
   if (( elapsed >= 120 )); then
     echo "Backend health check timed out. Last logs:"
     docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs --tail=60 backend
-    die "deploy failed — backend unhealthy after 120 s"
+    die "deploy failed - backend unhealthy after 120 s"
   fi
 done
 ok "Backend healthy"

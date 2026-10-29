@@ -1,4 +1,4 @@
-"""Job Market Analytics service — orchestrates crawl + analytics."""
+"""Job Market Analytics service - orchestrates crawl + analytics."""
 
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ async def run_session(db: AsyncSession, session_id: int) -> dict[str, Any]:
                     if regexp_hints:
                         selector_hints = {**(selector_hints or {}), **regexp_hints}
                 await on_progress(
-                    f"Applying crawler profile '{profile.name}' — {len(fields)} configured field(s)."
+                    f"Applying crawler profile '{profile.name}' - {len(fields)} configured field(s)."
                 )
 
         records = await engine.run(

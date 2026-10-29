@@ -17,9 +17,9 @@ _MAX_TEXT_CHARS = 20_000  # stripped text for LLM content extraction
 # ── Cookie / consent modal dismissal ────────────────────────────────────────
 # Three-tier strategy:
 #   1. Try every selector below (fast, zero LLM tokens).
-#   2. JS brute-force scan (_COOKIE_DISMISS_JS) — scans all visible
+#   2. JS brute-force scan (_COOKIE_DISMISS_JS) - scans all visible
 #      buttons / clickable elements and clicks the first match.
-#   3. LLM fallback — last resort, one call.
+#   3. LLM fallback - last resort, one call.
 
 _COOKIE_SELECTORS: list[str] = [
     # ── Known vendor exact IDs ────────────────────────────────────────────
@@ -188,7 +188,7 @@ _COOKIE_DISMISS_JS = """
         } catch(e) { return null; }
     }
 
-    // PRIORITY 1 — inside known dialog / consent containers
+    // PRIORITY 1 - inside known dialog / consent containers
     const containers = [
         ...document.querySelectorAll(
             '[role="dialog"],[role="alertdialog"],[role="alert"],[aria-modal="true"]'
@@ -219,7 +219,7 @@ _COOKIE_DISMISS_JS = """
         }
     }
 
-    // PRIORITY 2 — any visible button with dismiss keyword that also has cookie context
+    // PRIORITY 2 - any visible button with dismiss keyword that also has cookie context
     // or lives inside a fixed/sticky positioned ancestor (overlay pattern)
     const allBtns = document.querySelectorAll(
         'button,[role="button"],input[type="button"],input[type="submit"]'
@@ -241,7 +241,7 @@ _COOKIE_DISMISS_JS = """
         }
     }
 
-    // PRIORITY 3 — role="button" / onclick divs matching dismiss + context
+    // PRIORITY 3 - role="button" / onclick divs matching dismiss + context
     const clickables = document.querySelectorAll('[role="button"],[onclick]');
     for (const el of clickables) {
         if (!isVisible(el)) continue;
@@ -428,7 +428,7 @@ class CrawlEngine:
 
                         if not page_records:
                             if on_progress:
-                                await on_progress("No records found in container — stopping.")
+                                await on_progress("No records found in container - stopping.")
                             break
 
                         if page_num < self.max_pages - 1:
@@ -440,7 +440,7 @@ class CrawlEngine:
                             )
                             if not navigated:
                                 if on_progress:
-                                    await on_progress("No next page — directive crawl complete")
+                                    await on_progress("No next page - directive crawl complete")
                                 break
                             await asyncio.sleep(2)
 
@@ -477,7 +477,7 @@ class CrawlEngine:
                     if on_progress:
                         await on_progress(
                             f"DOM extraction: {len(page_records)} records"
-                            + (" — falling back to LLM" if not page_records else "")
+                            + (" - falling back to LLM" if not page_records else "")
                         )
 
                     if not page_records:
@@ -487,7 +487,7 @@ class CrawlEngine:
 
                     if not page_records and page_num == 0:
                         if on_progress:
-                            await on_progress("No records found — requesting healed plan")
+                            await on_progress("No records found - requesting healed plan")
                         plan = await self._heal(html, url, collection_prompt, plan)
                         if selector_hints:
                             plan["fields"] = {**(plan.get("fields") or {}), **selector_hints}
@@ -522,7 +522,7 @@ class CrawlEngine:
                         )
                         if not navigated:
                             if on_progress:
-                                await on_progress("No next page — crawl complete")
+                                await on_progress("No next page - crawl complete")
                             break
                         await asyncio.sleep(2)
 
@@ -576,7 +576,7 @@ class CrawlEngine:
 
                 else:
                     if on_progress:
-                        await on_progress(f"  WARNING: unknown action type '{act}' — skipping")
+                        await on_progress(f"  WARNING: unknown action type '{act}' - skipping")
 
             except Exception as exc:
                 if on_progress:
@@ -784,7 +784,7 @@ Return JSON: {{"selector": "<css_or_null>", "button_text": "<text_or_null>", "fo
                 log.debug("cookie_banner.llm_click_failed", error=str(exc))
 
         return False, (
-            "could not dismiss cookie banner — try passing the accept button text as a cookie hint"
+            "could not dismiss cookie banner - try passing the accept button text as a cookie hint"
         )
 
     async def _get_extraction_plan(
@@ -800,7 +800,7 @@ URL: {url}
 User wants to collect: {collection_prompt}
 
 The HTML below preserves tag structure and attributes (id, class, data-*, aria-*).
-Use this to identify the MOST STABLE CSS selectors — prefer:
+Use this to identify the MOST STABLE CSS selectors - prefer:
 1. data-testid="..." attributes (most stable)
 2. aria-label="..." attributes
 3. id="..." attributes
@@ -808,7 +808,7 @@ Use this to identify the MOST STABLE CSS selectors — prefer:
 5. Class names only as a last resort (avoid random-looking hash classes)
 
 Every field the user mentioned MUST appear in the "fields" map. Use your best guess
-for the selector even if uncertain — use the most descriptive attribute you can find.
+for the selector even if uncertain - use the most descriptive attribute you can find.
 
 Page HTML (structure preserved):
 {cleaned}
@@ -901,13 +901,13 @@ Return JSON:
                 if (!el) return null;
                 const tag = el.tagName.toUpperCase();
 
-                // Images — prefer alt text, then src
+                // Images - prefer alt text, then src
                 if (tag === 'IMG') {
                     return el.getAttribute('alt') || el.getAttribute('src') ||
                            el.getAttribute('data-src') || null;
                 }
 
-                // Anchors — grab text AND href
+                // Anchors - grab text AND href
                 if (tag === 'A') {
                     const text = (el.innerText || el.textContent || '').trim();
                     const href = el.getAttribute('href') || '';

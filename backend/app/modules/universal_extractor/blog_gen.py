@@ -53,7 +53,7 @@ async def generate_blog_post(
     system = (
         "You are a data-driven technical blog writer for a software engineering portfolio. "
         "Write concisely with specific numbers from the data. "
-        "You MUST respond with a valid JSON object only — no prose before or after."
+        "You MUST respond with a valid JSON object only - no prose before or after."
     )
     prompt = f"""Write a data extraction insights blog post. Return JSON only.
 
@@ -106,11 +106,11 @@ Return exactly this JSON structure:
                 f"Category fields: {', '.join(category_fields) or 'none'}\n\n"
                 + (f"## Statistical Summary\n\n{stats_text}\n\n" if stats_text else "")
                 + "## How It Was Done\n\n"
-                "1. **Source detection** — auto-detected the source type\n"
-                "2. **Extraction** — pulled raw content (stored in S3 before processing)\n"
-                "3. **LLM normalisation** — Groq AI unified field names to a consistent schema\n"
-                "4. **Storage** — clean records saved to MongoDB, raw blobs to S3\n"
-                "5. **Analytics** — distribution, category, and trend charts auto-generated\n\n"
+                "1. **Source detection** - auto-detected the source type\n"
+                "2. **Extraction** - pulled raw content (stored in S3 before processing)\n"
+                "3. **LLM normalisation** - Groq AI unified field names to a consistent schema\n"
+                "4. **Storage** - clean records saved to MongoDB, raw blobs to S3\n"
+                "5. **Analytics** - distribution, category, and trend charts auto-generated\n\n"
                 "## Technology Stack\n\n"
                 "- **Playwright / BeautifulSoup / httpx**: multi-strategy extraction\n"
                 "- **Groq AI (llama-3.3-70b-versatile)**: schema normalisation\n"

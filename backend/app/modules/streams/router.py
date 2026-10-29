@@ -1,17 +1,17 @@
 """Stream Pipeline API.
 
 Endpoints:
-  GET  /streams/stats                  — pipeline health & counts
-  GET  /streams/topics                 — list all topics
-  POST /streams/topics                 — create / ensure a topic
-  DEL  /streams/topics/{name}          — delete topic + all events
-  GET  /streams/topics/{name}/events   — paginated events for a topic
-  POST /streams/publish                — publish one event (test / manual)
-  GET  /streams/sse                    — Server-Sent Events live feed
-  GET  /streams/alerts                 — list alert rules
-  POST /streams/alerts                 — create alert rule
-  DEL  /streams/alerts/{id}            — delete alert rule
-  GET  /streams/alerts/fired           — recent alert firings
+  GET  /streams/stats                  - pipeline health & counts
+  GET  /streams/topics                 - list all topics
+  POST /streams/topics                 - create / ensure a topic
+  DEL  /streams/topics/{name}          - delete topic + all events
+  GET  /streams/topics/{name}/events   - paginated events for a topic
+  POST /streams/publish                - publish one event (test / manual)
+  GET  /streams/sse                    - Server-Sent Events live feed
+  GET  /streams/alerts                 - list alert rules
+  POST /streams/alerts                 - create alert rule
+  DEL  /streams/alerts/{id}            - delete alert rule
+  GET  /streams/alerts/fired           - recent alert firings
 """
 
 from __future__ import annotations

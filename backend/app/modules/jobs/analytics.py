@@ -1,4 +1,4 @@
-"""Job-market analytics — skill demand, salary distribution, company & location ranking."""
+"""Job-market analytics - skill demand, salary distribution, company & location ranking."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def _histogram(vals: list[float], bins: int = 8) -> list[dict[str, Any]]:
         if i == bins - 1:
             bv = [v for v in vals if lo <= v <= hi]
         if bv:
-            lbl = f"${lo/1000:.0f}k–${hi/1000:.0f}k" if mx >= 10000 else f"{lo:.0f}–{hi:.0f}"
+            lbl = f"${lo/1000:.0f}k-${hi/1000:.0f}k" if mx >= 10000 else f"{lo:.0f}-{hi:.0f}"
             buckets.append({"label": lbl, "count": len(bv), "avg": round(sum(bv) / len(bv), 0)})
     return buckets
 
@@ -237,7 +237,7 @@ def compute_analytics(
             "",
             loc,
             flags=re.IGNORECASE,
-        ).strip(" ,;–-")
+        ).strip(" ,;-")
         if c and len(c) > 2:
             clean_locs.append(c[:40])
 

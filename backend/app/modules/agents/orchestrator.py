@@ -59,7 +59,7 @@ async def run_workflow(
             if not validated and ctx.attempt < workflow.max_attempts:
                 await enter("retry")
                 ctx.log("retry", f"validation failed; retrying (attempt {ctx.attempt})")
-        except Exception as exc:  # a stage blew up — record and maybe retry
+        except Exception as exc:  # a stage blew up - record and maybe retry
             last_error = str(exc)
             ctx.log("execute", "exception", error=last_error)
             log.warning("agent.exception", workflow=workflow.key, error=last_error)

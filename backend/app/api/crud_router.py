@@ -12,7 +12,7 @@ Public reads can be filtered (e.g. only ``is_visible``/non-hidden rows) and
 ordered. Keeps the per-entity endpoint files tiny while staying type-safe in
 OpenAPI via the supplied Pydantic schemas.
 """
-# NOTE: deliberately NOT using `from __future__ import annotations` — the
+# NOTE: deliberately NOT using `from __future__ import annotations` - the
 # request-body parameter annotations below are assigned dynamically from the
 # create_schema/update_schema arguments and must stay real class objects
 # (not stringified forward refs) for FastAPI to build their request models.

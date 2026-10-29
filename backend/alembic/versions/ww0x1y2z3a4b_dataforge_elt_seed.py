@@ -46,7 +46,7 @@ def upgrade() -> None:
                 'DataForge ELT',
                 'dataforge-elt',
                 'An end-to-end ELT pipeline with web crawlers, a DuckDB warehouse, dbt transformations, and live React dashboard.',
-                'DataForge is a production-quality data engineering platform. It crawls multiple sources via Playwright, lands raw data into a partitioned data lake, transforms it with dbt + DuckDB, and exposes the results through a FastAPI backend and a React UI — all deployable on a single VPS.',
+                'DataForge is a production-quality data engineering platform. It crawls multiple sources via Playwright, lands raw data into a partitioned data lake, transforms it with dbt + DuckDB, and exposes the results through a FastAPI backend and a React UI - all deployable on a single VPS.',
                 'https://github.com/raybags-dev/DataForge-ELT',
                 '/dataforge',
                 'published',

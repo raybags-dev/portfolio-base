@@ -120,7 +120,7 @@ function LiveLogs({ token }: { token: string }) {
       <div className="flex-1 overflow-y-auto rounded-theme bg-surface border border-white/10 font-mono text-xs leading-relaxed p-4 space-y-0.5">
         {filtered.length === 0 ? (
           <p className="text-muted text-center py-8">
-            {paused ? "Paused — no logs captured yet." : "Waiting for log entries…"}
+            {paused ? "Paused - no logs captured yet." : "Waiting for log entries…"}
           </p>
         ) : (
           filtered.map((entry, i) => {

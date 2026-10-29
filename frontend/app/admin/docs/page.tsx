@@ -70,7 +70,7 @@ function Overview() {
   return (
     <>
       <P>
-        This platform is a full-stack data engineering portfolio — a live demonstration of crawlers,
+        This platform is a full-stack data engineering portfolio - a live demonstration of crawlers,
         agentic AI pipelines, stream processing, and analytics. Every project on the site is a real, running system
         you can interact with directly.
       </P>
@@ -85,7 +85,7 @@ function Overview() {
         {[
           { name: "Hotel Review Analytics",   path: "/hotel-reviews",       desc: "AI-powered hotel data crawler + recharts analytics + blog generation" },
           { name: "Job Market Analytics",      path: "/job-analytics",       desc: "Job board crawler with salary/skills/location distribution charts" },
-          { name: "Universal Data Extractor",  path: "/universal-extractor", desc: "Generic multi-source extractor — HTML, JSON API, CSV, Kaggle, paste" },
+          { name: "Universal Data Extractor",  path: "/universal-extractor", desc: "Generic multi-source extractor - HTML, JSON API, CSV, Kaggle, paste" },
           { name: "Stream Pipeline",           path: "/streams",             desc: "Redis-backed SSE event bus with topics, alert rules and live inspector" },
         ].map(p => (
           <div key={p.name} className="rounded-theme bg-bg border border-white/10 p-3">
@@ -118,9 +118,9 @@ function HotelReviews() {
       <Step n={2} title="Pre-actions" body="The engine executes any configured pre-actions (click cookie banners, fill search inputs, scroll to load lazy content) using Playwright's click/fill/scroll API." />
       <Step n={3} title="LLM selector planning" body="Groq AI reads a compressed snapshot of the page DOM and returns a JSON selector plan: which HTML tag + class extracts each field. These selectors are stored so healing can reference them." />
       <Step n={4} title="Extraction loop" body="For each page, the engine applies selectors. If a selector returns nothing or fails validation hints (regex, min-length, contains), the self-healing layer asks the LLM for an alternative selector and retries." />
-      <Step n={5} title="Pagination" body="The engine follows pagination links automatically (auto-detect next-page, infinite scroll, or click-next — configurable per session)." />
+      <Step n={5} title="Pagination" body="The engine follows pagination links automatically (auto-detect next-page, infinite scroll, or click-next - configurable per session)." />
       <Step n={6} title="Analytics" body="Once crawling finishes, the analytics engine computes price/rating distributions, top-ranked items, category breakdowns, and temporal trends. Results are stored as chart-ready JSON." />
-      <Step n={7} title="Blog generation" body="A separate Groq call writes a full markdown article analysing the dataset — trends, outliers, recommendations. Saved as a draft blog post." />
+      <Step n={7} title="Blog generation" body="A separate Groq call writes a full markdown article analysing the dataset - trends, outliers, recommendations. Saved as a draft blog post." />
       <Step n={8} title="Export" body="Download all records as JSON or CSV. Generate a full PDF report with matplotlib charts embedded via ReportLab (pie charts are rendered as perfect circles with equal-axis figures)." />
 
       <H3>Kaggle import</H3>
@@ -170,8 +170,8 @@ function UniversalExtractor() {
   return (
     <>
       <P>
-        The most general-purpose project. Point it at anything — a webpage, a REST/GraphQL API, a CSV URL,
-        a Kaggle dataset, or paste raw data directly — and it auto-detects the format, extracts structured
+        The most general-purpose project. Point it at anything - a webpage, a REST/GraphQL API, a CSV URL,
+        a Kaggle dataset, or paste raw data directly - and it auto-detects the format, extracts structured
         records, normalises them, and produces analytics + a PDF report.
       </P>
       <TechStack items={["Python 3.13", "FastAPI", "Playwright", "Groq AI", "ReportLab", "matplotlib", "SQLite/Postgres", "Next.js", "Recharts"]} />
@@ -179,11 +179,11 @@ function UniversalExtractor() {
       <H3>Source types</H3>
       <div className="space-y-2 mb-4">
         {[
-          { type: "Auto-detect", desc: "Engine sniffs the URL — HTML page, JSON API response, redirect to CSV, or Kaggle slug." },
+          { type: "Auto-detect", desc: "Engine sniffs the URL - HTML page, JSON API response, redirect to CSV, or Kaggle slug." },
           { type: "Web Page (HTML)", desc: "Playwright renders the page fully (JS executed). LLM extracts all structured data it can find." },
           { type: "JSON API", desc: "Fetches the endpoint, flattens nested JSON, normalises arrays of objects into records." },
           { type: "CSV URL", desc: "Streams and parses a CSV file directly. Schema is inferred from headers." },
-          { type: "Kaggle", desc: "kaggle://owner/dataset-slug — downloads the dataset ZIP and parses all CSV files inside." },
+          { type: "Kaggle", desc: "kaggle://owner/dataset-slug - downloads the dataset ZIP and parses all CSV files inside." },
           { type: "Paste data", desc: "Paste raw CSV or JSON text directly into the input field." },
         ].map(s => (
           <div key={s.type} className="flex gap-3 text-sm">
@@ -223,7 +223,7 @@ function Streams() {
           { term: "Event",       def: "A JSON payload published to a topic. Last 500 events per topic are retained in SQLite." },
           { term: "Alert Rule",  def: "A threshold condition on a field (field_path operator threshold). Fires when an event matches." },
           { term: "Alert Fired", def: "A record of each alert firing, storing the triggering event snapshot." },
-          { term: "SSE feed",    def: "GET /api/v1/streams/sse — a live event stream. Filter by ?topic=name. Reconnects automatically." },
+          { term: "SSE feed",    def: "GET /api/v1/streams/sse - a live event stream. Filter by ?topic=name. Reconnects automatically." },
         ].map(r => (
           <div key={r.term} className="flex gap-3 text-sm">
             <span className="shrink-0 font-mono text-primary text-xs w-24 mt-0.5">{r.term}</span>
@@ -269,9 +269,9 @@ function CrawlerProfiles() {
     "title": {
       "selector_type": "css",       // "css" or "regexp"
       "selector": "h2.listing-title",
-      "hint_regex": ".+",           // optional — value must match this
-      "hint_contains": null,        // optional — value must contain this
-      "hint_min_len": 3,            // optional — minimum character count
+      "hint_regex": ".+",           // optional - value must match this
+      "hint_contains": null,        // optional - value must contain this
+      "hint_min_len": 3,            // optional - minimum character count
       "required": true
     },
     "price": {
@@ -310,10 +310,10 @@ function AdminDocs() {
           { page: "Theme",           desc: "Primary/secondary/background colours, border radius, font, animation toggle" },
           { page: "Hero",            desc: "Name, title, subtitle, CTA button, background image / gradient / colour, avatar" },
           { page: "About",           desc: "Biography, description, profile image, highlight bullet points" },
-          { page: "Skills",          desc: "Skill cards grouped by category — name, subheading, tech list, GitHub link, description modal" },
-          { page: "Experience",      desc: "Timeline entries — company, role, dates, bullets" },
+          { page: "Skills",          desc: "Skill cards grouped by category - name, subheading, tech list, GitHub link, description modal" },
+          { page: "Experience",      desc: "Timeline entries - company, role, dates, bullets" },
           { page: "Blog",            desc: "Create/edit posts, set featured image, publish/draft toggle, SEO slug" },
-          { page: "Testimonials",    desc: "Recommendation cards — name, role, company, avatar, text" },
+          { page: "Testimonials",    desc: "Recommendation cards - name, role, company, avatar, text" },
           { page: "Feature Flags",   desc: "Enable/disable entire modules without redeploy (hotel reviews, job analytics, etc.)" },
           { page: "Access Tokens",   desc: "Generate one-time tokens for second-run access to crawler projects" },
           { page: "Crawler Profiles", desc: "Named CSS/regexp extraction configs applied at crawl time" },
@@ -326,13 +326,13 @@ function AdminDocs() {
       </div>
 
       <H3>Feature flags</H3>
-      <P>All modules (hotel reviews, job analytics, universal extractor, streams, blog, news ticker, etc.) are controlled by feature flags. Disabling a flag hides the module from the site and disables its API routes — no code change needed.</P>
+      <P>All modules (hotel reviews, job analytics, universal extractor, streams, blog, news ticker, etc.) are controlled by feature flags. Disabling a flag hides the module from the site and disables its API routes - no code change needed.</P>
 
       <H3>Sections & Tabs</H3>
       <P>Every section on the single-page homepage (About, Skills, Experience, Projects, etc.) can be individually shown/hidden and removed from the navigation bar. Reordering is done via the <Code>order</Code> field.</P>
 
       <H3>Access control</H3>
-      <P>The admin is protected by JWT authentication (access + refresh tokens). Tokens are stored in <Code>localStorage</Code> via Zustand persist — they survive browser refreshes. Session stays active until the token expires or you click Log out.</P>
+      <P>The admin is protected by JWT authentication (access + refresh tokens). Tokens are stored in <Code>localStorage</Code> via Zustand persist - they survive browser refreshes. Session stays active until the token expires or you click Log out.</P>
     </>
   );
 }
@@ -363,7 +363,7 @@ function Architecture() {
       <Pre>{`frontend/
   app/
     page.tsx             # Single-page portfolio (Hero, About, Skills, Projects…)
-    admin/               # Full CMS — every section has its own admin page
+    admin/               # Full CMS - every section has its own admin page
     hotel-reviews/       # Hotel crawl + analytics UI
     job-analytics/       # Job crawl + analytics UI
     universal-extractor/ # UDE multi-source UI
@@ -382,7 +382,7 @@ function Architecture() {
       <P>SQLite locally (zero-config), Supabase Postgres in production. Alembic manages migrations. The switch is a single <Code>DATABASE_URL</Code> env var.</P>
 
       <H3>Deploy</H3>
-      <Pre>{`# Run from repo root — passes ruff + pytest + alembic upgrade before pushing
+      <Pre>{`# Run from repo root - passes ruff + pytest + alembic upgrade before pushing
 ./scripts/ship.sh "your commit message"`}</Pre>
       <P>CI (GitHub Actions) runs the same gate: ruff lint → pytest → alembic upgrade head.</P>
     </>

@@ -102,7 +102,7 @@ async def _streams_ingest(db: AsyncSession, args: dict[str, Any]) -> dict[str, A
 
 @register_task("ude.extract")
 async def _ude_extract(db: AsyncSession, args: dict[str, Any]) -> dict[str, Any]:
-    """Generic UDE extraction task — create a session and run it."""
+    """Generic UDE extraction task - create a session and run it."""
     from app.models.platform import UDESession
     from app.modules.universal_extractor.service import run_session
 

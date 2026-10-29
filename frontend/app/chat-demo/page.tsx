@@ -75,7 +75,7 @@ const TECH_CARDS = [
   {
     icon: "⚡",
     title: "FastAPI + WebSockets",
-    body: "Async Python backend. Two WS routes: /ws/{session_id} for visitors, /ws/admin for Raymond. Route ordering matters — /ws/admin must be registered first or every admin connection falls into the visitor handler.",
+    body: "Async Python backend. Two WS routes: /ws/{session_id} for visitors, /ws/admin for Raymond. Route ordering matters - /ws/admin must be registered first or every admin connection falls into the visitor handler.",
   },
   {
     icon: "📡",
@@ -106,7 +106,7 @@ const TECH_CARDS = [
 
 // ---- Page ----
 export default function ChatDemoPage() {
-  // Shared state — one WS session, two views of the same conversation
+  // Shared state - one WS session, two views of the same conversation
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
@@ -148,7 +148,7 @@ export default function ChatDemoPage() {
           greetedRef.current = true;
           addMsg({
             sender: "agent",
-            content: "👋 Hi there! This is a live demo session — type a message in the visitor window on the left and hit send to see the magic happen. You can ask about DataForge, Ray's background, or say \"speak to Raymond\" to test the human takeover flow. Let's do this 😊",
+            content: "👋 Hi there! This is a live demo session - type a message in the visitor window on the left and hit send to see the magic happen. You can ask about DataForge, Ray's background, or say \"speak to Raymond\" to test the human takeover flow. Let's do this 😊",
             ts: data.ts ?? Date.now() / 1000,
           });
           return;
@@ -190,14 +190,14 @@ export default function ChatDemoPage() {
         <h1 className="font-heading font-bold text-4xl md:text-5xl">raybags-chat</h1>
         <p className="text-muted leading-relaxed">
           A real-time chat system built with FastAPI WebSockets, Redis pub/sub, and a Groq-powered AI agent.
-          Type in the visitor window — watch messages and responses appear in the chat window.
+          Type in the visitor window - watch messages and responses appear in the chat window.
         </p>
       </div>
 
-      {/* Two-panel demo — one shared session */}
+      {/* Two-panel demo - one shared session */}
       <div className="grid md:grid-cols-2 gap-6 items-stretch">
 
-        {/* LEFT — visitor send panel */}
+        {/* LEFT - visitor send panel */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">You (Visitor)</p>
           <div className="flex flex-col rounded-2xl border border-white/10 bg-surface overflow-hidden h-[480px]">
@@ -209,11 +209,11 @@ export default function ChatDemoPage() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-fg">Visitor window</p>
-                <p className="text-[11px] text-muted">{connected ? "Type below — responses appear in the chat →" : "Connecting…"}</p>
+                <p className="text-[11px] text-muted">{connected ? "Type below - responses appear in the chat →" : "Connecting…"}</p>
               </div>
             </div>
 
-            {/* Body — send prompt / sent count */}
+            {/* Body - send prompt / sent count */}
             <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4">
               {sentCount === 0 ? (
                 <>
@@ -257,7 +257,7 @@ export default function ChatDemoPage() {
           </div>
         </div>
 
-        {/* RIGHT — chat conversation display */}
+        {/* RIGHT - chat conversation display */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted uppercase tracking-wide px-1">Chat (AI side)</p>
           <div className="flex flex-col rounded-2xl border border-white/10 bg-surface overflow-hidden h-[480px]">
@@ -268,13 +268,13 @@ export default function ChatDemoPage() {
                 <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-surface ${connected ? "bg-emerald-400" : "bg-amber-400"}`} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-fg">Javi — Ray&apos;s AI</p>
+                <p className="text-sm font-semibold text-fg">Javi - Ray&apos;s AI</p>
                 <p className="text-[11px] text-muted">{connected ? "Online" : "Connecting…"}</p>
               </div>
               <span className="text-[10px] text-muted px-2 py-1 rounded-full border border-white/10 bg-white/5">Live session</span>
             </div>
 
-            {/* Messages — all msgs flow here */}
+            {/* Messages - all msgs flow here */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {msgs.length === 0 && !typing && (
                 <p className="text-xs text-muted text-center pt-8">
@@ -292,7 +292,7 @@ export default function ChatDemoPage() {
       <div className="space-y-8">
         <div className="text-center space-y-2">
           <h2 className="font-heading font-bold text-2xl">How it&apos;s built</h2>
-          <p className="text-muted text-sm">Both sessions are live — not mocked, not simulated.</p>
+          <p className="text-muted text-sm">Both sessions are live - not mocked, not simulated.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {TECH_CARDS.map((card) => (
@@ -319,7 +319,7 @@ export default function ChatDemoPage() {
         </div>
         <p className="text-xs text-muted border-t border-white/10 pt-4">
           Admin takeover: <span className="text-fg">BackgroundTasks</span> → typing event → 1.8 s → farewell message published via Redis to visitor.
-          Route ordering: <span className="text-rose-400">/ws/admin</span> registered before <span className="text-rose-400">/ws/&#123;session_id&#125;</span> — FastAPI matches literals first.
+          Route ordering: <span className="text-rose-400">/ws/admin</span> registered before <span className="text-rose-400">/ws/&#123;session_id&#125;</span> - FastAPI matches literals first.
         </p>
       </div>
 

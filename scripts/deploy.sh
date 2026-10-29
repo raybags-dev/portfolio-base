@@ -48,7 +48,7 @@ PREV_BACKEND="$(docker images -q "${PROJECT}-backend" 2>/dev/null | head -1 || t
 PREV_FRONTEND="$(docker images -q "${PROJECT}-frontend" 2>/dev/null | head -1 || true)"
 
 rollback() {
-  warn "deployment failed — rolling back"
+  warn "deployment failed - rolling back"
   [[ -n "$PREV_BACKEND" ]] && docker tag "$PREV_BACKEND" "${PROJECT}-backend:latest" || true
   [[ -n "$PREV_FRONTEND" ]] && docker tag "$PREV_FRONTEND" "${PROJECT}-frontend:latest" || true
   dc up -d --no-build || true

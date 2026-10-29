@@ -24,7 +24,7 @@ def upgrade() -> None:
         "UPDATE feature_flags SET enabled = true WHERE key = 'ENABLE_HOTEL_REVIEWS'"
     ))
 
-    # 2. Fix self-healing-crawlers project — point it at the hotel-reviews tool
+    # 2. Fix self-healing-crawlers project - point it at the hotel-reviews tool
     conn.execute(sa.text(
         "UPDATE projects SET service_key = 'hotel-reviews' "
         "WHERE slug = 'self-healing-crawlers'"
@@ -48,7 +48,7 @@ def upgrade() -> None:
             VALUES (
               'Hotel Review Analytics',
               'hotel-reviews',
-              'LLM-guided web crawler — point it at any hotel/review site and it collects, validates, and analyses the data automatically.',
+              'LLM-guided web crawler - point it at any hotel/review site and it collects, validates, and analyses the data automatically.',
               'Playwright + Groq (llama-3.3-70b-versatile) navigates any website intelligently, extracts structured data, self-heals broken selectors, runs analytics (price distribution, rating heatmaps, temporal trends), and auto-generates blog posts from findings.',
               '["Playwright","Groq AI","FastAPI","Next.js","Recharts","SQLAlchemy","Alembic"]',
               true,

@@ -50,7 +50,7 @@ const CHART_COLORS = [
 ];
 
 const DEFAULT_PROMPT =
-  "Collect all job listings — title, company, location, salary range, required skills, seniority level, remote/hybrid/on-site, and posted date";
+  "Collect all job listings - title, company, location, salary range, required skills, seniority level, remote/hybrid/on-site, and posted date";
 
 type Step = "configure" | "running" | "results";
 type InputMode = "crawler" | "kaggle";
@@ -122,7 +122,7 @@ export default function JobAnalyticsPage() {
         Object.entries(selectorHintsMap).filter(([, v]) => v.trim())
       );
       const session = await createJobSession({
-        name: name.trim() || `Jobs – ${new Date().toLocaleString()}`,
+        name: name.trim() || `Jobs - ${new Date().toLocaleString()}`,
         target_url: url.trim(),
         collection_prompt: prompt.trim(),
         analytics_spec: {
@@ -148,7 +148,7 @@ export default function JobAnalyticsPage() {
       }
       setStep("running");
       startPolling(session.id);
-      toast.success("Analysis started", "The AI crawler is running — it will extract job data and compute analytics.");
+      toast.success("Analysis started", "The AI crawler is running - it will extract job data and compute analytics.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start analysis";
       setFormError(msg);
@@ -467,7 +467,7 @@ function CrawlerForm({
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Session name <span className="text-muted">(optional)</span></label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Python Engineers – RemoteOK June 2026"
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Python Engineers - RemoteOK June 2026"
             className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-primary/60" />
         </div>
       </fieldset>
@@ -520,9 +520,9 @@ function CrawlerForm({
                 <label className="block text-sm font-medium mb-1">Crawler profile <span className="text-muted">(optional)</span></label>
                 <select value={selectedProfileId ?? ""} onChange={e => setSelectedProfileId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full rounded-theme bg-bg border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-primary/60">
-                  <option value="">None — use AI-generated selectors</option>
+                  <option value="">None - use AI-generated selectors</option>
                   {crawlerProfiles.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` — ${p.description}` : ""}</option>
+                    <option key={p.id} value={p.id}>{p.name}{p.description ? ` - ${p.description}` : ""}</option>
                   ))}
                 </select>
                 <p className="text-xs text-muted/60 mt-1">A saved profile pre-fills selectors and field mappings for this crawler.</p>
@@ -653,7 +653,7 @@ function KaggleSearch({
 
       {results !== null && results.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted">{results.length} datasets found — click one to select it.</p>
+          <p className="text-xs text-muted">{results.length} datasets found - click one to select it.</p>
           {results.map((ds) => (
             <button key={ds.ref} onClick={() => setSelected(selected?.ref === ds.ref ? null : ds)}
               className={`w-full text-left rounded-theme border px-4 py-3 transition-colors ${
@@ -929,7 +929,7 @@ function ResultsStep({
                   <tr key={i} className="hover:bg-white/5">
                     {Object.entries(row).filter(([k]) => k !== "source_url").map(([k, v]) => (
                       <td key={k} className="px-3 py-2 text-muted max-w-[200px] truncate">
-                        {Array.isArray(v) ? v.join(", ") : String(v ?? "–")}
+                        {Array.isArray(v) ? v.join(", ") : String(v ?? "-")}
                       </td>
                     ))}
                   </tr>
@@ -1089,7 +1089,7 @@ function HowItWorksJobs() {
     { num: "02", title: "Playwright + LLM Crawl", body: "A headless Chromium browser (Playwright) renders the page and follows pagination. An LLM (Groq AI) reads each listing and extracts: title, company, location, salary, skills, seniority, remote/hybrid status." },
     { num: "03", title: "Schema Normalisation", body: "Field names vary wildly across job boards. The LLM proposes a unified snake_case schema so all records are comparable regardless of source." },
     { num: "04", title: "Analytics + Charts", body: "Top skills are ranked by frequency, salary ranges are charted, work arrangement (remote/hybrid/onsite) and seniority breakdowns are visualised as clean charts." },
-    { num: "05", title: "AI Market Insights", body: "Groq AI generates a written market analysis — in-demand skills, salary benchmarks, hiring trends — and saves it as a draft blog post you can publish." },
+    { num: "05", title: "AI Market Insights", body: "Groq AI generates a written market analysis - in-demand skills, salary benchmarks, hiring trends - and saves it as a draft blog post you can publish." },
     { num: "06", title: "Export", body: "Download the full structured dataset as JSON or CSV for use in your own analysis pipelines or spreadsheet tools." },
   ];
 

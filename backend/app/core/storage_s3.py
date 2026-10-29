@@ -1,4 +1,4 @@
-"""S3 blob storage — thin async wrapper around boto3.
+"""S3 blob storage - thin async wrapper around boto3.
 
 Used by the Universal Data Extractor to persist raw extracted content (HTML,
 JSON dumps, CSV text) before any processing, so the VPS isn't burdened with
@@ -63,7 +63,7 @@ def is_configured() -> bool:
 async def ensure_bucket_exists() -> bool:
     """Create the S3 bucket if it does not already exist.
 
-    Safe to call at startup or before the first upload — idempotent.
+    Safe to call at startup or before the first upload - idempotent.
     Returns True if the bucket is ready, False on any error.
     """
     global _bucket_ensured

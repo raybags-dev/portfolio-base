@@ -34,7 +34,7 @@ export default function MessagesAdmin() {
       const res = await issueToken(token, id);
       setAction(id, {
         state: "done",
-        result: `Token issued${res.delivered ? " & emailed" : " (email failed — copy below)"}:\n${res.token}`,
+        result: `Token issued${res.delivered ? " & emailed" : " (email failed - copy below)"}:\n${res.token}`,
       });
       qc.invalidateQueries({ queryKey: ["contact-messages"] });
     } catch (err) {

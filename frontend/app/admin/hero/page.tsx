@@ -145,12 +145,12 @@ export default function HeroPage() {
           </select>
         </label>
         <ImageInput
-          label="Background image — dark theme (when mode = image)"
+          label="Background image - dark theme (when mode = image)"
           value={(form.background_image_url_dark as string) || ""}
           onChange={(v) => set("background_image_url_dark", v)}
         />
         <ImageInput
-          label="Background image — light theme (when mode = image)"
+          label="Background image - light theme (when mode = image)"
           value={(form.background_image_url_light as string) || ""}
           onChange={(v) => set("background_image_url_light", v)}
         />
@@ -159,7 +159,7 @@ export default function HeroPage() {
           Leave blank to fall back to a single image below.
         </p>
         <ImageInput
-          label="Background image — fallback (used when no themed image is set above)"
+          label="Background image - fallback (used when no themed image is set above)"
           value={(form.background_image_url as string) || ""}
           onChange={(v) => set("background_image_url", v)}
         />

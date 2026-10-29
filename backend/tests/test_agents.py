@@ -1,4 +1,4 @@
-"""Agent orchestrator tests — fully offline (stub LLM provider)."""
+"""Agent orchestrator tests - fully offline (stub LLM provider)."""
 
 from app.modules.agents.base import AgentWorkflow, StepResult, WorkflowContext
 from app.modules.agents.llm import StubProvider, get_provider

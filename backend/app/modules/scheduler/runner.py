@@ -1,7 +1,7 @@
 """In-process async ticker.
 
 Dependency-free background loop that periodically runs due jobs *only while*
-``ENABLE_SCHEDULER`` is on — so the admin can turn scheduling on/off at runtime
+``ENABLE_SCHEDULER`` is on - so the admin can turn scheduling on/off at runtime
 with no restart. Started/stopped from the app lifespan. For multi-worker or
 heavy schedules, swap this for the optional APScheduler/Celery runner.
 """

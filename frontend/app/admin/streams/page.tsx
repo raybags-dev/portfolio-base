@@ -193,7 +193,7 @@ export default function StreamsAdminPage() {
         <div>
           <h1 className="text-xl font-bold">Stream Pipeline</h1>
           <p className="text-sm text-muted mt-0.5">
-            Real-time event bus — Kafka-ready, SSE delivery, alert rules
+            Real-time event bus - Kafka-ready, SSE delivery, alert rules
           </p>
         </div>
         <button onClick={reload} className="text-xs text-muted hover:text-fg border border-white/10 px-3 py-1.5 rounded-theme transition-colors">
@@ -286,7 +286,7 @@ export default function StreamsAdminPage() {
           {selectedTopic && (
             <div className="bg-surface border border-white/10 rounded-theme p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium font-mono">{selectedTopic} — recent events</p>
+                <p className="text-sm font-medium font-mono">{selectedTopic} - recent events</p>
                 <button onClick={() => getTopicEvents(selectedTopic).then(setTopicEvents)}
                   className="text-xs text-muted hover:text-fg">reload</button>
               </div>
@@ -296,7 +296,7 @@ export default function StreamsAdminPage() {
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {topicEvents.map((ev) => (
                       <div key={ev.id} className="bg-bg rounded-theme p-3 font-mono text-xs text-fg/80 space-y-1">
-                        <p className="text-muted">{ev.ts ? new Date(ev.ts).toLocaleString() : "—"} · event #{ev.id}</p>
+                        <p className="text-muted">{ev.ts ? new Date(ev.ts).toLocaleString() : "-"} · event #{ev.id}</p>
                         <pre className="whitespace-pre-wrap break-all">
                           {JSON.stringify(ev.payload, null, 2)}
                         </pre>
@@ -329,7 +329,7 @@ export default function StreamsAdminPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <LiveDot active={sseConnected} />
-            <span className="text-sm text-muted">{sseConnected ? "Connected — receiving events" : "Connecting…"}</span>
+            <span className="text-sm text-muted">{sseConnected ? "Connected - receiving events" : "Connecting…"}</span>
             <select className="ml-auto bg-bg border border-white/15 rounded-theme px-3 py-1.5 text-sm text-fg"
               value={selectedTopic ?? ""}
               onChange={(e) => setSelectedTopic(e.target.value || null)}>
@@ -356,7 +356,7 @@ export default function StreamsAdminPage() {
                   <div className="flex items-center gap-2 text-muted">
                     <span className="text-primary font-medium">{ev.topic}</span>
                     <span>·</span>
-                    <span>{ev.ts ? new Date(ev.ts).toLocaleTimeString() : "—"}</span>
+                    <span>{ev.ts ? new Date(ev.ts).toLocaleTimeString() : "-"}</span>
                     <span>· #{ev.id}</span>
                   </div>
                   <pre className="whitespace-pre-wrap break-all text-fg/80">
@@ -427,7 +427,7 @@ export default function StreamsAdminPage() {
               <div className="flex items-center gap-2 text-xs text-amber-400">
                 <span>⚡ rule #{f.rule_id}</span>
                 <span>·</span>
-                <span>{f.fired_at ? new Date(f.fired_at).toLocaleString() : "—"}</span>
+                <span>{f.fired_at ? new Date(f.fired_at).toLocaleString() : "-"}</span>
               </div>
               <pre className="text-xs text-fg/70 font-mono whitespace-pre-wrap break-all">
                 {JSON.stringify(f.event_snapshot, null, 2).slice(0, 600)}

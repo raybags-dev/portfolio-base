@@ -1,4 +1,4 @@
-"""Scheduler tests — offline (interval scheduling + agent task)."""
+"""Scheduler tests - offline (interval scheduling + agent task)."""
 
 from datetime import UTC, datetime, timedelta
 
