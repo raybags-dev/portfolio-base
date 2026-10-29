@@ -121,10 +121,10 @@ async def _seed_singletons(db) -> None:
     if not await db.get(SiteConfiguration, 1):
         db.add(SiteConfiguration(
             id=1,
-            site_name="Raybags - Data Engineering",
-            tagline="Building self-healing data platforms & agentic AI.",
-            meta_title="Raybags | Data Engineering Portfolio",
-            meta_description="Production-grade data engineering, crawlers, pipelines and agentic AI.",
+            site_name="Raybags - Software & Data Engineering",
+            tagline="Building self-healing data platforms, agentic AI & serverless cloud systems.",
+            meta_title="Raybags | Software | Data Engineering Portfolio",
+            meta_description="Production-grade software & data engineering - crawlers, pipelines, agentic AI and serverless AWS systems.",
         ))
     if not await db.get(Theme, 1):
         db.add(Theme(id=1))  # sensible defaults from the model

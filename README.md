@@ -1,5 +1,9 @@
 # Raybags - PORTFOLIO
 
+[![System architecture - explore interactively on GitDiagram](docs/assets/gitdiagram-portfolio-base.png)](https://gitdiagram.com/raybags-dev/portfolio-base)
+
+*System architecture - click the image to explore it interactively on GitDiagram.*
+
 A production, **data-driven** portfolio + data-engineering platform and infra ochestration.
 
 This repo is built **foundation-first**: the core (API + content model + RBAC +
