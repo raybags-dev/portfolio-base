@@ -59,8 +59,7 @@ aws/dist/
 *.swp
 
 # directives kept local, not shipped
-directives.txt
-directives_projects.txt
+directives*.txt
 .vscode/launch.json
 .claude-directives.txt
 .claude-directives.md
