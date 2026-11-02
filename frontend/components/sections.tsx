@@ -857,12 +857,12 @@ export function Projects({ data }: { data: Bootstrap }) {
           const launchLabel = p.service_key ? "Launch ↗" : "Demo ↗";
           const btnCls = "w-[72%] block text-center rounded-theme text-sm font-medium py-2.5 transition-opacity";
           return (
-            <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
-              <div className={retireFlag ? "opacity-50" : ""}>
-              <Card>
-                {/* Clickable body - opens detail modal */}
+            <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04} className="h-full">
+              <div className={retireFlag ? "opacity-50 h-full" : "h-full"}>
+              <Card className="h-full flex flex-col">
+                {/* Clickable body - opens detail modal; scrollable so all cards share one height */}
                 <div
-                  className="cursor-pointer"
+                  className="cursor-pointer thin-scroll flex-1 min-h-0 overflow-y-auto pr-1"
                   role="button"
                   tabIndex={0}
                   aria-label={`View details for ${p.title}`}
