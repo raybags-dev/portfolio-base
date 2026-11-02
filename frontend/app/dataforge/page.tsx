@@ -40,6 +40,7 @@ const STEPS = [
 
 export default function DataForgePage() {
   const { data } = useQuery({ queryKey: ["bootstrap"], queryFn: getBootstrap });
+  const retired = !!(data?.feature_flags?.RETIRE_DATAFORGE);
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", reason: "" });
@@ -83,6 +84,18 @@ export default function DataForgePage() {
       <Navbar site={site} theme={data.theme} sections={data.sections} />
 
       <main className="container-x py-16 max-w-5xl">
+
+        {retired && (
+          <div className="mb-10 rounded-theme border border-amber-500/40 bg-amber-500/10 p-6">
+            <h2 className="font-heading font-bold text-xl text-amber-400 mb-2">
+              This project has been retired.
+            </h2>
+            <p className="text-sm text-muted">
+              DataForge ELT is no longer accepting new runs or access requests. The
+              documentation below is kept for reference. It may be re-enabled in the future.
+            </p>
+          </div>
+        )}
 
         {/* ── Hero ── */}
         <section className="mb-16">
@@ -167,7 +180,15 @@ export default function DataForgePage() {
               After that, request a token below and I'll send one your way.
             </p>
 
-            {!formOpen ? (
+            {retired ? (
+              <button
+                disabled
+                title="This project has been retired."
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-theme bg-surface border border-white/15 text-sm opacity-40 cursor-not-allowed"
+              >
+                Request access token
+              </button>
+            ) : !formOpen ? (
               <button
                 onClick={() => setFormOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-theme bg-surface border border-white/15 text-sm hover:border-primary/50 transition-colors"

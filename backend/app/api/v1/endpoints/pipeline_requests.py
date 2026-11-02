@@ -112,6 +112,19 @@ def _client_ip(request: Request) -> str:
     return (request.client and request.client.host) or "unknown"
 
 
+_RETIRED_MSG = "This project has been retired."
+
+
+async def _is_retired(db: DbSession) -> bool:
+    from app.services.feature_flags import flags  # local import avoids cycles
+
+    return await flags.is_enabled(db, "RETIRE_DATAFORGE", default=False)
+
+
+def _retired_response() -> dict:
+    return {"ok": False, "retired": True, "message": _RETIRED_MSG}
+
+
 # ── Public endpoints ──────────────────────────────────────────────────────────
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -120,6 +133,9 @@ async def submit_pipeline_request(
     request: Request,
     db: DbSession,
 ) -> dict:
+    if await _is_retired(db):
+        return _retired_response()
+
     discord_ok, email_ok = await asyncio.gather(
         _notify_discord(payload),
         _deliver_to_admin(db, payload),
@@ -165,6 +181,8 @@ async def check_access(
     db: DbSession,
 ) -> dict:
     """Public gateway: first run free per IP, then token required."""
+    if await _is_retired(db):
+        return _retired_response()
     ip = _client_ip(request)
 
     usage = await db.scalar(
@@ -205,6 +223,8 @@ async def check_access(
 @router.post("/{msg_id}/issue-token", dependencies=[Depends(require_admin())])
 async def issue_token(msg_id: int, db: DbSession) -> dict:
     """Generate a 48-hour access token and email it to the requester."""
+    if await _is_retired(db):
+        return _retired_response()
     msg = await db.get(ContactMessage, msg_id)
     if not msg:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Message not found")
@@ -249,6 +269,8 @@ async def issue_token(msg_id: int, db: DbSession) -> dict:
 @router.post("/{msg_id}/reject", dependencies=[Depends(require_admin())])
 async def reject_request(msg_id: int, db: DbSession) -> dict:
     """Send a polite rejection email and mark the message as read."""
+    if await _is_retired(db):
+        return _retired_response()
     msg = await db.get(ContactMessage, msg_id)
     if not msg:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Message not found")

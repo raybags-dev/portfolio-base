@@ -58,6 +58,9 @@ DEFAULT_FLAGS: dict[str, tuple[str, str, bool, str]] = {
     "ENABLE_VOD_PIPELINE": ("VOD & HLS Packaging Pipeline", "projects", False, "Serverless VOD pipeline - S3 upload, MediaConvert HLS transcoding, CloudFront streaming"),
     "ENABLE_AUDIO_API": ("Audio & Podcast Stream API", "projects", False, "Serverless podcast API - API Gateway, Lambda, DynamoDB, presigned S3 audio streaming"),
     "ENABLE_TELEMETRY_COLLECTOR": ("Live Stream Telemetry Collector", "projects", False, "High-throughput telemetry ingestion - API Gateway, SQS, Lambda, DynamoDB time-series"),
+    # retirement switches: when on, related projects respond "This project has been retired."
+    "RETIRE_DATAFORGE": ("Retire DataForge ELT", "projects", False, "When enabled, the DataForge ELT project is retired: its request flow, submission form, demo route and project card are disabled and return a retired notice. Re-enable by turning this off."),
+    "RETIRE_ANNOTATION": ("Retire Data Annotation Platform", "projects", False, "When enabled, the Data Annotation Platform is retired: its route, and project card are disabled and return a retired notice. Re-enable by turning this off."),
 }
 
 

@@ -846,6 +846,11 @@ export function Projects({ data }: { data: Bootstrap }) {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((p, i) => {
+          const retireFlag = p.service_key === "dataforge-elt"
+            ? data.feature_flags.RETIRE_DATAFORGE
+            : p.service_key === "annotation"
+              ? data.feature_flags.RETIRE_ANNOTATION
+              : false;
           const launchUrl = p.service_key
             ? (serviceUrlMap[p.service_key] || null)
             : (p.demo_url || null);
@@ -853,6 +858,7 @@ export function Projects({ data }: { data: Bootstrap }) {
           const btnCls = "w-[72%] block text-center rounded-theme text-sm font-medium py-2.5 transition-opacity";
           return (
             <Reveal key={p.id} enabled={data.theme.animations_enabled} delay={i * 0.04}>
+              <div className={retireFlag ? "opacity-50" : ""}>
               <Card>
                 {/* Clickable body - opens detail modal */}
                 <div
@@ -892,7 +898,11 @@ export function Projects({ data }: { data: Bootstrap }) {
                 </div>
                 {/* Buttons - click does NOT open modal */}
                 <div className="mt-auto pt-4 flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  {!launchUrl ? (
+                  {retireFlag ? (
+                    <span className={`${btnCls} border border-amber-500/30 text-amber-400/90 cursor-not-allowed select-none`}>
+                      Retired
+                    </span>
+                  ) : !launchUrl ? (
                     <span className={`${btnCls} border border-white/10 text-muted cursor-not-allowed select-none`}>
                       Coming soon
                     </span>
@@ -914,6 +924,7 @@ export function Projects({ data }: { data: Bootstrap }) {
                   )}
                 </div>
               </Card>
+              </div>
             </Reveal>
           );
         })}

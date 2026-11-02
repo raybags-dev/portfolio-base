@@ -61,6 +61,6 @@ aws/dist/
 # directives kept local, not shipped
 directives*.txt
 .vscode/launch.json
-.claude-directives.txt
-.claude-directives.md
-.claude
+
+# security incident reports (contain host/IP/credential details) - never public
+docs/security/
