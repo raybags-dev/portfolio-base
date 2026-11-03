@@ -166,7 +166,6 @@ docker-compose*.yml base + test/prod overlays
 .github/workflows/  ci.yml, deploy.yml
 ```
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for what's built vs. what plugs in next.
 
 ---
 
